@@ -18,4 +18,4 @@ ENV HOME /app
 WORKDIR /app
 RUN useradd -m heroku
 USER heroku
-CMD /app/bin/chrss-game
+CMD /app/bin/go-getting-started

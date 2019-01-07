@@ -1,1 +1,1 @@
-web: chrss-game
+web: go-getting-started
