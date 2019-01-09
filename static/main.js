@@ -2,8 +2,8 @@ var canvas = document.getElementById('board');
 var ctx = canvas.getContext('2d');
 
 const board = {
-    width: 800,
-    height: 800,
+    width: 600,
+    height: 600,
     nRows: 8,
     nColumns: 8,
 };
@@ -12,11 +12,11 @@ board.squareWidth = board.width / board.nColumns;
 Object.freeze(board);
 
 
-var pieces = new Image();
-pieces.pieceHeight = 45;
-pieces.pieceWidth = 45;
-pieces.src = "/static/pieces.svg";
-pieces.pieceImageCoords = {
+var piecesImg = new Image();
+piecesImg.pieceHeight = 45;
+piecesImg.pieceWidth = 45;
+piecesImg.src = "/static/pieces.svg";
+piecesImg.pieceImageCoords = {
     'white_king': {x: 0, y: 0},
     'white_queen': {x: 45, y: 0},
     'white_bishop' : {x: 90, y: 0},
@@ -31,10 +31,10 @@ pieces.pieceImageCoords = {
     'black_pawn' : {x: 225, y: 45},
 }
 
-pieces.onload = function () {
+piecesImg.onload = function () {
     drawBoard(ctx);
-    drawPiece(ctx, 'white_queen', 5, 3);
-    drawPiece(ctx, 'black_king', 0, 0);
+    //drawPiece(ctx, 'white_queen', 5, 3);
+    //drawPiece(ctx, 'black_king', 0, 0);
 }
 
 function drawBoard(ctx) {
@@ -59,29 +59,45 @@ function drawBoard(ctx) {
 }
 
 
-function drawPiece(ctx, piece, x, y) {
-    var coords = pieces.pieceImageCoords[piece];
-    ctx.drawImage(pieces, coords.x, coords.y, pieces.pieceWidth, pieces.pieceHeight, 
-        x * board.squareWidth, y * board.squareHeight, board.squareWidth, board.squareHeight
-    );
-}
-
-
-var url = 'ws://localhost:5000/ws';
+var matchId = window.location.pathname.substring(7);
+var url = 'ws://localhost:5000/ws/' + matchId;
 var c = new WebSocket(url);
 
 var send = function(data){
-  console.log(new Date() + " ==> "+data+"\n");
-  c.send(data)
+    console.log(new Date() + " ==> "+data+"\n");
+    c.send(data);
+}
+
+function drawPieces(ctx, pieces) {
+    for (var i = 0; i < pieces.length; i++) {
+        var piece = pieces[i];
+        var coords = piecesImg.pieceImageCoords[piece.color + "_" + piece.type];
+        ctx.drawImage(piecesImg, coords.x, coords.y, piecesImg.pieceWidth, piecesImg.pieceHeight, 
+            piece.x * board.squareWidth, piece.y * board.squareHeight, board.squareWidth, board.squareHeight
+        );
+    }
 }
 
 c.onmessage = function(msg){
-  console.log(new Date() + " <== "+msg.data+"\n");
-  console.log(msg)
+    console.log(" <== " + new Date() + " <== \n");
+    console.log(msg);
+    if (msg.data === "Match is full.") {
+        alert("Cannot join match. Match already has two players.");
+        return;
+    }
+    var match = JSON.parse(msg.data);
+    drawBoard(ctx);
+    drawPieces(ctx, match.pieces);
 }
 
+c.onerror = function(err) {
+    console.log(new Date() + " error: "+err.data+"\n");
+    console.log(err);
+  }
+
 c.onopen = function(){
-  setInterval( 
-    function(){ send("ping") }
-  , 1000 )
+    setInterval(
+        function(){ send("ping"); },
+        2000
+    );
 }
