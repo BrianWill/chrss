@@ -67,4 +67,21 @@ function drawPiece(ctx, piece, x, y) {
 }
 
 
+var url = 'ws://localhost:5000/ws';
+var c = new WebSocket(url);
 
+var send = function(data){
+  console.log(new Date() + " ==> "+data+"\n");
+  c.send(data)
+}
+
+c.onmessage = function(msg){
+  console.log(new Date() + " <== "+msg.data+"\n");
+  console.log(msg)
+}
+
+c.onopen = function(){
+  setInterval( 
+    function(){ send("ping") }
+  , 1000 )
+}
