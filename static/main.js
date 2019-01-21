@@ -1,5 +1,7 @@
 var canvas = document.getElementById('board');
 var ctx = canvas.getContext('2d');
+var scoreboard = document.getElementById('scoreboard');
+var scoreboardCtx = scoreboard.getContext('2d');
 var turn = document.getElementById('turn');
 var cardList = document.getElementById('card_list');
 var cardDescription = document.getElementById('card_description');
@@ -37,6 +39,12 @@ piecesImg.pieceImageCoords = {
     'black_pawn' : {x: 225, y: 45},
 };
 
+piecesImg.onload = function (evt) {
+    if (matchState) {
+        render(matchState);
+    }
+};
+
 
 var cardDescriptions = {
     'King': `<h3>King: 0 mana cost, 40 starting hp</h3>
@@ -69,7 +77,7 @@ conn.onmessage = function(msg){
         return;
     }
     matchState = JSON.parse(msg.data);
-    render(ctx, matchState);
+    render(matchState);
     waitingResponse = false;
 }
 
@@ -79,7 +87,7 @@ conn.onerror = function(err) {
   }
 
 conn.onopen = function(){
-    conn.send(JSON.stringify({date: new Date(), event: "get state"}));
+    conn.send("get_state " + JSON.stringify({date: new Date()}));
 }
 
 
@@ -107,8 +115,12 @@ function drawBoard(ctx) {
 }
 
 function displayTurn(match) {
-    turn.innerHTML = "Turn: " + match.turn.charAt(0).toUpperCase() + match.turn.slice(1) +
-        ((match.color == match.turn) ? " (you)" : " (opponent)");
+    if (match.color === match.turn) {
+        turn.innerHTML = "Your turn (" + match.color + "). <br/> Select a card to play or select one of your pieces to have it attack an enemy.";
+    } else {
+        turn.innerHTML = "Opponent's turn (" + match.color + ").";
+    }
+    
 }
 
 function displayCards(match) {
@@ -124,11 +136,47 @@ function displayCards(match) {
     cardList.innerHTML = s;
 }
 
-function render(ctx, matchState) {
+function render(matchState) {
     drawBoard(ctx);
     drawPieces(ctx, matchState.pieces);
     displayTurn(matchState);
     displayCards(matchState);
+    drawScoreboard(scoreboardCtx);
+}
+
+function drawScoreboard(ctx, matchState) {
+    var x = 20;
+    var y = 10;
+    var textX = 56;
+    var textY = 35;
+    var width = board.squareWidth / 3;
+    var height = board.squareWidth / 3;
+    const gap = 70;
+
+    var pieceNames = ["white_king", "white_rook", "white_knight", "white_bishop", 
+        "black_king", "black_rook", "black_knight", "black_bishop", 
+    ];
+
+    // todo: get actual values from match state
+    var hps = [40, 10, 10, 10, 40, 10, 10, 10];
+
+    for (var i = 0; i < pieceNames.length; i++) {
+        if (i === 4) {
+            x = 20;
+            y = 45;
+            textX = 56;
+            textY = y + 25;
+        }
+        var coords = piecesImg.pieceImageCoords[pieceNames[i]];
+        ctx.drawImage(piecesImg, coords.x, coords.y, piecesImg.pieceWidth, piecesImg.pieceHeight, 
+            x, y, width, height
+        );  
+        ctx.fillStyle = "#bb3636";
+        ctx.font = "18px Arial";
+        ctx.fillText(hps[i], textX, textY);
+        x += gap;
+        textX += gap;    
+    }
 }
 
 
@@ -173,7 +221,7 @@ cardList.addEventListener('mousedown', function (evt) {
     if (idx === '' || idx === null) {
         return;
     }
-    conn.send(JSON.stringify({date: new Date(), event: "click card", index: idx}));
+    conn.send("click_card " + JSON.stringify({date: new Date(), selectedCard: parseInt(idx)}));
     waitingResponse = true;
 }, false);
 
@@ -218,6 +266,6 @@ canvas.addEventListener('mousedown', function (evt) {
     var squareX = Math.floor(mouseX / board.squareWidth);
     var squareY = Math.floor(mouseY / board.squareHeight);
     
-    conn.send(JSON.stringify({date: new Date(), event: "click board", x: squareX, y: squareY}));
+    conn.send("click_board " + JSON.stringify({date: new Date(), x: squareX, y: squareY}));
     waitingResponse = true;
 }, false);

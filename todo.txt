@@ -1,10 +1,14 @@
 
 server sends valid moves
 
-select only your own pieces
 
-after selecting piece, a click on move space triggers move, passes turn
+
+confirm / cancel buttons
 
 
 no pass, but if player has no valid moves (because of cooldowns, lack of cards, then it auto-passes?
 or maybe king has 1 turn cooldown and so can always move king
+
+
+
+timed 

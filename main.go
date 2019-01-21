@@ -7,7 +7,6 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
-	"strconv"
 	"sync"
 	"time"
 
@@ -168,8 +167,17 @@ func initMatch(m *Match) {
 
 // return true if message triggers end of match
 func processMessage(msg []byte, match *Match, player string) bool {
-	var data map[string]interface{}
-	json.Unmarshal(msg, &data)
+	var event string
+	idx := 0
+	for ; idx < len(msg); idx++ {
+		if msg[idx] == ' ' {
+			event = string(msg[:idx])
+			msg = msg[idx+1:]
+		}
+	}
+	if event == "" {
+		event = "bad_event"
+	}
 	match.Mutex.Lock()
 	var private *PrivateState
 	if player == black {
@@ -177,23 +185,33 @@ func processMessage(msg []byte, match *Match, player string) bool {
 	} else {
 		private = &match.WhiteState
 	}
-	switch data["event"] {
-	case "get state":
-	case "click card":
-		idxInterface, ok := data["index"]
-		if !ok {
-			break
+	switch event {
+	case "get_state":
+	case "click_card":
+		type ClickCardEvent struct {
+			SelectedCard int
 		}
-		idxStr, ok := idxInterface.(string)
-		if !ok {
-			break
-		}
-		idx, err := strconv.Atoi(idxStr)
+		var event ClickCardEvent
+		err := json.Unmarshal(msg, &event)
 		if err != nil {
-			break
+			fmt.Println("unmarssalling click_card error", err)
+			break // todo: send error response
 		}
-		private.SelectedCard = idx
-	case "click board":
+		if event.SelectedCard == private.SelectedCard {
+			private.SelectedCard = -1
+		} else {
+			private.SelectedCard = event.SelectedCard
+		}
+	case "click_board":
+		type ClickBoardEvent struct {
+			SelectedCard int
+		}
+		var event ClickBoardEvent
+		err := json.Unmarshal(msg, &event)
+		if err != nil {
+			break // todo: send error response
+		}
+		// todo
 	}
 	processConnection := func(conn *websocket.Conn, color string, private *PrivateState) {
 		if conn != nil {
