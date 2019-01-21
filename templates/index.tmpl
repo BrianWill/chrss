@@ -9,14 +9,8 @@
 <div style="width: 1500px;" >
   <div>
     <h1 style="float: left;">LET'S PLAY CHRSS!</h1>
-    <div id="turn_container">
-      <div id="turn"></div>
-      <div style="float:right;">
-      <button id="confirmButton">Confirm</button>
-      <button id="cancelButton">Cancel</button>
-      </div>
-    </div>
-    <canvas style="float: right" id="scoreboard" width="400" height="100"></canvas>
+    <canvas style="float: left" id="scoreboard" width="480" height="100"></canvas>
+    <div id="turn"></div>
   </div>
   
   <div style="clear: both;">
@@ -26,12 +20,14 @@
     
     <div style="float: left; margin-left: 30px; width:800px;">
       <div style="width: 400px; float: left;">
-        <h3>Cards</h3>
-        <div id="card_list">
-
+        <div id="card_buttons">
+          <h3>Cards</h3>
+          <button id="cancel_button">Cancel</button>
+          <button id="confirm_button">Confirm</button>
+          <button id="pass_button">Pass</button>
         </div>
-        <div id="card_description">
-        </div>
+        <div id="card_list"></div>
+        <div id="card_description"></div>
       </div>
       <div style="float: left; margin-left: 20px; width: 200px;">
           <h3>Log</h3>

@@ -21,22 +21,26 @@ var wsupgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-const matchTimeout time.Duration = 20 * time.Minute
+const matchTimeout time.Duration = 120 * time.Minute
 
 type Match struct {
-	Name          string // used to identify the match in browser
-	BlackConn     *websocket.Conn
-	WhiteConn     *websocket.Conn
-	Mutex         sync.RWMutex
-	Pieces        []Piece
-	CommunalCards []Card // card in pool shared by both players
-	StartTime     time.Time
-	UUID          string
-	BlackState    PrivateState
-	WhiteState    PrivateState
-	Turn          string    `json:"turn"`         // white, black
-	Winner        string    `json:"winner"`       // white, black, none, draw
-	LastMoveTime  time.Time `json:"lastMoveTime"` // should be initialized to match start time
+	Name             string // used to identify the match in browser
+	BlackConn        *websocket.Conn
+	WhiteConn        *websocket.Conn
+	Mutex            sync.RWMutex
+	Pieces           []Piece
+	CommunalCards    []Card // card in pool shared by both players
+	StartTime        time.Time
+	UUID             string
+	BlackState       PrivateState
+	WhiteState       PrivateState
+	Turn             string    `json:"turn"`         // white, black
+	Winner           string    `json:"winner"`       // white, black, none, draw
+	LastMoveTime     time.Time `json:"lastMoveTime"` // should be initialized to match start time
+	WhiteManaMax     int       `json:"whiteManaMax"`
+	BlackManaMax     int       `json:"blackManaMax"`
+	WhiteManaCurrent int       `json:"whiteManaCurrent"`
+	BlackManaCurrent int       `json:"blackManaCurrent"`
 }
 
 const (
@@ -92,9 +96,9 @@ type MatchMap struct {
 func drawCards(owner string) []Card {
 	return []Card{
 		Card{"King", owner, 0},
-		Card{"Rook", owner, 0},
 		Card{"Bishop", owner, 0},
 		Card{"Knight", owner, 0},
+		Card{"Rook", owner, 0},
 	}
 }
 
@@ -147,6 +151,11 @@ func initMatch(m *Match) {
 		pieces[i+4] = Piece{pawn, black, Pos{columns[i], rand.Intn(2) + 3}, nil}
 	}
 	m.Pieces = pieces
+
+	m.WhiteManaCurrent = 3
+	m.WhiteManaMax = 3
+	m.BlackManaCurrent = 3
+	m.BlackManaMax = 3
 
 	m.CommunalCards = drawCards(none)
 	m.BlackState = PrivateState{
@@ -216,12 +225,16 @@ func processMessage(msg []byte, match *Match, player string) bool {
 	processConnection := func(conn *websocket.Conn, color string, private *PrivateState) {
 		if conn != nil {
 			response := gin.H{
-				"color":        color,
-				"pieces":       match.Pieces,
-				"private":      private,
-				"turn":         match.Turn,
-				"winner":       match.Winner,
-				"lastMoveTime": match.LastMoveTime,
+				"color":            color,
+				"pieces":           match.Pieces,
+				"private":          private,
+				"turn":             match.Turn,
+				"winner":           match.Winner,
+				"lastMoveTime":     match.LastMoveTime,
+				"blackManaCurrent": match.BlackManaCurrent,
+				"blackManaMax":     match.BlackManaMax,
+				"whiteManaCurrent": match.WhiteManaCurrent,
+				"whiteManaMax":     match.WhiteManaMax,
 			}
 			bytes, err := json.Marshal(response)
 			if err != nil {

@@ -5,6 +5,9 @@ var scoreboardCtx = scoreboard.getContext('2d');
 var turn = document.getElementById('turn');
 var cardList = document.getElementById('card_list');
 var cardDescription = document.getElementById('card_description');
+var confirmButton = document.getElementById('confirm_button');
+var cancelButton = document.getElementById('cancel_button');
+var passButton = document.getElementById('pass_button');
 var log = document.getElementById('log');
 var matchState;
 
@@ -41,7 +44,7 @@ piecesImg.pieceImageCoords = {
 
 piecesImg.onload = function (evt) {
     if (matchState) {
-        render(matchState);
+        draw(matchState);
     }
 };
 
@@ -77,7 +80,7 @@ conn.onmessage = function(msg){
         return;
     }
     matchState = JSON.parse(msg.data);
-    render(matchState);
+    draw(matchState);
     waitingResponse = false;
 }
 
@@ -91,120 +94,175 @@ conn.onopen = function(){
 }
 
 
-//  *** render ***
+//  *** draw ***
 
-function drawBoard(ctx) {
-    ctx.fillStyle = '#33FFFF';
-    ctx.fillRect(0, 0, board.width, board.height);
-    ctx.fillStyle = 'pink';
-    
-    var staggered = false;
-    var y = 0;
-    for (var i = 0; i < board.nRows; i++) {
-        var x = 0; 
-        if (staggered) {
-            x += board.squareWidth;
-        }
-        for (var j = 0; j < board.nColumns / 2; j++) {
-            ctx.fillRect(x, y, board.squareWidth, board.squareHeight);
-            x += board.squareWidth + board.squareWidth;
-        }
-        y += board.squareHeight;
-        staggered = !staggered;
-    }
-}
 
-function displayTurn(match) {
-    if (match.color === match.turn) {
-        turn.innerHTML = "Your turn (" + match.color + "). <br/> Select a card to play or select one of your pieces to have it attack an enemy.";
-    } else {
-        turn.innerHTML = "Opponent's turn (" + match.color + ").";
-    }
-    
-}
 
-function displayCards(match) {
-    var s = '';
-    for (var i = 0; i < match.private.cards.length; i++) {
-        var c = match.private.cards[i];
-        s += '<div cardIdx="' + i + '" ';
-        if (i === match.private.selectedCard) {
-            s += 'class="select_card"';
-        }
-        s += '">' + c.manaCost + ' - ' + c.name + '</div>';
-    }
-    cardList.innerHTML = s;
-}
 
-function render(matchState) {
+
+function draw(matchState) {
     drawBoard(ctx);
-    drawPieces(ctx, matchState.pieces);
-    displayTurn(matchState);
-    displayCards(matchState);
-    drawScoreboard(scoreboardCtx);
-}
+    drawPieces(ctx, matchState.pieces, matchState.color === "white");
+    drawTurn(matchState);
+    drawCards(matchState);
+    drawScoreboard(scoreboardCtx, matchState);
+    drawButtons(matchState);
 
-function drawScoreboard(ctx, matchState) {
-    var x = 20;
-    var y = 10;
-    var textX = 56;
-    var textY = 35;
-    var width = board.squareWidth / 3;
-    var height = board.squareWidth / 3;
-    const gap = 70;
-
-    var pieceNames = ["white_king", "white_rook", "white_knight", "white_bishop", 
-        "black_king", "black_rook", "black_knight", "black_bishop", 
-    ];
-
-    // todo: get actual values from match state
-    var hps = [40, 10, 10, 10, 40, 10, 10, 10];
-
-    for (var i = 0; i < pieceNames.length; i++) {
-        if (i === 4) {
-            x = 20;
-            y = 45;
-            textX = 56;
-            textY = y + 25;
+    function drawButtons(matchState) {
+        if (matchState.color === matchState.turn) {
+            confirmButton.style.display = 'block';
+            cancelButton.style.display = 'block';
+            passButton.style.display = 'block';
+        } else {
+            confirmButton.style.display = 'none';
+            cancelButton.style.display = 'none';
+            passButton.style.display = 'none';
         }
-        var coords = piecesImg.pieceImageCoords[pieceNames[i]];
-        ctx.drawImage(piecesImg, coords.x, coords.y, piecesImg.pieceWidth, piecesImg.pieceHeight, 
-            x, y, width, height
-        );  
-        ctx.fillStyle = "#bb3636";
+    }
+
+    function drawScoreboard(ctx, matchState) {
+        ctx.clearRect(0, 0, scoreboard.width, scoreboard.height);
+        
+        // draw mana
+        ctx.fillStyle = "#5277a9";
         ctx.font = "18px Arial";
-        ctx.fillText(hps[i], textX, textY);
-        x += gap;
-        textX += gap;    
+        if (matchState.color === "white") {
+            var textX = 10;
+            var textY = 35;
+            ctx.fillText('black mana  ' + matchState.blackManaCurrent + ' / ' + matchState.blackManaMax, textX, textY);
+            textX = 10;
+            textY = 70;
+            ctx.fillText('white mana  ' + matchState.whiteManaCurrent + ' / ' + matchState.whiteManaMax, textX, textY);
+        } else {
+            var textX = 10;
+            var textY = 35;
+            ctx.fillText('white mana  ' + matchState.whiteManaCurrent + ' / ' + matchState.whiteManaMax, textX, textY);
+            textX = 10;
+            textY = 70;
+            ctx.fillText('black mana  ' + matchState.blackManaCurrent + ' / ' + matchState.blackManaMax, textX, textY);
+        }
+
+        //
+        var x = 170;
+        var y = 10;
+        textX = 206;
+        textY = 35;
+        var width = board.squareWidth / 3;
+        var height = board.squareWidth / 3;
+        const gap = 70;
+    
+        var pieceNames = [
+            "white_rook", "white_knight", "white_bishop", "white_king", 
+            "black_rook", "black_knight", "black_bishop", "black_king", 
+        ];
+        if (matchState.color === "white") {
+            pieceNames = [ 
+                "black_rook", "black_knight", "black_bishop", "black_king", 
+                "white_rook", "white_knight", "white_bishop", "white_king", 
+            ];    
+        }
+    
+        // todo: get actual values from match state
+        var hps = [10, 10, 10, 40, 10, 10, 10, 40];
+    
+        for (var i = 0; i < pieceNames.length; i++) {
+            if (i === 4) {
+                x = 170;
+                y = 45;
+                textX = 206;
+                textY = y + 25;
+            }
+            var coords = piecesImg.pieceImageCoords[pieceNames[i]];
+            ctx.drawImage(piecesImg, coords.x, coords.y, piecesImg.pieceWidth, piecesImg.pieceHeight, 
+                x, y, width, height
+            );  
+            ctx.fillStyle = "#bb3636";
+            ctx.font = "18px Arial";
+            ctx.fillText(hps[i], textX, textY);
+            x += gap;
+            textX += gap;    
+        }
     }
-}
 
+    function drawPieces(ctx, pieces, flipped) {
+        var flipX = board.nColumns - 1;
+        var flipY = board.nRows - 1;
+        for (var i = 0; i < pieces.length; i++) {
+            var piece = pieces[i];
+            var coords = piecesImg.pieceImageCoords[piece.color + "_" + piece.type];
+            if (flipped) {
+                ctx.drawImage(piecesImg, coords.x, coords.y, piecesImg.pieceWidth, piecesImg.pieceHeight, 
+                    (flipX - piece.pos.x) * board.squareWidth, (flipY - piece.pos.y) * board.squareHeight, board.squareWidth, board.squareHeight
+                );    
+            } else {
+                ctx.drawImage(piecesImg, coords.x, coords.y, piecesImg.pieceWidth, piecesImg.pieceHeight, 
+                    piece.pos.x * board.squareWidth, piece.pos.y * board.squareHeight, board.squareWidth, board.squareHeight
+                );
+            }
+        }
 
-
-function highlightSquares(ctx, matchState) {
-    // if no selected square, drawing {x: -1, x: -1} is clipped
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-    var x = matchState.private.selectedPos.x * board.squareWidth;
-    var y = matchState.private.selectedPos.y * board.squareHeight;
-    ctx.fillRect(x, y, board.squareWidth, board.squareHeight);
-
-    // highlight valid attack targets
-    ctx.fillStyle = 'rgba(255, 255, 120, 0.5)';
-    var moves = matchState.private.attackPos;
-    for (var m of moves) {
-        var x = m.x * board.squareWidth;
-        var y = m.y * board.squareHeight;
-        ctx.fillRect(x, y, board.squareWidth, board.squareHeight);
+        // function highlightSquares(ctx, matchState) {
+        //     // if no selected square, drawing {x: -1, x: -1} is clipped
+        //     ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        //     var x = matchState.private.selectedPos.x * board.squareWidth;
+        //     var y = matchState.private.selectedPos.y * board.squareHeight;
+        //     ctx.fillRect(x, y, board.squareWidth, board.squareHeight);
+        
+        //     // highlight valid attack targets
+        //     ctx.fillStyle = 'rgba(255, 255, 120, 0.5)';
+        //     var moves = matchState.private.attackPos;
+        //     for (var m of moves) {
+        //         var x = m.x * board.squareWidth;
+        //         var y = m.y * board.squareHeight;
+        //         ctx.fillRect(x, y, board.squareWidth, board.squareHeight);
+        //     }
+        // }
     }
-}
 
-function drawPieces(ctx, pieces) {
-    for (var i = 0; i < pieces.length; i++) {
-        var piece = pieces[i];
-        var coords = piecesImg.pieceImageCoords[piece.color + "_" + piece.type];
-        ctx.drawImage(piecesImg, coords.x, coords.y, piecesImg.pieceWidth, piecesImg.pieceHeight, 
-            piece.pos.x * board.squareWidth, piece.pos.y * board.squareHeight, board.squareWidth, board.squareHeight
-        );
+    function drawBoard(ctx) {
+        ctx.fillStyle = '#33FFFF';
+        ctx.fillRect(0, 0, board.width, board.height);
+        ctx.fillStyle = '#9fde68';
+        ctx.fillRect(0, 0, board.width, board.height / 2);
+    
+    
+        ctx.fillStyle = '#ef9ba9';
+        
+        var staggered = false;
+        var y = 0;
+        for (var i = 0; i < board.nRows; i++) {
+            var x = 0; 
+            if (staggered) {
+                x += board.squareWidth;
+            }
+            for (var j = 0; j < board.nColumns / 2; j++) {
+                ctx.fillRect(x, y, board.squareWidth, board.squareHeight);
+                x += board.squareWidth + board.squareWidth;
+            }
+            y += board.squareHeight;
+            staggered = !staggered;
+        }
+    }
+    
+    function drawTurn(match) {
+        if (match.color === match.turn) {
+            turn.innerHTML = "Your turn (" + match.color + "). <br/> Play a card.";
+        } else {
+            turn.innerHTML = "Opponent's turn (" + match.turn + ").";
+        }
+    }
+    
+    function drawCards(match) {
+        var s = '';
+        for (var i = 0; i < match.private.cards.length; i++) {
+            var c = match.private.cards[i];
+            s += '<div cardIdx="' + i + '" ';
+            if (i === match.private.selectedCard) {
+                s += 'class="select_card"';
+            }
+            s += '">' + c.manaCost + ' - ' + c.name + '</div>';
+        }
+        cardList.innerHTML = s;
     }
 }
 
@@ -261,11 +319,18 @@ canvas.addEventListener('mousedown', function (evt) {
     var rect = canvas.getBoundingClientRect();
     var mouseX = evt.clientX - rect.left;
     var mouseY = evt.clientY - rect.top;
-    console.log("canvas click: " + mouseX + ", " + mouseY);
+    
 
     var squareX = Math.floor(mouseX / board.squareWidth);
     var squareY = Math.floor(mouseY / board.squareHeight);
+
+    // invert for white player
+    if (matchState.color === "white") {
+        squareX = board.nColumns - 1 - squareX;
+        squareY = board.nRows - 1 - squareY;
+    }
     
+    console.log("board click: " + squareX + ", " + squareY);
     conn.send("click_board " + JSON.stringify({date: new Date(), x: squareX, y: squareY}));
     waitingResponse = true;
 }, false);

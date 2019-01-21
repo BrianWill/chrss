@@ -3,14 +3,8 @@ body {
   font-family: "Arial";
 }
 
-#card_list {
-  height: 350px;
-  border: solid 2px black;
-  user-select: none;
-}
-
 #scoreboard {
-
+margin-left: 40px;
 }
 
 .highlight_card {
@@ -18,8 +12,15 @@ body {
 }
 
 .select_card {
-  background-color: #ffc0cb;
+  background-color: #ef9ba9;
   font-weight: bold;
+}
+
+#card_list {
+  height: 350px;
+  border: solid 2px black;
+  user-select: none;
+  clear: both;
 }
 
 #card_list div {
@@ -27,24 +28,23 @@ body {
   padding: 5px 5px;
 }
 
-#turn_container {
+#turn {
   float: left;
   font-size: 100%;
-  width: 750px;
-  margin: 10px 0px 0px 30px;
+  width: 450px;
+  margin: 10px 0px 0px 20px;
   color: #bb3636;
 }
 
-#turn {
+#card_buttons h3 {
   float: left;
-  width: 600px;
 }
 
-#turn_container button {
-  font-size: 100%;
-  width: 100px;
+#card_buttons button {
   display: block;
-  margin-bottom: 10px;
+  float: right;
+  margin: 14px 16px 0px 0px;
+  font-size: 110%;
 }
 
 #board {
