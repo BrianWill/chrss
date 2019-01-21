@@ -2,20 +2,33 @@
   <head>
     <title>Chrss</title>
     <link rel="stylesheet" type="text/css" href="/static/main.css">
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
   </head>
 <body>
   
-<div>
-  <h1>LET'S PLAY CHRSS</h1>
+<div style="width: 1500px;" >
+  <h1>LET'S PLAY CHRSS!</h1>
   <div style="float:left;">
-    <h3>Black's turn</h3>
+    <h3 id="turn"></h3>
     <canvas id="board" id="tutorial" width="600" height="600"></canvas>
   </div>
   
-  <div style="float:left; margin-left: 30px; width:400px;">
-    <h3>Cards</h3>
+  <div style="float:left; margin-left: 30px; width:800px;">
+    <div style="width:400px; float:left;">
+      <h3>Cards</h3>
+      <div id="card_list">
+
+      </div>
+      <div id="card_description">
+      </div>
+    </div>
+    <div style="float: left; margin-left: 20px; width:200px;">
+        <h3>Log</h3>
+        <div id="log">
+          
+        </div>
+      </div>
   </div>
-  
 </div>
 
 

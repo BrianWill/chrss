@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -24,16 +25,19 @@ var wsupgrader = websocket.Upgrader{
 const matchTimeout time.Duration = 20 * time.Minute
 
 type Match struct {
-	Name       string // used to identify the match in browser
-	BlackConn  *websocket.Conn
-	WhiteConn  *websocket.Conn
-	Mutex      sync.RWMutex
-	Pieces     []Piece
-	Cards      []Card
-	State      MatchState
-	UUID       string
-	BlackState PrivateState
-	WhiteState PrivateState
+	Name          string // used to identify the match in browser
+	BlackConn     *websocket.Conn
+	WhiteConn     *websocket.Conn
+	Mutex         sync.RWMutex
+	Pieces        []Piece
+	CommunalCards []Card // card in pool shared by both players
+	StartTime     time.Time
+	UUID          string
+	BlackState    PrivateState
+	WhiteState    PrivateState
+	Turn          string    `json:"turn"`         // white, black
+	Winner        string    `json:"winner"`       // white, black, none, draw
+	LastMoveTime  time.Time `json:"lastMoveTime"` // should be initialized to match start time
 }
 
 const (
@@ -52,15 +56,27 @@ const (
 	knight = "knight"
 )
 
+const nColumns = 6
+const nRow = 6
+
 // info a player doesn't want opponent to see
 type PrivateState struct {
+	Cards        []Card `json:"cards"`
+	SelectedCard int    `json:"selectedCard"` // index into cards slice
+	SelectedPos  Pos    `json:"selectedPos"`
+	AttackPos    []Pos  `json:"attackPos"`
 }
 
 type Piece struct {
-	Type  string `json:"type"`
-	Color string `json:"color"`
-	X     int    `json:"x"`
-	Y     int    `json:"y"`
+	Type       string `json:"type"`
+	Color      string `json:"color"`
+	Pos        Pos    `json:"pos"`
+	ValidMoves []Pos  `json:"validMoves"`
+}
+
+type Pos struct {
+	X int `json:"x"`
+	Y int `json:"y"`
 }
 
 type Card struct {
@@ -69,81 +85,140 @@ type Card struct {
 	ManaCost int    `json:"manaCost"`
 }
 
-type MatchState struct {
-	Turn     string    `json:"turn"`     // white, black
-	Winner   string    `json:"winner"`   // white, black, none, draw
-	LastMove time.Time `json:"lastMove"` // should be initialized to match start time
-}
-
 type MatchMap struct {
 	sync.RWMutex
 	internal map[string]*Match
 }
 
-func drawCards() []Card {
-	return nil
+func drawCards(owner string) []Card {
+	return []Card{
+		Card{"King", owner, 0},
+		Card{"Rook", owner, 0},
+		Card{"Bishop", owner, 0},
+		Card{"Knight", owner, 0},
+	}
+}
+
+func drawCommunalCards() []Card {
+	return []Card{}
+}
+
+func (m *Match) IsOpen() bool {
+	return (m.WhiteConn == nil || m.BlackConn == nil) && m.Winner == none
+}
+
+func (m *Match) IsFull() bool {
+	return (m.WhiteConn != nil && m.BlackConn != nil) && m.Winner == none
+}
+
+func (m *Match) IsFinished() bool {
+	return m.Winner != none
+}
+
+// get n random values from slice (mutates input slice)
+// (shuffles whole slice, so not ideal for large slice)
+func randSelect(n int, options []int) []int {
+	rand.Shuffle(len(options), func(i, j int) {
+		options[i], options[j] = options[j], options[i]
+	})
+	return options[:n]
 }
 
 func initMatch(m *Match) {
 	// random adjective-animal
 	m.Name = adjectives[rand.Intn(len(adjectives))] + "-" + animals[rand.Intn(len(animals))]
-	m.State.LastMove = time.Now()
-	m.Pieces = []Piece{
-		Piece{king, white, 4, 0},
-		Piece{rook, white, 7, 0},
-		Piece{knight, white, 6, 0},
-		Piece{bishop, white, 5, 0},
-		Piece{king, black, 3, 7},
-		Piece{rook, black, 0, 7},
-		Piece{knight, black, 1, 7},
-		Piece{bishop, black, 2, 7},
+	m.LastMoveTime = time.Now()
+
+	// random pawns in 4 columns each side, each in either second or third row
+	columns := make([]int, nColumns)
+	for i := 0; i < nColumns; i++ {
+		columns[i] = i
 	}
-	m.Cards = drawCards()
-	m.State = MatchState{
-		Turn:     white,
-		Winner:   none,
-		LastMove: time.Now(),
+	columns = randSelect(4, columns)
+	pieces := make([]Piece, 8)
+	for i := 0; i < 4; i++ {
+		pieces[i] = Piece{pawn, white, Pos{columns[i], rand.Intn(2) + 1}, nil}
 	}
+	columns = make([]int, nColumns)
+	for i := 0; i < nColumns; i++ {
+		columns[i] = i
+	}
+	columns = randSelect(4, columns)
+	for i := 0; i < 4; i++ {
+		pieces[i+4] = Piece{pawn, black, Pos{columns[i], rand.Intn(2) + 3}, nil}
+	}
+	m.Pieces = pieces
+
+	m.CommunalCards = drawCards(none)
+	m.BlackState = PrivateState{
+		Cards:        drawCards(black),
+		SelectedCard: -1,
+		SelectedPos:  Pos{-1, -1},
+	}
+	m.WhiteState = PrivateState{
+		Cards:        drawCards(white),
+		SelectedCard: -1,
+		SelectedPos:  Pos{-1, -1},
+	}
+	m.StartTime = time.Now()
+	m.Turn = white
+	m.Winner = none
+	m.LastMoveTime = m.StartTime
 }
 
 // return true if message triggers end of match
-func processMessage(msg []byte, match *Match) bool {
+func processMessage(msg []byte, match *Match, player string) bool {
+	var data map[string]interface{}
+	json.Unmarshal(msg, &data)
 	match.Mutex.Lock()
-
-	if match.BlackConn != nil {
-		response := gin.H{
-			"color":   "black",
-			"private": match.BlackState,
-			"pieces":  match.Pieces,
-			"cards":   match.Cards,
-			"state":   match.State,
+	var private *PrivateState
+	if player == black {
+		private = &match.BlackState
+	} else {
+		private = &match.WhiteState
+	}
+	switch data["event"] {
+	case "get state":
+	case "click card":
+		idxInterface, ok := data["index"]
+		if !ok {
+			break
 		}
-		bytes, err := json.Marshal(response)
-		if err != nil {
-			fmt.Printf("Error JSON encoding state: %+v", err)
+		idxStr, ok := idxInterface.(string)
+		if !ok {
+			break
 		}
-		err = match.BlackConn.WriteMessage(websocket.TextMessage, bytes)
+		idx, err := strconv.Atoi(idxStr)
 		if err != nil {
-			fmt.Printf("Error writing message to black connection: %+v", err)
+			break
+		}
+		private.SelectedCard = idx
+	case "click board":
+	}
+	processConnection := func(conn *websocket.Conn, color string, private *PrivateState) {
+		if conn != nil {
+			response := gin.H{
+				"color":        color,
+				"pieces":       match.Pieces,
+				"private":      private,
+				"turn":         match.Turn,
+				"winner":       match.Winner,
+				"lastMoveTime": match.LastMoveTime,
+			}
+			bytes, err := json.Marshal(response)
+			if err != nil {
+				fmt.Printf("Error JSON encoding state: %+v", err)
+			}
+			err = conn.WriteMessage(websocket.TextMessage, bytes)
+			if err != nil {
+				if !websocket.IsCloseError(err) {
+					fmt.Printf("Error writing message to %+v connection: %+v", color, err)
+				}
+			}
 		}
 	}
-	if match.WhiteConn != nil {
-		response := gin.H{
-			"color":   "white",
-			"private": match.WhiteState,
-			"pieces":  match.Pieces,
-			"cards":   match.Cards,
-			"state":   match.State,
-		}
-		bytes, err := json.Marshal(response)
-		if err != nil {
-			fmt.Printf("Error JSON encoding state: %+v", err)
-		}
-		err = match.WhiteConn.WriteMessage(websocket.TextMessage, bytes)
-		if err != nil {
-			fmt.Printf("Error writing message to white connection: %+v", err)
-		}
-	}
+	processConnection(match.BlackConn, black, &match.BlackState)
+	processConnection(match.WhiteConn, white, &match.WhiteState)
 	match.Mutex.Unlock()
 	return false
 }
@@ -189,11 +264,44 @@ func main() {
 	router.LoadHTMLGlob("templates/*.tmpl")
 	router.Static("/static", "static")
 
-	fmt.Printf("router type %T\n", router)
-
+	// list open matches
 	router.GET("/", func(c *gin.Context) {
-		// todo show matches
-		c.HTML(http.StatusOK, "index.tmpl", nil)
+		type openMatch struct {
+			Name string
+			UUID string
+		}
+		liveMatches.Lock()
+		openMatches := []openMatch{}
+		for _, m := range liveMatches.internal {
+			if m.IsOpen() {
+				openMatches = append(openMatches, openMatch{m.Name, m.UUID})
+			}
+		}
+		liveMatches.Unlock()
+
+		c.HTML(http.StatusOK, "browse.tmpl", openMatches)
+	})
+
+	// browse non-open matches
+	router.GET("/rest", func(c *gin.Context) {
+		type openMatch struct {
+			Name     string
+			UUID     string
+			Finished bool
+		}
+		liveMatches.Lock()
+		openMatches := []openMatch{}
+		for _, m := range liveMatches.internal {
+			if m.IsFull() {
+				openMatches = append(openMatches, openMatch{m.Name, m.UUID, false})
+			}
+			if m.IsFinished() {
+				openMatches = append(openMatches, openMatch{m.Name, m.UUID, true})
+			}
+		}
+		liveMatches.Unlock()
+
+		c.HTML(http.StatusOK, "browse_rest.tmpl", openMatches)
 	})
 
 	// periodically clean liveMatches of finished or timedout games
@@ -201,8 +309,8 @@ func main() {
 		for {
 			liveMatches.Lock()
 			for id, match := range liveMatches.internal {
-				if match.State.Winner != none ||
-					time.Now().After(match.State.LastMove.Add(matchTimeout)) {
+				if match.Winner != none ||
+					time.Now().After(match.LastMoveTime.Add(matchTimeout)) {
 					delete(liveMatches.internal, id)
 				}
 			}
@@ -230,7 +338,7 @@ func main() {
 	// pass in UUID and optionally a password (from cookie? get param?)
 	router.GET("/match/:id", func(c *gin.Context) {
 		id := c.Param("id")
-		log.Printf("joining match: " + id)
+		log.Printf("joining match: %v\n", id)
 		if _, ok := liveMatches.Load(id); !ok {
 			c.String(http.StatusNotFound, "No match with id '%s' exists.", id)
 			return
@@ -253,6 +361,8 @@ func main() {
 			return
 		}
 
+		var player string
+
 		match.Mutex.Lock()
 		if match.BlackConn != nil && match.WhiteConn != nil {
 			err := conn.WriteMessage(websocket.TextMessage, []byte("Match is full."))
@@ -264,13 +374,17 @@ func main() {
 		} else if match.BlackConn == nil && match.WhiteConn == nil {
 			if rand.Intn(2) == 0 {
 				match.BlackConn = conn
+				player = black
 			} else {
 				match.WhiteConn = conn
+				player = white
 			}
 		} else if match.BlackConn == nil {
 			match.BlackConn = conn
+			player = black
 		} else if match.WhiteConn == nil {
 			match.WhiteConn = conn
+			player = white
 		}
 		match.Mutex.Unlock()
 
@@ -279,13 +393,21 @@ func main() {
 			if err != nil {
 				break
 			}
-			if processMessage(msg, match) {
+			if processMessage(msg, match, player) {
 				break
 			}
 		}
 
 	exit:
 		conn.Close()
+		match.Mutex.Lock()
+		if player == black {
+			match.BlackConn = nil
+		} else if player == white {
+			match.WhiteConn = nil
+		}
+		match.Mutex.Unlock()
+		fmt.Printf("Closed connection %s in match %s %s", player, match.Name, match.UUID)
 	})
 
 	router.Run(":" + port)

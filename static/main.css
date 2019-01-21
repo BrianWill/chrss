@@ -2,3 +2,23 @@ body {
   background-color: #bbb;
   font-family: "Arial";
 }
+
+#card_list {
+  height: 350px;
+  border: solid 2px black;
+  user-select: none;
+}
+
+.highlight_card {
+  background-color: #15ffff;
+}
+
+.select_card {
+  background-color: #ffc0cb;
+  font-weight: bold;
+}
+
+#card_list div {
+  font-size: 130%;
+  padding: 5px 5px;
+}

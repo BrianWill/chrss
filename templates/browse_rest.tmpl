@@ -1,20 +1,20 @@
 <html>
   <head>
-    <title>Chrss - browse open matches</title>
+    <title>Chrss - browse non-open matches</title>
     <link rel="stylesheet" type="text/css" href="/static/main.css">
     <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
   </head>
 <body>
   
 <div>
-  <h1>Open matches<h1>
+  <h1>Non-open matches<h1>
     <a href="/createMatch">Create match</a>
     {{if not .}}
-    <h3>No open matches.</h3>
+    <h3>No current matches.</h3>
     {{end}}
     <ul>
         {{range .}}
-            <li>{{.Name}} <a href="/match/{{.UUID}}">Join</a></li>
+            <li>{{if .Finished}} Done {{else}} In progress {{end}} {{.Name}} {{.UUID}}</li>
         {{end}}
     </ul>
   
