@@ -45,6 +45,7 @@ margin-left: 40px;
   float: right;
   margin: 14px 16px 0px 0px;
   font-size: 110%;
+  outline: none;
 }
 
 #board {

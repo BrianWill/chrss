@@ -1,16 +1,28 @@
 
+throbbing spinner in place of pass button when waiting on opponent
 
-enforce king as first move
+splash banner and sound on start of new round
 
+win a king dies, game is over
+    if both kings die in same round, game is draw
 
+if vassal dies, it is out permanently
 
+when player has zero pawns, they get two at start of round instead of just one
 
+set max pawns to 4 or 5 instead of 6?
 
-!!attacks are resolved at end of round; every unit attacks in all of their directions (hitting only enemies, not allies)
-
+what to do about your own pawns in the way? include 'pawn sacrafice' card in stock hand to kill own pawn?
 
 
 timer for move (display countdown clock); auto pass if you let it expire? total time clock that forfeits if it expires?
+
+
+
+
+
+
+
 
 
 give vassals high hp, but also a stun threshold that recharges every round; 

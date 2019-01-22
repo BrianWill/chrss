@@ -46,6 +46,15 @@ piecesImg.onload = function (evt) {
     }
 };
 
+var skullImg = new Image();
+skullImg.src = '/static/skull-red.svg';
+skullImg.spriteWidth = 512;
+skullImg.spriteHeight = 512;
+skullImg.onload = function (evt) {
+    if (matchState) {
+        draw(matchState);
+    }
+};
 
 var cardDescriptions = {
     'King': `<h3>King: 0 mana cost, 40 starting hp</h3>
@@ -78,6 +87,11 @@ conn.onmessage = function(msg){
         return;
     }
     matchState = JSON.parse(msg.data);
+    if (matchState.color === 'black') {
+        matchState.public = matchState.blackPublic;
+    } else {
+        matchState.public = matchState.whitePublic;
+    }
     draw(matchState);
     waitingResponse = false;
 }
@@ -104,7 +118,7 @@ function draw(matchState) {
     drawButtons(matchState);
 
     function drawButtons(matchState) {
-        if (matchState.color === matchState.turn) {
+        if (matchState.color === matchState.turn && matchState.public.kingPlayed) {
             passButton.style.display = 'block';
         } else {
             passButton.style.display = 'none';
@@ -117,27 +131,29 @@ function draw(matchState) {
         // draw mana
         ctx.fillStyle = "#5277a9";
         ctx.font = "18px Arial";
+        ctx.textAlign = 'start';
         if (matchState.color === "white") {
             var textX = 10;
             var textY = 35;
-            ctx.fillText('black mana  ' + matchState.blackPublic.ManaCurrent + ' / ' + matchState.blackPublic.ManaMax, textX, textY);
+            ctx.fillText('black mana  ' + matchState.blackPublic.manaCurrent + ' / ' + matchState.blackPublic.manaMax, textX, textY);
             textX = 10;
             textY = 70;
-            ctx.fillText('white mana  ' + matchState.whitePublic.ManaCurrent + ' / ' + matchState.whitePublic.ManaMax, textX, textY);
+            ctx.fillText('white mana  ' + matchState.whitePublic.manaCurrent + ' / ' + matchState.whitePublic.manaMax, textX, textY);
         } else {
             var textX = 10;
             var textY = 35;
-            ctx.fillText('white mana  ' + matchState.whitePublic.ManaCurrent + ' / ' + matchState.whitePublic.ManaMax, textX, textY);
+            ctx.fillText('white mana  ' + matchState.whitePublic.manaCurrent + ' / ' + matchState.whitePublic.manaMax, textX, textY);
             textX = 10;
             textY = 70;
-            ctx.fillText('black mana  ' + matchState.blackPublic.ManaCurrent + ' / ' + matchState.blackPublic.ManaMax, textX, textY);
+            ctx.fillText('black mana  ' + matchState.blackPublic.manaCurrent + ' / ' + matchState.blackPublic.manaMax, textX, textY);
         }
 
         //
         var x = 170;
         var y = 10;
-        textX = 206;
-        textY = 35;
+        const textOffsetX = 230;
+        textX = textOffsetX;
+        textY = 33;
         var width = board.squareWidth / 3;
         var height = board.squareWidth / 3;
         const gap = 70;
@@ -154,21 +170,35 @@ function draw(matchState) {
         }
     
         // todo: get actual values from match state
-        var hps = [10, 10, 10, 40, 10, 10, 10, 40];
-    
+        var black = matchState.blackPublic;
+        var white = matchState.whitePublic;
+        var hps;
+        if (matchState.color === "black") {
+            hps = [
+                white.rookHP, white.knightHP, white.bishopHP, white.kingHP, 
+                black.rookHP, black.knightHP, black.bishopHP, black.kingHP, 
+            ];
+        } else {
+            hps = [
+                black.rookHP, black.knightHP, black.bishopHP, black.kingHP, 
+                white.rookHP, white.knightHP, white.bishopHP, white.kingHP, 
+            ];
+        }
+
+        ctx.fillStyle = "#bb3636";
+        ctx.font = "18px Arial";
+        ctx.textAlign = 'right';
         for (var i = 0; i < pieceNames.length; i++) {
             if (i === 4) {
                 x = 170;
                 y = 45;
-                textX = 206;
-                textY = y + 25;
+                textX = textOffsetX;
+                textY = y + 23;
             }
             var coords = piecesImg.pieceImageCoords[pieceNames[i]];
             ctx.drawImage(piecesImg, coords.x, coords.y, piecesImg.pieceWidth, piecesImg.pieceHeight, 
                 x, y, width, height
             );  
-            ctx.fillStyle = "#bb3636";
-            ctx.font = "18px Arial";
             ctx.fillText(hps[i], textX, textY);
             x += gap;
             textX += gap;    
@@ -181,8 +211,12 @@ function draw(matchState) {
         const maxX = board.nColumns * board.squareWidth;
         var x = 0;
         var y = 0;
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
-        //ctx.fillStyle = 'rgba(255, 255, 120, 0.5)';
+        const hpOffsetX = 5;
+        const hpOffsetY = 15;
+        const damageOffsetY = 15;
+        const skullOffsetX = 74;
+        const skullOffsetY = 37;
+
         for (var i = 0; i < pieces.length; i++) {
             var piece = pieces[flipped ? pieces.length - 1 - i : i];
 
@@ -191,6 +225,25 @@ function draw(matchState) {
                 ctx.drawImage(piecesImg, coords.x, coords.y, piecesImg.pieceWidth, piecesImg.pieceHeight, 
                     x, y, board.squareWidth, board.squareHeight
                 );
+
+                ctx.font = '13px Arial';
+                var rightX = x + board.squareWidth - hpOffsetX;
+                ctx.fillStyle = 'darkred';
+                ctx.textAlign = 'right';
+                ctx.fillText(piece.hp, rightX, y + hpOffsetY);
+                if (piece.damage > 0) {
+                    ctx.fillStyle = 'red';
+                    ctx.fillText(-piece.damage, rightX, y + hpOffsetY + damageOffsetY);
+                }
+                ctx.fillStyle = 'darkgreen';
+                ctx.textAlign = 'start';
+                ctx.fillText(piece.attack, x + hpOffsetX, y + hpOffsetY);
+
+                if (piece.hp < piece.damage) {
+                    ctx.drawImage(skullImg, 0, 0, skullImg.spriteWidth, skullImg.spriteHeight, 
+                        x + skullOffsetX, y + skullOffsetY, board.squareWidth / 4, board.squareHeight / 4
+                    );
+                }
             }
 
             x += board.squareWidth;

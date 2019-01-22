@@ -63,11 +63,26 @@ const (
 	knight = "Knight"
 )
 
+const (
+	pawnHP       = 3
+	pawnAttack   = 2
+	kingHP       = 40
+	kingAttack   = 15
+	bishopHP     = 15
+	bishopAttack = 8
+	knightHP     = 15
+	knightAttack = 5
+	rookHP       = 20
+	rookAttack   = 10
+)
+
 const defaultInstruction = "Pick a card to play or pass."
 const kingInstruction = "Pick a square to place your king."
 
 const nColumns = 6
 const nRows = 6
+
+var positions [nColumns * nRows]Pos // convenience for getting Pos of board index
 
 // info a player doesn't want opponent to see
 type PrivateState struct {
@@ -79,14 +94,25 @@ type PrivateState struct {
 }
 
 type PublicState struct {
-	KingPlayed  bool
-	ManaMax     int
-	ManaCurrent int
+	KingPlayed   bool `json:"kingPlayed"`
+	ManaMax      int  `json:"manaMax"`
+	ManaCurrent  int  `json:"manaCurrent"`
+	KingHP       int  `json:"kingHP"`
+	KingAttack   int  `json:"kingAttack"`
+	BishopHP     int  `json:"bishopHP"`
+	BishopAttack int  `json:"bishopAttack"`
+	KnightHP     int  `json:"knightHP"`
+	KnightAttack int  `json:"knightAttack"`
+	RookHP       int  `json:"rookHP"`
+	RookAttack   int  `json:"rookAttack"`
 }
 
 type Piece struct {
-	Name  string `json:"name"`
-	Color string `json:"color"`
+	Name   string `json:"name"`
+	Color  string `json:"color"`
+	HP     int    `json:"hp"`
+	Attack int    `json:"attack"`
+	Damage int    `json:"damage"` // amount of damage unit will take in combat
 }
 
 type Pos struct {
@@ -150,41 +176,45 @@ func (p *PrivateState) RemoveCard(idx int) {
 
 // get n random values from slice (mutates input slice)
 // (shuffles whole slice, so not ideal for large slice)
-func randSelect(n int, options []int) []int {
-	rand.Shuffle(len(options), func(i, j int) {
-		options[i], options[j] = options[j], options[i]
+func randSelect(n int, candidates []int) []int {
+	rand.Shuffle(len(candidates), func(i, j int) {
+		candidates[i], candidates[j] = candidates[j], candidates[i]
 	})
-	return options[:n]
+	if n > len(candidates) {
+		return candidates
+	}
+	return candidates[:n]
 }
 
 func initMatch(m *Match) {
 	// random adjective-animal
 	m.Name = adjectives[rand.Intn(len(adjectives))] + "-" + animals[rand.Intn(len(animals))]
 	m.LastMoveTime = time.Now()
-
-	// random pawns in 4 columns each side, each in either second or third row
-	columns := make([]int, nColumns)
-	for i := 0; i < nColumns; i++ {
-		columns[i] = i
-	}
-	columns = randSelect(4, columns)
-	for i := 0; i < 4; i++ {
-		m.setPiece(Pos{columns[i], rand.Intn(2) + 1}, Piece{pawn, white})
-	}
-	columns = make([]int, nColumns)
-	for i := 0; i < nColumns; i++ {
-		columns[i] = i
-	}
-	columns = randSelect(4, columns)
-	for i := 0; i < 4; i++ {
-		m.setPiece(Pos{columns[i], rand.Intn(2) + 3}, Piece{pawn, black})
-	}
+	m.Round = 1
 
 	m.WhitePublic.ManaCurrent = 3
 	m.WhitePublic.ManaMax = 3
+	m.WhitePublic.KingHP = kingHP
+	m.WhitePublic.KingAttack = kingAttack
+	m.WhitePublic.BishopHP = bishopHP
+	m.WhitePublic.BishopAttack = bishopAttack
+	m.WhitePublic.KnightHP = knightHP
+	m.WhitePublic.KnightAttack = knightAttack
+	m.WhitePublic.RookHP = rookHP
+	m.WhitePublic.RookAttack = rookAttack
+
 	m.BlackPublic.ManaCurrent = 3
 	m.BlackPublic.ManaMax = 3
-	m.Round = 1
+	m.BlackPublic.KingHP = kingHP
+	m.BlackPublic.KingAttack = kingAttack
+	m.BlackPublic.BishopHP = bishopHP
+	m.BlackPublic.BishopAttack = bishopAttack
+	m.BlackPublic.KnightHP = knightHP
+	m.BlackPublic.KnightAttack = knightAttack
+	m.BlackPublic.RookHP = rookHP
+	m.BlackPublic.RookAttack = rookAttack
+
+	m.SpawnPawns(4)
 
 	m.CommunalCards = drawCards(none, nil)
 	m.BlackPrivate = PrivateState{
@@ -212,6 +242,14 @@ func (m *Match) getPiece(p Pos) *Piece {
 	return m.Board[nColumns*p.Y+p.X]
 }
 
+// does not panic
+func (m *Match) getPieceSafe(p Pos) *Piece {
+	if p.X < 0 || p.X >= nColumns || p.Y < 0 || p.Y >= nRows {
+		return nil
+	}
+	return m.Board[nColumns*p.Y+p.X]
+}
+
 // panics if out of bounds
 func (m *Match) setPiece(p Pos, piece Piece) {
 	idx := nColumns*p.Y + p.X
@@ -235,12 +273,258 @@ func (m *Match) RemoveNonPawns() {
 	}
 }
 
+func (m *Match) InflictDamage() {
+	for i, p := range m.Board {
+		if p != nil {
+			p.HP -= p.Damage
+			p.Damage = 0
+			var public *PublicState
+			if p.Color == black {
+				public = &m.BlackPublic
+			} else {
+				public = &m.WhitePublic
+			}
+			switch p.Name {
+			case king:
+				public.KingHP = p.HP
+			case bishop:
+				public.BishopHP = p.HP
+			case knight:
+				public.KnightHP = p.HP
+			case rook:
+				public.RookHP = p.HP
+			}
+			if p.HP <= 0 {
+				m.pieces[i] = Piece{}
+				m.Board[i] = nil
+			}
+		}
+	}
+}
+
+func (m *Match) CalculateDamage() {
+	// todo
+	rookAttack := func(p Pos, color string, attack int) {
+		x := p.X + 1
+		y := p.Y
+		for x < nColumns {
+			hit := m.getPiece(Pos{x, y})
+			if hit != nil {
+				if hit.Color != color {
+					hit.Damage += attack
+				}
+				break
+			}
+			x++
+		}
+
+		x = p.X - 1
+		y = p.Y
+		for x >= 0 {
+			hit := m.getPiece(Pos{x, y})
+			if hit != nil {
+				if hit.Color != color {
+					hit.Damage += attack
+				}
+				break
+			}
+			x--
+		}
+
+		x = p.X
+		y = p.Y + 1
+		for y < nRows {
+			hit := m.getPiece(Pos{x, y})
+			if hit != nil {
+				if hit.Color != color {
+					hit.Damage += attack
+				}
+				break
+			}
+			y++
+		}
+
+		x = p.X
+		y = p.Y - 1
+		for y >= 0 {
+			hit := m.getPiece(Pos{x, y})
+			if hit != nil {
+				if hit.Color != color {
+					hit.Damage += attack
+				}
+				break
+			}
+			y--
+		}
+	}
+
+	bishopAttack := func(p Pos, color string, attack int) {
+		x := p.X + 1
+		y := p.Y + 1
+		for x < nColumns && y < nRows {
+			hit := m.getPiece(Pos{x, y})
+			if hit != nil {
+				if hit.Color != color {
+					hit.Damage += attack
+				}
+				break
+			}
+			x++
+			y++
+		}
+
+		x = p.X - 1
+		y = p.Y + 1
+		for x >= 0 && y < nRows {
+			hit := m.getPiece(Pos{x, y})
+			if hit != nil {
+				if hit.Color != color {
+					hit.Damage += attack
+				}
+				break
+			}
+			x--
+			y++
+		}
+
+		x = p.X + 1
+		y = p.Y - 1
+		for x < nColumns && y >= 0 {
+			hit := m.getPiece(Pos{x, y})
+			if hit != nil {
+				if hit.Color != color {
+					hit.Damage += attack
+				}
+				break
+			}
+			x++
+			y--
+		}
+
+		x = p.X - 1
+		y = p.Y - 1
+		for x >= 0 && y >= 0 {
+			hit := m.getPiece(Pos{x, y})
+			if hit != nil {
+				if hit.Color != color {
+					hit.Damage += attack
+				}
+				break
+			}
+			x--
+			y--
+		}
+	}
+
+	kingAttack := func(p Pos, color string, attack int) {
+		ps := []Pos{
+			Pos{p.X + 1, p.Y + 1},
+			Pos{p.X + 1, p.Y},
+			Pos{p.X + 1, p.Y - 1},
+			Pos{p.X, p.Y + 1},
+			Pos{p.X, p.Y - 1},
+			Pos{p.X - 1, p.Y + 1},
+			Pos{p.X - 1, p.Y},
+			Pos{p.X - 1, p.Y - 1},
+		}
+		for _, other := range ps {
+			hit := m.getPieceSafe(other)
+			if hit != nil && hit.Color != color {
+				hit.Damage += attack
+			}
+		}
+	}
+
+	knightAttack := func(p Pos, color string, attack int) {
+		ps := []Pos{
+			Pos{p.X + 1, p.Y + 2},
+			Pos{p.X + 1, p.Y - 2},
+			Pos{p.X + 2, p.Y + 1},
+			Pos{p.X + 2, p.Y - 1},
+			Pos{p.X - 1, p.Y + 2},
+			Pos{p.X - 1, p.Y - 2},
+			Pos{p.X - 2, p.Y + 1},
+			Pos{p.X - 2, p.Y - 1},
+		}
+		for _, other := range ps {
+			hit := m.getPieceSafe(other)
+			if hit != nil && hit.Color != color {
+				hit.Damage += attack
+			}
+		}
+	}
+
+	pawnAttack := func(p Pos, color string, attack int) {
+		yOffset := 1
+		if color == white {
+			yOffset = -1
+		}
+		ps := []Pos{
+			Pos{p.X + 1, p.Y + yOffset},
+			Pos{p.X - 1, p.Y + yOffset},
+		}
+		for _, other := range ps {
+			hit := m.getPieceSafe(other)
+			if hit != nil && hit.Color != color {
+				hit.Damage += attack
+			}
+		}
+	}
+
+	// reset all to 0
+	for i := range m.pieces {
+		m.pieces[i].Damage = 0
+	}
+
+	attackMap := map[string]func(Pos, string, int){
+		king:   kingAttack,
+		bishop: bishopAttack,
+		knight: knightAttack,
+		rook:   rookAttack,
+		pawn:   pawnAttack,
+	}
+
+	// visit each piece, adding the damage it inflicts on other pieces
+	for i, p := range m.Board {
+		if p != nil {
+			attackMap[p.Name](positions[i], p.Color, p.Attack)
+		}
+	}
+}
+
+// spawn n random pawns in free columns
+func (m *Match) SpawnPawns(n int) {
+	var columns []int
+	for i := 0; i < nColumns; i++ {
+		if m.getPiece(Pos{i, 1}) == nil && m.getPiece(Pos{i, 2}) == nil {
+			columns = append(columns, i)
+		}
+	}
+	columns = randSelect(n, columns)
+	for _, v := range columns {
+		m.setPiece(Pos{v, rand.Intn(2) + 1}, Piece{pawn, white, pawnHP, pawnAttack, 0})
+	}
+
+	columns = []int{}
+	for i := 0; i < nColumns; i++ {
+		if m.getPiece(Pos{i, 3}) == nil && m.getPiece(Pos{i, 4}) == nil {
+			columns = append(columns, i)
+		}
+	}
+	columns = randSelect(n, columns)
+	for _, v := range columns {
+		m.setPiece(Pos{v, rand.Intn(2) + 3}, Piece{pawn, black, pawnHP, pawnAttack, 0})
+	}
+}
+
 // pass = if turn is ending by passing; player = color whose turn is ending
 func (m *Match) EndTurn(pass bool, player string) {
-	if pass && m.PassPrior { // if players both pass in succession, end round
-		// todo: resolve combat
+	m.LastMoveTime = time.Now()
+	m.CalculateDamage()
 
-		// remove all non-pawns from board, refresh card decks
+	if pass && m.PassPrior { // if players both pass in succession, end round
+		m.InflictDamage()
+
 		m.Round++
 		if m.FirstTurnColor == black {
 			m.Turn = white
@@ -279,9 +563,10 @@ func (m *Match) EndTurn(pass bool, player string) {
 		m.BlackPrivate.Cards = drawCards(black, m.BlackPrivate.Cards)
 
 		m.RemoveNonPawns()
-		// todo: spawn more pawns
+		m.SpawnPawns(1)
 
 	} else {
+
 		if m.Turn == black {
 			m.Turn = white
 		} else {
@@ -396,14 +681,14 @@ func processMessage(msg []byte, match *Match, player string) bool {
 		var p Piece
 		switch card.Name {
 		case king:
-			p = Piece{king, player}
+			p = Piece{king, player, public.KingHP, public.KingAttack, 0}
 			public.KingPlayed = true
 		case bishop:
-			p = Piece{bishop, player}
+			p = Piece{bishop, player, public.BishopHP, public.BishopAttack, 0}
 		case knight:
-			p = Piece{knight, player}
+			p = Piece{knight, player, public.KnightHP, public.KnightAttack, 0}
 		case rook:
-			p = Piece{rook, player}
+			p = Piece{rook, player, public.RookHP, public.RookAttack, 0}
 
 		}
 		match.setPiece(Pos{event.X, event.Y}, p)
@@ -497,6 +782,18 @@ func main() {
 	}
 
 	liveMatches := NewMatchMap()
+	{
+		x := 0
+		y := 0
+		for i := range positions {
+			positions[i] = Pos{x, y}
+			x++
+			if x == nColumns {
+				x = 0
+				y++
+			}
+		}
+	}
 
 	router := gin.New()
 	router.Use(gin.Logger())
