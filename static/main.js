@@ -5,8 +5,6 @@ var scoreboardCtx = scoreboard.getContext('2d');
 var turn = document.getElementById('turn');
 var cardList = document.getElementById('card_list');
 var cardDescription = document.getElementById('card_description');
-var confirmButton = document.getElementById('confirm_button');
-var cancelButton = document.getElementById('cancel_button');
 var passButton = document.getElementById('pass_button');
 var log = document.getElementById('log');
 var matchState;
@@ -28,18 +26,18 @@ piecesImg.pieceHeight = 45;
 piecesImg.pieceWidth = 45;
 piecesImg.src = "/static/pieces.svg";
 piecesImg.pieceImageCoords = {
-    'white_king': {x: 0, y: 0},
-    'white_queen': {x: 45, y: 0},
-    'white_bishop' : {x: 90, y: 0},
-    'white_knight' : {x: 135, y: 0},
-    'white_rook' : {x: 180, y: 0},
-    'white_pawn' : {x: 225, y: 0},
-    'black_king': {x: 0, y: 45},
-    'black_queen': {x: 45, y: 45},
-    'black_bishop' : {x: 90, y: 45},
-    'black_knight' : {x: 135, y: 45},
-    'black_rook' : {x: 180, y: 45},
-    'black_pawn' : {x: 225, y: 45},
+    'white_King': {x: 0, y: 0},
+    'white_Queen': {x: 45, y: 0},
+    'white_Bishop' : {x: 90, y: 0},
+    'white_Knight' : {x: 135, y: 0},
+    'white_Rook' : {x: 180, y: 0},
+    'white_Pawn' : {x: 225, y: 0},
+    'black_King': {x: 0, y: 45},
+    'black_Queen': {x: 45, y: 45},
+    'black_Bishop' : {x: 90, y: 45},
+    'black_Knight' : {x: 135, y: 45},
+    'black_Rook' : {x: 180, y: 45},
+    'black_Pawn' : {x: 225, y: 45},
 };
 
 piecesImg.onload = function (evt) {
@@ -90,19 +88,16 @@ conn.onerror = function(err) {
   }
 
 conn.onopen = function(){
-    conn.send("get_state " + JSON.stringify({date: new Date()}));
+    conn.send("get_state ");
 }
 
 
 //  *** draw ***
 
-
-
-
-
 function draw(matchState) {
     drawBoard(ctx);
-    drawPieces(ctx, matchState.pieces, matchState.color === "white");
+    drawPieces(ctx, matchState);
+    drawSquareHighlight(ctx, matchState);
     drawTurn(matchState);
     drawCards(matchState);
     drawScoreboard(scoreboardCtx, matchState);
@@ -110,36 +105,32 @@ function draw(matchState) {
 
     function drawButtons(matchState) {
         if (matchState.color === matchState.turn) {
-            confirmButton.style.display = 'block';
-            cancelButton.style.display = 'block';
             passButton.style.display = 'block';
         } else {
-            confirmButton.style.display = 'none';
-            cancelButton.style.display = 'none';
             passButton.style.display = 'none';
         }
     }
 
     function drawScoreboard(ctx, matchState) {
         ctx.clearRect(0, 0, scoreboard.width, scoreboard.height);
-        
+
         // draw mana
         ctx.fillStyle = "#5277a9";
         ctx.font = "18px Arial";
         if (matchState.color === "white") {
             var textX = 10;
             var textY = 35;
-            ctx.fillText('black mana  ' + matchState.blackManaCurrent + ' / ' + matchState.blackManaMax, textX, textY);
+            ctx.fillText('black mana  ' + matchState.blackPublic.ManaCurrent + ' / ' + matchState.blackPublic.ManaMax, textX, textY);
             textX = 10;
             textY = 70;
-            ctx.fillText('white mana  ' + matchState.whiteManaCurrent + ' / ' + matchState.whiteManaMax, textX, textY);
+            ctx.fillText('white mana  ' + matchState.whitePublic.ManaCurrent + ' / ' + matchState.whitePublic.ManaMax, textX, textY);
         } else {
             var textX = 10;
             var textY = 35;
-            ctx.fillText('white mana  ' + matchState.whiteManaCurrent + ' / ' + matchState.whiteManaMax, textX, textY);
+            ctx.fillText('white mana  ' + matchState.whitePublic.ManaCurrent + ' / ' + matchState.whitePublic.ManaMax, textX, textY);
             textX = 10;
             textY = 70;
-            ctx.fillText('black mana  ' + matchState.blackManaCurrent + ' / ' + matchState.blackManaMax, textX, textY);
+            ctx.fillText('black mana  ' + matchState.blackPublic.ManaCurrent + ' / ' + matchState.blackPublic.ManaMax, textX, textY);
         }
 
         //
@@ -152,13 +143,13 @@ function draw(matchState) {
         const gap = 70;
     
         var pieceNames = [
-            "white_rook", "white_knight", "white_bishop", "white_king", 
-            "black_rook", "black_knight", "black_bishop", "black_king", 
+            "white_Rook", "white_Knight", "white_Bishop", "white_King", 
+            "black_Rook", "black_Knight", "black_Bishop", "black_King", 
         ];
         if (matchState.color === "white") {
             pieceNames = [ 
-                "black_rook", "black_knight", "black_bishop", "black_king", 
-                "white_rook", "white_knight", "white_bishop", "white_king", 
+                "black_Rook", "black_Knight", "black_Bishop", "black_King", 
+                "white_Rook", "white_Knight", "white_Bishop", "white_King", 
             ];    
         }
     
@@ -184,43 +175,58 @@ function draw(matchState) {
         }
     }
 
-    function drawPieces(ctx, pieces, flipped) {
-        var flipX = board.nColumns - 1;
-        var flipY = board.nRows - 1;
+    function drawPieces(ctx, matchState) {
+        var flipped = matchState.color === "white";
+        var pieces = matchState.board;
+        const maxX = board.nColumns * board.squareWidth;
+        var x = 0;
+        var y = 0;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+        //ctx.fillStyle = 'rgba(255, 255, 120, 0.5)';
         for (var i = 0; i < pieces.length; i++) {
-            var piece = pieces[i];
-            var coords = piecesImg.pieceImageCoords[piece.color + "_" + piece.type];
-            if (flipped) {
+            var piece = pieces[flipped ? pieces.length - 1 - i : i];
+
+            if (piece) {
+                var coords = piecesImg.pieceImageCoords[piece.color + "_" + piece.name];
                 ctx.drawImage(piecesImg, coords.x, coords.y, piecesImg.pieceWidth, piecesImg.pieceHeight, 
-                    (flipX - piece.pos.x) * board.squareWidth, (flipY - piece.pos.y) * board.squareHeight, board.squareWidth, board.squareHeight
-                );    
-            } else {
-                ctx.drawImage(piecesImg, coords.x, coords.y, piecesImg.pieceWidth, piecesImg.pieceHeight, 
-                    piece.pos.x * board.squareWidth, piece.pos.y * board.squareHeight, board.squareWidth, board.squareHeight
+                    x, y, board.squareWidth, board.squareHeight
                 );
             }
-        }
 
-        // function highlightSquares(ctx, matchState) {
-        //     // if no selected square, drawing {x: -1, x: -1} is clipped
-        //     ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-        //     var x = matchState.private.selectedPos.x * board.squareWidth;
-        //     var y = matchState.private.selectedPos.y * board.squareHeight;
-        //     ctx.fillRect(x, y, board.squareWidth, board.squareHeight);
-        
-        //     // highlight valid attack targets
-        //     ctx.fillStyle = 'rgba(255, 255, 120, 0.5)';
-        //     var moves = matchState.private.attackPos;
-        //     for (var m of moves) {
-        //         var x = m.x * board.squareWidth;
-        //         var y = m.y * board.squareHeight;
-        //         ctx.fillRect(x, y, board.squareWidth, board.squareHeight);
-        //     }
-        // }
+            x += board.squareWidth;
+            if (x == maxX) {
+                x = 0;
+                y += board.squareHeight;
+            }
+        }
+    }
+
+    function drawSquareHighlight(ctx, matchState) {
+        if (!matchState.private.highlightEmpty) {
+            return
+        }
+        var flipped = matchState.color === 'white';
+        var pieces = matchState.board;
+        const maxX = board.nColumns * board.squareWidth;
+        var x = 0;
+        var y = 0;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+        //ctx.fillStyle = 'rgba(255, 255, 120, 0.5)';
+        for (var i = 0; i < pieces.length; i++) {
+            var idx = flipped ? pieces.length -1 - i : i;
+            if (pieces[idx] !== null || i < pieces.length / 2) {
+                ctx.fillRect(x, y, board.squareWidth, board.squareHeight);
+            }
+            x += board.squareWidth;
+            if (x == maxX) {
+                x = 0;
+                y += board.squareHeight;
+            }
+        }
     }
 
     function drawBoard(ctx) {
-        ctx.fillStyle = '#33FFFF';
+        ctx.fillStyle = '#1ccccc';
         ctx.fillRect(0, 0, board.width, board.height);
         ctx.fillStyle = '#9fde68';
         ctx.fillRect(0, 0, board.width, board.height / 2);
@@ -246,9 +252,9 @@ function draw(matchState) {
     
     function drawTurn(match) {
         if (match.color === match.turn) {
-            turn.innerHTML = "Your turn (" + match.color + "). <br/> Play a card.";
+            turn.innerHTML = "ROUND " + match.round + ": your turn (" + match.color + "). <br/> " + match.private.playerInstruction;
         } else {
-            turn.innerHTML = "Opponent's turn (" + match.turn + ").";
+            turn.innerHTML = "ROUND " + match.round + ": opponent's turn (" + match.turn + ").";
         }
     }
     
@@ -279,7 +285,7 @@ cardList.addEventListener('mousedown', function (evt) {
     if (idx === '' || idx === null) {
         return;
     }
-    conn.send("click_card " + JSON.stringify({date: new Date(), selectedCard: parseInt(idx)}));
+    conn.send("click_card " + JSON.stringify({selectedCard: parseInt(idx)}));
     waitingResponse = true;
 }, false);
 
@@ -331,6 +337,12 @@ canvas.addEventListener('mousedown', function (evt) {
     }
     
     console.log("board click: " + squareX + ", " + squareY);
-    conn.send("click_board " + JSON.stringify({date: new Date(), x: squareX, y: squareY}));
+    conn.send("click_board " + JSON.stringify({x: squareX, y: squareY}));
+    waitingResponse = true;
+}, false);
+
+passButton.addEventListener('click', function (evt) {
+    console.log("passed");
+    conn.send("pass ");
     waitingResponse = true;
 }, false);

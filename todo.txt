@@ -1,26 +1,23 @@
 
-server sends valid moves
 
+enforce king as first move
 
-
-confirm / cancel buttons
-
-
-no pass, but if player has no valid moves (because of cooldowns, lack of cards, then it auto-passes?
-or maybe king has 1 turn cooldown and so can always move king
-
-
-when playing white, flip board pieces and invert board clicks; also flip scoreboard
 
 
 
 
 !!attacks are resolved at end of round; every unit attacks in all of their directions (hitting only enemies, not allies)
 
-when your turn and no card selected, display pass button
+
 
 timer for move (display countdown clock); auto pass if you let it expire? total time clock that forfeits if it expires?
 
 
 give vassals high hp, but also a stun threshold that recharges every round; 
 if stun meter zeroed at end of round, the vassal sits out next round
+
+
+escalation:
+
+    perhaps every round you can permanently mark an enemy square out of bounds, or curse the square (does dmg to occupant)
+    (maybe even choose your own square, which could be useful if cursed squares block attacks)
