@@ -28,16 +28,29 @@ margin-left: 40px;
   padding: 5px 5px;
 }
 
-#turn {
-  float: left;
-  font-size: 100%;
-  width: 450px;
-  margin: 10px 0px 0px 20px;
-  color: #bb3636;
-}
-
 #card_buttons h3 {
   float: left;
+}
+
+#timer {
+  float: right;
+  margin-top: 17px;
+  margin-right: 15px;
+  font-size: 110%;
+  font-weight: bold;
+  width: 100px;
+  text-align: right;
+}
+
+#wait_opponent {
+  color: darkred;
+  float: right;
+  margin-top: 17px;
+  margin-right: 15px;
+  font-size: 110%;
+  font-weight: bold;
+  width: 140px;
+  text-align: right;
 }
 
 #card_buttons button {

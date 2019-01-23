@@ -1,14 +1,19 @@
 
-countdown timer in place of pass button
+match shouldn't start until both players hit READY button
+
 
 splash banner and sound on start of new round
 
-if vassal dies, it is out permanently
 
-win a king dies, game is over
-    if both kings die in same round, game is draw
+dispaly who goes first next round
+
+put color choice in match url
 
 
+stun vassals (disable them for next round) by inflicting certain damage? or playing certain cards?
+
+
+convert fanfare to mp3
 
 pawns buff up between rounds (increase HP by 5?)
 
@@ -33,3 +38,9 @@ escalation:
 
     perhaps every round you can permanently mark an enemy square out of bounds, or curse the square (does dmg to occupant)
     (maybe even choose your own square, which could be useful if cursed squares block attacks)
+
+
+card ideas:
+
+    King Nuke: your own king does damage in 2 space radius to all units 
+        (perhaps can choose to also use on enemy king such that enemy king damages all units in 2 space radius)

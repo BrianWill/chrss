@@ -7,10 +7,10 @@
 <body>
   
 <div style="width: 1500px;" >
+  <audio id="fanfare" src="/static/fanfare.wav" type="audio/wav"></audio>
   <div>
     <h1 style="float: left;">LET'S PLAY CHRSS!</h1>
     <canvas style="float: left" id="scoreboard" width="480" height="100"></canvas>
-    <div id="turn"></div>
   </div>
   
   <div style="clear: both;">
@@ -22,7 +22,9 @@
       <div style="width: 400px; float: left;">
         <div id="card_buttons">
           <h3>Cards</h3>
+          <div id="timer"></div>
           <button id="pass_button">Pass</button>
+          <div id="wait_opponent">Opponent's turn</div>
         </div>
         <div id="card_list"></div>
         <div id="card_description"></div>

@@ -16,37 +16,6 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-var wsupgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-}
-
-const matchTimeout time.Duration = 120 * time.Minute
-
-type Match struct {
-	Name      string // used to identify the match in browser
-	BlackConn *websocket.Conn
-	WhiteConn *websocket.Conn
-	Mutex     sync.RWMutex
-	// rows stored in order top-to-bottom, e.g. nColumns is index of leftmost square in second row
-	// (*Pierce better for empty square when JSONifying; Board[i] points to pieces[i]; the array is here simply for memory locality)
-	pieces         [nColumns * nRows]Piece  // zero value for empty square
-	Board          [nColumns * nRows]*Piece // nil for empty square
-	CommunalCards  []Card                   // card in pool shared by both players
-	StartTime      time.Time
-	UUID           string
-	BlackPrivate   PrivateState
-	WhitePrivate   PrivateState
-	BlackPublic    PublicState
-	WhitePublic    PublicState
-	Turn           string    // white, black
-	PassPrior      bool      // true if prior move was a pass
-	FirstTurnColor string    // color of player who had first turn this round
-	Round          int       // starts at 1
-	Winner         string    // white, black, none, draw
-	LastMoveTime   time.Time // should be initialized to match start time
-}
-
 const (
 	white = "white"
 	black = "black"
@@ -82,7 +51,40 @@ const kingInstruction = "Pick a square to place your king."
 const nColumns = 6
 const nRows = 6
 
+const turnTimer = 50 * int64(time.Second)
+
 var positions [nColumns * nRows]Pos // convenience for getting Pos of board index
+
+var wsupgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
+
+const matchTimeout = 120 * int64(time.Minute)
+
+type Match struct {
+	Name      string // used to identify the match in browser
+	BlackConn *websocket.Conn
+	WhiteConn *websocket.Conn
+	Mutex     sync.RWMutex
+	// rows stored in order top-to-bottom, e.g. nColumns is index of leftmost square in second row
+	// (*Pierce better for empty square when JSONifying; Board[i] points to pieces[i]; the array is here simply for memory locality)
+	pieces         [nColumns * nRows]Piece  // zero value for empty square
+	Board          [nColumns * nRows]*Piece // nil for empty square
+	CommunalCards  []Card                   // card in pool shared by both players
+	UUID           string
+	BlackPrivate   PrivateState
+	WhitePrivate   PrivateState
+	BlackPublic    PublicState
+	WhitePublic    PublicState
+	Turn           string // white, black
+	PassPrior      bool   // true if prior move was a pass
+	FirstTurnColor string // color of player who had first turn this round
+	Round          int    // starts at 1
+	Winner         string // white, black, none, draw
+	StartTime      int64  // unix time
+	LastMoveTime   int64  // should be initialized to match start time
+}
 
 // info a player doesn't want opponent to see
 type PrivateState struct {
@@ -197,7 +199,10 @@ func randSelect(n int, candidates []int) []int {
 func initMatch(m *Match) {
 	// random adjective-animal
 	m.Name = adjectives[rand.Intn(len(adjectives))] + "-" + animals[rand.Intn(len(animals))]
-	m.LastMoveTime = time.Now()
+	m.LastMoveTime = time.Now().UnixNano()
+	m.StartTime = m.LastMoveTime
+	m.Turn = white
+	m.Winner = none
 	m.Round = 1
 
 	m.WhitePublic.ManaCurrent = 3
@@ -240,10 +245,6 @@ func initMatch(m *Match) {
 		PlayerInstruction: kingInstruction,
 		HighlightEmpty:    true,
 	}
-	m.StartTime = time.Now()
-	m.Turn = white
-	m.Winner = none
-	m.LastMoveTime = m.StartTime
 }
 
 // returns nil for empty square
@@ -548,9 +549,58 @@ func (m *Match) SpawnPawns(player string, init bool) {
 	}
 }
 
+// returns boolean true when no free slot
+func (m *Match) RandomFreeSquare(player string) (Pos, bool) {
+	// collect Pos of all free squares on player's side
+	freeSquares := []Pos{}
+	x := 0
+	y := 0
+	i := 0
+	end := len(m.Board) / 2
+	if player == black {
+		y = nRows / 2
+		i = end
+		end = len(m.Board)
+	}
+	for ; i < end; i++ {
+		if m.Board[i] == nil {
+			freeSquares = append(freeSquares, Pos{x, y})
+		}
+		x++
+		if x == nColumns {
+			x = 0
+			y++
+		}
+	}
+	if len(freeSquares) == 0 {
+		return Pos{}, true
+	}
+
+	// random pick from the free Pos
+	return freeSquares[rand.Intn(len(freeSquares))], false
+}
+
+func (m *Match) TimeoutTurn() {
+	var public *PublicState
+	if m.Turn == black {
+		public = &m.BlackPublic
+	} else {
+		public = &m.WhitePublic
+	}
+	if public.KingPlayed {
+		m.EndTurn(true, m.Turn)
+	} else {
+		// randomly place king in free slot
+		pos, _ := m.RandomFreeSquare(m.Turn) // there will always be a free square here
+		m.setPiece(pos, Piece{king, m.Turn, public.KingHP, public.KingAttack, 0})
+		public.KingPlayed = true
+		m.EndTurn(false, m.Turn)
+	}
+}
+
 // pass = if turn is ending by passing; player = color whose turn is ending
 func (m *Match) EndTurn(pass bool, player string) {
-	m.LastMoveTime = time.Now()
+	m.LastMoveTime = time.Now().UnixNano()
 	m.CalculateDamage()
 
 	if pass && m.PassPrior { // if players both pass in succession, end round
@@ -609,7 +659,6 @@ func (m *Match) EndTurn(pass bool, player string) {
 		m.CalculateDamage()
 
 	} else {
-
 		if m.Turn == black {
 			m.Turn = white
 		} else {
@@ -641,6 +690,7 @@ func (m *Match) EndTurn(pass bool, player string) {
 
 // return true if message triggers end of match
 func processMessage(msg []byte, match *Match, player string) bool {
+	currentRound := match.Round
 	var event string
 	var notifyOpponent bool // set to true for events where opponent should get state update
 	idx := 0
@@ -663,13 +713,24 @@ func processMessage(msg []byte, match *Match, player string) bool {
 		}
 		switch event {
 		case "get_state":
+		case "time_expired":
+			// actual elapsed time is checked on server, but we rely upon clients to notify
+			// (not ideal because both clients might fail, but then we have bigger problem)
+			// Cheater could supress sending time_expired event from their client, but
+			// opponent also sends the event.
+			turnElapsed := time.Now().UnixNano() - match.LastMoveTime
+			remainingTurnTime := turnTimer - turnElapsed
+			if remainingTurnTime > 0 {
+				break // ignore if time hasn't actually expired
+			}
+			match.TimeoutTurn()
+			notifyOpponent = true
 		case "click_card":
 			if player != match.Turn {
 				break // ignore if not the player's turn
 			}
 			if !public.KingPlayed {
-				// cannot select other cards until king is played
-				break
+				break // cannot select other cards until king is played
 			}
 			type ClickCardEvent struct {
 				SelectedCard int
@@ -730,7 +791,6 @@ func processMessage(msg []byte, match *Match, player string) bool {
 				p = Piece{knight, player, public.KnightHP, public.KnightAttack, 0}
 			case rook:
 				p = Piece{rook, player, public.RookHP, public.RookAttack, 0}
-
 			}
 			match.setPiece(Pos{event.X, event.Y}, p)
 			// remove card
@@ -751,17 +811,22 @@ func processMessage(msg []byte, match *Match, player string) bool {
 		}
 	}
 	processConnection := func(conn *websocket.Conn, color string, private *PrivateState) {
+		turnElapsed := time.Now().UnixNano() - match.LastMoveTime
+		remainingTurnTime := (turnTimer - turnElapsed) / 1000000
 		if conn != nil {
 			response := gin.H{
-				"color":        color,
-				"board":        match.Board,
-				"private":      private,
-				"turn":         match.Turn,
-				"winner":       match.Winner,
-				"round":        match.Round,
-				"lastMoveTime": match.LastMoveTime,
-				"blackPublic":  match.BlackPublic,
-				"whitePublic":  match.WhitePublic,
+				"turnRemainingMilliseconds": remainingTurnTime,
+				"color":                     color,
+				"board":                     match.Board,
+				"private":                   private,
+				"turn":                      match.Turn,
+				"winner":                    match.Winner,
+				"round":                     match.Round,
+				"newRound":                  match.Round > currentRound,
+				"lastMoveTime":              match.LastMoveTime,
+				"blackPublic":               match.BlackPublic,
+				"whitePublic":               match.WhitePublic,
+				"passPrior":                 match.PassPrior,
 			}
 			bytes, err := json.Marshal(response)
 			if err != nil {
@@ -889,8 +954,8 @@ func main() {
 		for {
 			liveMatches.Lock()
 			for id, match := range liveMatches.internal {
-				if match.Winner != none ||
-					time.Now().After(match.LastMoveTime.Add(matchTimeout)) {
+				exceededTimeout := time.Now().Unix() > match.LastMoveTime+matchTimeout
+				if match.Winner != none || exceededTimeout {
 					delete(liveMatches.internal, id)
 				}
 			}

@@ -2,11 +2,17 @@ var canvas = document.getElementById('board');
 var ctx = canvas.getContext('2d');
 var scoreboard = document.getElementById('scoreboard');
 var scoreboardCtx = scoreboard.getContext('2d');
-var turn = document.getElementById('turn');
+
+const fanfare = document.getElementById('fanfare');
+fanfare.volume = 0.5;
+
 var cardList = document.getElementById('card_list');
 var cardDescription = document.getElementById('card_description');
 var passButton = document.getElementById('pass_button');
+var waitOpponent = document.getElementById('wait_opponent');
+var timer = document.getElementById('timer');
 var log = document.getElementById('log');
+
 var matchState;
 
 const NO_SELECTED_CARD = -1;
@@ -83,7 +89,7 @@ conn.onmessage = function(msg){
     console.log(" <== " + new Date() + " <== \n");
     console.log(msg);
     if (msg.data === "Match is full.") {
-        turn.innerHTML = "Cannot join match. Match already has two players.";
+        cardList.innerHTML = "Cannot join match. Match already has two players.";
         return;
     }
     matchState = JSON.parse(msg.data);
@@ -92,7 +98,11 @@ conn.onmessage = function(msg){
     } else {
         matchState.public = matchState.whitePublic;
     }
+    setTimers(matchState);
     draw(matchState);
+    if (matchState.newRound) {
+        fanfare.play();
+    }
     waitingResponse = false;
 }
 
@@ -112,18 +122,36 @@ function draw(matchState) {
     drawBoard(ctx);
     drawPieces(ctx, matchState);
     drawSquareHighlight(ctx, matchState);
+    drawWait(ctx, matchState);
     drawWinner(ctx, matchState.winner);
-    drawTurn(matchState);
     drawCards(matchState);
     drawScoreboard(scoreboardCtx, matchState);
     drawButtons(matchState);
+    drawTimer(matchState);
 
     function drawButtons(matchState) {
         if (matchState.color === matchState.turn && matchState.public.kingPlayed) {
             passButton.style.display = 'block';
+            if (matchState.passPrior) {
+                passButton.innerHTML = 'End round';
+            } else {
+                passButton.innerHTML = 'Pass';
+            }
         } else {
             passButton.style.display = 'none';
         }
+        if (matchState.color === matchState.turn) {
+            waitOpponent.style.display = 'none';
+        } else {
+            waitOpponent.style.display = 'block';
+        }
+    }
+
+    function drawWait(ctx, matchState) {
+        if (matchState.winner === 'none' && matchState.turn !== matchState.color) {
+            ctx.fillStyle = 'rgba(0, 30, 100, 0.20)';
+            ctx.fillRect(0, 0, board.width, board.height);    
+        } 
     }
 
     function drawWinner(ctx, winner) {
@@ -324,14 +352,6 @@ function draw(matchState) {
         }
     }
     
-    function drawTurn(match) {
-        if (match.color === match.turn) {
-            turn.innerHTML = "ROUND " + match.round + ": your turn (" + match.color + "). <br/> " + match.private.playerInstruction;
-        } else {
-            turn.innerHTML = "ROUND " + match.round + ": opponent's turn (" + match.turn + ").";
-        }
-    }
-    
     function drawCards(match) {
         var s = '';
         for (var i = 0; i < match.private.cards.length; i++) {
@@ -346,9 +366,42 @@ function draw(matchState) {
     }
 }
 
+function drawTimer(match) {
+    timer.innerHTML = Math.floor(match.turnRemainingMilliseconds / 1000) + ' seconds';
+}
+
 
 
 // *** logic ***
+
+var timerTimeoutHandle;
+var timerIntervalHandle;
+
+function setTimers(match) {
+    window.clearTimeout(timerTimeoutHandle);
+    window.clearInterval(timerIntervalHandle);
+    if (match.turnRemainingMilliseconds < 0) {
+        conn.send("time_expired ");
+        waitingResponse = true;
+        return
+    }
+    timerTimeoutHandle = window.setTimeout(
+        function () {
+            conn.send("time_expired ");
+            waitingResponse = true;
+        },
+        match.turnRemainingMilliseconds
+    );
+    timerIntervalHandle = window.setInterval(
+        function () {
+            match.turnRemainingMilliseconds -= 1000;
+            drawTimer(match);
+        }, 
+        1000
+    );
+}
+
+
 
 
 cardList.addEventListener('mousedown', function (evt) {
