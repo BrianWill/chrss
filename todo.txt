@@ -1,24 +1,24 @@
 
-throbbing spinner in place of pass button when waiting on opponent
+countdown timer in place of pass button
 
 splash banner and sound on start of new round
+
+if vassal dies, it is out permanently
 
 win a king dies, game is over
     if both kings die in same round, game is draw
 
-if vassal dies, it is out permanently
 
-when player has zero pawns, they get two at start of round instead of just one
 
-set max pawns to 4 or 5 instead of 6?
+pawns buff up between rounds (increase HP by 5?)
 
 what to do about your own pawns in the way? include 'pawn sacrafice' card in stock hand to kill own pawn?
-
+    -- give enemy incentive to attack? discourage stalling strategies?
+    -- in round 5 and after, if 3 rounds pass without any hits on either king; side with lowest hp king loses
 
 timer for move (display countdown clock); auto pass if you let it expire? total time clock that forfeits if it expires?
 
-
-
+communal cards? deck building?
 
 
 

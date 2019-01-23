@@ -112,6 +112,7 @@ function draw(matchState) {
     drawBoard(ctx);
     drawPieces(ctx, matchState);
     drawSquareHighlight(ctx, matchState);
+    drawWinner(ctx, matchState.winner);
     drawTurn(matchState);
     drawCards(matchState);
     drawScoreboard(scoreboardCtx, matchState);
@@ -123,6 +124,21 @@ function draw(matchState) {
         } else {
             passButton.style.display = 'none';
         }
+    }
+
+    function drawWinner(ctx, winner) {
+        if (winner === "none") {
+            return
+        }
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+        ctx.fillRect(0, 0, board.width, board.height);
+
+        var messages = {"black": "Black Wins", "white": "White Wins", "draw": "Draw! Nobody Wins"};
+        
+        ctx.fillStyle = "white";
+        ctx.font = "60px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(messages[winner], board.width / 2, board.height / 2 + 20);
     }
 
     function drawScoreboard(ctx, matchState) {
@@ -157,6 +173,8 @@ function draw(matchState) {
         var width = board.squareWidth / 3;
         var height = board.squareWidth / 3;
         const gap = 70;
+        const skullOffsetX = -19;
+        const skullOffsetY = -20;
     
         var pieceNames = [
             "white_Rook", "white_Knight", "white_Bishop", "white_King", 
@@ -199,7 +217,13 @@ function draw(matchState) {
             ctx.drawImage(piecesImg, coords.x, coords.y, piecesImg.pieceWidth, piecesImg.pieceHeight, 
                 x, y, width, height
             );  
-            ctx.fillText(hps[i], textX, textY);
+            if (hps[i] <= 0) {
+                ctx.drawImage(skullImg, 0, 0, skullImg.spriteWidth, skullImg.spriteHeight, 
+                    textX + skullOffsetX, textY + skullOffsetY, board.squareWidth / 4, board.squareHeight / 4
+                );
+            } else {
+                ctx.fillText(hps[i], textX, textY);
+            }
             x += gap;
             textX += gap;    
         }
@@ -239,7 +263,7 @@ function draw(matchState) {
                 ctx.textAlign = 'start';
                 ctx.fillText(piece.attack, x + hpOffsetX, y + hpOffsetY);
 
-                if (piece.hp < piece.damage) {
+                if (piece.hp <= piece.damage) {
                     ctx.drawImage(skullImg, 0, 0, skullImg.spriteWidth, skullImg.spriteHeight, 
                         x + skullOffsetX, y + skullOffsetY, board.squareWidth / 4, board.squareHeight / 4
                     );
@@ -264,7 +288,6 @@ function draw(matchState) {
         var x = 0;
         var y = 0;
         ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
-        //ctx.fillStyle = 'rgba(255, 255, 120, 0.5)';
         for (var i = 0; i < pieces.length; i++) {
             var idx = flipped ? pieces.length -1 - i : i;
             if (pieces[idx] !== null || i < pieces.length / 2) {
@@ -284,9 +307,7 @@ function draw(matchState) {
         ctx.fillStyle = '#9fde68';
         ctx.fillRect(0, 0, board.width, board.height / 2);
     
-    
         ctx.fillStyle = '#ef9ba9';
-        
         var staggered = false;
         var y = 0;
         for (var i = 0; i < board.nRows; i++) {
@@ -331,6 +352,9 @@ function draw(matchState) {
 
 
 cardList.addEventListener('mousedown', function (evt) {
+    if (matchState.winner !== 'none') {
+        return
+    }
     if (waitingResponse || (matchState.color !== matchState.turn)) {
         return; // not your turn!
     }
@@ -343,6 +367,9 @@ cardList.addEventListener('mousedown', function (evt) {
 }, false);
 
 cardList.addEventListener('mouseleave', function (evt) {
+    if (matchState.winner !== 'none') {
+        return
+    }
     for (var c of cardList.children) {
         c.classList.remove('highlight_card');
     }
@@ -355,6 +382,9 @@ cardList.addEventListener('mouseleave', function (evt) {
 }, false);
 
 cardList.addEventListener('mouseover', function (evt) {
+    if (matchState.winner !== 'none') {
+        return
+    }
     var idx = evt.target.getAttribute('cardIdx');
     if (idx === '' || idx === null) {
         return;
@@ -371,6 +401,9 @@ cardList.addEventListener('mouseover', function (evt) {
 
 
 canvas.addEventListener('mousedown', function (evt) {
+    if (matchState.winner !== 'none') {
+        return
+    }
     if (waitingResponse || (matchState.color !== matchState.turn)) {
         return; // not your turn!
     }
@@ -389,12 +422,14 @@ canvas.addEventListener('mousedown', function (evt) {
         squareY = board.nRows - 1 - squareY;
     }
     
-    console.log("board click: " + squareX + ", " + squareY);
     conn.send("click_board " + JSON.stringify({x: squareX, y: squareY}));
     waitingResponse = true;
 }, false);
 
 passButton.addEventListener('click', function (evt) {
+    if (matchState.winner !== 'none') {
+        return
+    }
     console.log("passed");
     conn.send("pass ");
     waitingResponse = true;
