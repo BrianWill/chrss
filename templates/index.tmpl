@@ -6,39 +6,36 @@
   </head>
 <body>
   
-<div style="width: 1500px;" >
   <audio id="fanfare" src="/static/fanfare.mp3" type="audio/mpeg"></audio>
-  <div>
-    <h1 style="float: left;">LET'S PLAY CHRSS!</h1>
-    <canvas style="float: left" id="scoreboard" width="480" height="100"></canvas>
-  </div>
-  
-  <div style="clear: both;">
-    <div style="float: left;">
-      <canvas id="board" width="600" height="600"></canvas>
-    </div>
+  <audio id="campanas" src="/static/campanas.mp3" type="audio/mpeg"></audio>
+  <div id="top-container">
     
-    <div style="float: left; margin-left: 30px; width:800px;">
-      <div style="width: 400px; float: left;">
-        <div id="card_buttons">
-          <h3>Cards</h3>
+    <canvas id="board" width="650" height="650"></canvas>
+  
+    <div>
+      <div>
+        <canvas id="scoreboard" width="480" height="100"></canvas>
+
+        <div id="status_info">
           <div id="timer"></div>
-          <button id="pass_button">Pass</button>
           <div id="wait_opponent">Opponent's turn</div>
+          <div id="pass_button">Pass></div>
         </div>
+
         <div id="card_list"></div>
         <div id="card_description"></div>
-      </div>
-      <div style="float: left; margin-left: 20px; width: 200px;">
+        
+        <div>
+        <div id="log_box">
           <h3>Log</h3>
-          <div id="log">
-            
-          </div>
+          <div id="log"></div>
         </div>
+        </div>
+      </div>  
     </div>
   </div>
-</div>
 
+  <div id="readyup"><button>READY UP</button></div>
 
 </body>
 <script src="/static/main.js"></script>

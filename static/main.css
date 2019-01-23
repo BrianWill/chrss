@@ -1,10 +1,58 @@
 body {
   background-color: #bbb;
   font-family: "Arial";
+  margin: 0px 0px;
+}
+
+
+#top-container {
+  display: grid;
+  grid-template-columns: 670px 550px;
+}
+
+#top-container > * {
+  display: inline-grid;
+}
+
+#status_info {
+  display: grid;
+  grid-template-columns: 410px auto;
+  margin-bottom: 10px;
+}
+
+#status_info > * {
+  display: inline-grid;
 }
 
 #scoreboard {
-margin-left: 40px;
+  
+}
+
+#readyup {
+  position: fixed;
+  top: 200px;
+  background-color: rgb(20, 20, 20, 0.9);
+  height: 200px;
+  width: 100%;
+  margin: 0px 0px;
+}
+
+#readyup > button {
+  display: block;
+  color: white;
+  background-color: black;
+  border: solid white 3px; 
+  outline: none;
+  margin: 80px auto;
+  cursor: pointer;
+  font-size: 140%;
+}
+
+#readyup > div {
+  color: white;
+  margin: 80px auto;
+  font-size: 140%;
+  text-align: center;
 }
 
 .highlight_card {
@@ -17,48 +65,49 @@ margin-left: 40px;
 }
 
 #card_list {
-  height: 350px;
+  height: 250px;
   border: solid 2px black;
+  -moz-user-select: none;
   user-select: none;
-  clear: both;
+  overflow-y: scroll;
 }
 
-#card_list div {
-  font-size: 130%;
-  padding: 5px 5px;
+#card_list > div {
+  font-size: 110%;
+  padding: 3px 10px;
 }
 
-#card_buttons h3 {
-  float: left;
+#card_description {
+  display: none;
+  height: 230px;
+
 }
 
 #timer {
-  float: right;
-  margin-top: 17px;
-  margin-right: 15px;
   font-size: 110%;
   font-weight: bold;
-  width: 100px;
-  text-align: right;
+}
+
+#log {
+  border: solid 2px black;
+  height: 210px;
+  overflow-y: scroll;
 }
 
 #wait_opponent {
   color: darkred;
-  float: right;
-  margin-top: 17px;
-  margin-right: 15px;
   font-size: 110%;
   font-weight: bold;
-  width: 140px;
   text-align: right;
 }
 
-#card_buttons button {
-  display: block;
-  float: right;
-  margin: 14px 16px 0px 0px;
+#pass_button {
+  color: darkblue;
   font-size: 110%;
-  outline: none;
+  font-weight: bold;
+  text-align: right;
+  cursor: pointer;
+  text-decoration: underline;
 }
 
 #board {

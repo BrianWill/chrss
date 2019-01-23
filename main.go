@@ -81,6 +81,7 @@ type Match struct {
 	PassPrior      bool   // true if prior move was a pass
 	FirstTurnColor string // color of player who had first turn this round
 	Round          int    // starts at 1
+	Ready          bool   // true when both players have readied up
 	Winner         string // white, black, none, draw
 	StartTime      int64  // unix time
 	LastMoveTime   int64  // should be initialized to match start time
@@ -96,6 +97,7 @@ type PrivateState struct {
 }
 
 type PublicState struct {
+	Ready        bool `json:"ready"` // match does not start until both player's are ready
 	KingPlayed   bool `json:"kingPlayed"`
 	NumPawns     int  `json:"numPawns"`
 	ManaMax      int  `json:"manaMax"`
@@ -691,6 +693,7 @@ func (m *Match) EndTurn(pass bool, player string) {
 // return true if message triggers end of match
 func processMessage(msg []byte, match *Match, player string) bool {
 	currentRound := match.Round
+	newTurn := false
 	var event string
 	var notifyOpponent bool // set to true for events where opponent should get state update
 	idx := 0
@@ -700,6 +703,7 @@ func processMessage(msg []byte, match *Match, player string) bool {
 			msg = msg[idx+1:]
 		}
 	}
+	fmt.Println("event ", event, string(msg))
 	match.Mutex.Lock()
 	if match.Winner == none {
 		var private *PrivateState
@@ -713,7 +717,17 @@ func processMessage(msg []byte, match *Match, player string) bool {
 		}
 		switch event {
 		case "get_state":
+			// doesn't change anything, just fetches current state
+		case "ready":
+			public.Ready = true
+			if match.BlackPublic.Ready && match.WhitePublic.Ready {
+				match.Ready = true
+			}
+			notifyOpponent = true
 		case "time_expired":
+			if !match.Ready {
+				break
+			}
 			// actual elapsed time is checked on server, but we rely upon clients to notify
 			// (not ideal because both clients might fail, but then we have bigger problem)
 			// Cheater could supress sending time_expired event from their client, but
@@ -724,8 +738,12 @@ func processMessage(msg []byte, match *Match, player string) bool {
 				break // ignore if time hasn't actually expired
 			}
 			match.TimeoutTurn()
+			newTurn = true
 			notifyOpponent = true
 		case "click_card":
+			if !match.Ready {
+				break
+			}
 			if player != match.Turn {
 				break // ignore if not the player's turn
 			}
@@ -751,6 +769,9 @@ func processMessage(msg []byte, match *Match, player string) bool {
 				private.PlayerInstruction = "Click an empty spot on your side of the board to place the card."
 			}
 		case "click_board":
+			if !match.Ready {
+				break
+			}
 			if player != match.Turn {
 				break // ignore if not the player's turn
 			}
@@ -796,8 +817,12 @@ func processMessage(msg []byte, match *Match, player string) bool {
 			// remove card
 			private.RemoveCard(private.SelectedCard)
 			match.EndTurn(false, player)
+			newTurn = true
 			notifyOpponent = true
 		case "pass":
+			if !match.Ready {
+				break
+			}
 			if player != match.Turn {
 				break // ignore if not the player's turn
 			}
@@ -805,12 +830,13 @@ func processMessage(msg []byte, match *Match, player string) bool {
 				break // cannot pass when king has not been played
 			}
 			match.EndTurn(true, player)
+			newTurn = true
 			notifyOpponent = true
 		default:
-			// todo: send error (bad/unknown event)
+			fmt.Println("bad event: ", event, msg) // todo: better error reporting
 		}
 	}
-	processConnection := func(conn *websocket.Conn, color string, private *PrivateState) {
+	processConnection := func(conn *websocket.Conn, color string, private *PrivateState, newTurn bool) {
 		turnElapsed := time.Now().UnixNano() - match.LastMoveTime
 		remainingTurnTime := (turnTimer - turnElapsed) / 1000000
 		if conn != nil {
@@ -820,6 +846,7 @@ func processMessage(msg []byte, match *Match, player string) bool {
 				"board":                     match.Board,
 				"private":                   private,
 				"turn":                      match.Turn,
+				"newTurn":                   newTurn,
 				"winner":                    match.Winner,
 				"round":                     match.Round,
 				"newRound":                  match.Round > currentRound,
@@ -827,6 +854,7 @@ func processMessage(msg []byte, match *Match, player string) bool {
 				"blackPublic":               match.BlackPublic,
 				"whitePublic":               match.WhitePublic,
 				"passPrior":                 match.PassPrior,
+				"ready":                     match.Ready,
 			}
 			bytes, err := json.Marshal(response)
 			if err != nil {
@@ -841,14 +869,14 @@ func processMessage(msg []byte, match *Match, player string) bool {
 		}
 	}
 	if player == black {
-		processConnection(match.BlackConn, black, &match.BlackPrivate)
+		processConnection(match.BlackConn, black, &match.BlackPrivate, newTurn)
 		if notifyOpponent {
-			processConnection(match.WhiteConn, white, &match.WhitePrivate)
+			processConnection(match.WhiteConn, white, &match.WhitePrivate, newTurn)
 		}
 	} else {
-		processConnection(match.WhiteConn, white, &match.WhitePrivate)
+		processConnection(match.WhiteConn, white, &match.WhitePrivate, newTurn)
 		if notifyOpponent {
-			processConnection(match.BlackConn, black, &match.BlackPrivate)
+			processConnection(match.BlackConn, black, &match.BlackPrivate, newTurn)
 		}
 	}
 

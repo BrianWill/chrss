@@ -4,7 +4,9 @@ var scoreboard = document.getElementById('scoreboard');
 var scoreboardCtx = scoreboard.getContext('2d');
 
 const fanfare = document.getElementById('fanfare');
+const campanas = document.getElementById('campanas');
 fanfare.volume = 0.5;
+campanas.volume = 0.5;
 
 var cardList = document.getElementById('card_list');
 var cardDescription = document.getElementById('card_description');
@@ -12,13 +14,16 @@ var passButton = document.getElementById('pass_button');
 var waitOpponent = document.getElementById('wait_opponent');
 var timer = document.getElementById('timer');
 var log = document.getElementById('log');
+var logBox = document.getElementById('log_box');
+var readyup = document.getElementById('readyup');
+var readyupButton = document.querySelector('#readyup > button');
 
 var matchState;
 
 const NO_SELECTED_CARD = -1;
 const board = {
-    width: 600,
-    height: 600,
+    width: 650,
+    height: 650,
     nRows: 6,
     nColumns: 6,
 };
@@ -63,15 +68,15 @@ skullImg.onload = function (evt) {
 };
 
 var cardDescriptions = {
-    'King': `<h3>King: 0 mana cost, 40 starting hp</h3>
+    'King': `<h3>King: 0 mana cost, 40 HP, 15 attack</h3>
 <div>Game is won by destroying enemy king. Can attack once per round. Attacks one space in all directions.</div>`,
-    'Rook': `<h3>Rook: 0 mana cost, 10 starting hp</h3>
+    'Rook': `<h3>Rook: 0 mana cost, 20 HP, 10 attack</h3>
 <div>Can attack once per round. Attacks in the four cardinal directions (up, down, left, right).</div>`,
-    'Bishop': `<h3>Bishop: 0 mana cost, 10 starting hp</h3>
+    'Bishop': `<h3>Bishop: 0 mana cost, 15 HP, 8 attack</h3>
 <div>Can attack once per round. Attacks diagonally.</div>`,
-    'Knight': `<h3>Knight: 0 mana cost, 10 starting hp</h3>
+    'Knight': `<h3>Knight: 0 mana cost, 15 HP, 5 attack</h3>
 <div>Can attack once per round. Attacks are not blocked by other units. Attacks in 'L' shape: two spaces in cardinal direction and one space over.</div>`,
-    'Pawn': `<h3>Pawn: 0 mana cost, 3 starting hp</h3>
+    'Pawn': `<h3>Pawn: 0 mana cost, 3 HP, 2 attack</h3>
 <div>Can attack once per round. Attacks one space diagonally towards opponent side.</div>`,
 };
 
@@ -92,7 +97,8 @@ conn.onmessage = function(msg){
         cardList.innerHTML = "Cannot join match. Match already has two players.";
         return;
     }
-    matchState = JSON.parse(msg.data);
+    matchState  = JSON.parse(msg.data);
+
     if (matchState.color === 'black') {
         matchState.public = matchState.blackPublic;
     } else {
@@ -102,6 +108,8 @@ conn.onmessage = function(msg){
     draw(matchState);
     if (matchState.newRound) {
         fanfare.play();
+    } else if (matchState.newTurn) {
+        campanas.play();
     }
     waitingResponse = false;
 }
@@ -128,6 +136,18 @@ function draw(matchState) {
     drawScoreboard(scoreboardCtx, matchState);
     drawButtons(matchState);
     drawTimer(matchState);
+    drawReadyUp(matchState);
+
+    function drawReadyUp(matchState) {
+        if (matchState.ready) {
+            readyup.style.display = 'none';
+        } else {
+            if (matchState.public.ready) {
+                readyup.innerHTML = '<div>WAITING FOR OTHER PLAYER TO READY UP</div>';
+            }
+            readyup.style.display = 'block';
+        }
+    }
 
     function drawButtons(matchState) {
         if (matchState.color === matchState.turn && matchState.public.kingPlayed) {
@@ -174,7 +194,7 @@ function draw(matchState) {
 
         // draw mana
         ctx.fillStyle = "#5277a9";
-        ctx.font = "18px Arial";
+        ctx.font = "16px Arial";
         ctx.textAlign = 'start';
         if (matchState.color === "white") {
             var textX = 10;
@@ -260,18 +280,18 @@ function draw(matchState) {
     function drawPieces(ctx, matchState) {
         var flipped = matchState.color === "white";
         var pieces = matchState.board;
-        const maxX = board.nColumns * board.squareWidth;
         var x = 0;
         var y = 0;
         const hpOffsetX = 5;
         const hpOffsetY = 15;
         const damageOffsetY = 15;
-        const skullOffsetX = 74;
+        const skullOffsetX = 82;
         const skullOffsetY = 37;
 
+        var column = 0;
         for (var i = 0; i < pieces.length; i++) {
             var piece = pieces[flipped ? pieces.length - 1 - i : i];
-
+            
             if (piece) {
                 var coords = piecesImg.pieceImageCoords[piece.color + "_" + piece.name];
                 ctx.drawImage(piecesImg, coords.x, coords.y, piecesImg.pieceWidth, piecesImg.pieceHeight, 
@@ -299,8 +319,10 @@ function draw(matchState) {
             }
 
             x += board.squareWidth;
-            if (x == maxX) {
+            column++;
+            if (column == board.nColumns) {
                 x = 0;
+                column = 0;
                 y += board.squareHeight;
             }
         }
@@ -312,9 +334,9 @@ function draw(matchState) {
         }
         var flipped = matchState.color === 'white';
         var pieces = matchState.board;
-        const maxX = board.nColumns * board.squareWidth;
         var x = 0;
         var y = 0;
+        var column = 0;
         ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
         for (var i = 0; i < pieces.length; i++) {
             var idx = flipped ? pieces.length -1 - i : i;
@@ -322,8 +344,10 @@ function draw(matchState) {
                 ctx.fillRect(x, y, board.squareWidth, board.squareHeight);
             }
             x += board.squareWidth;
-            if (x == maxX) {
+            column++;
+            if (column == board.nColumns) {
                 x = 0;
+                column = 0;
                 y += board.squareHeight;
             }
         }
@@ -367,7 +391,9 @@ function draw(matchState) {
 }
 
 function drawTimer(match) {
-    timer.innerHTML = Math.floor(match.turnRemainingMilliseconds / 1000) + ' seconds';
+    if (match.ready) {
+        timer.innerHTML = Math.floor(match.turnRemainingMilliseconds / 1000) + ' seconds';
+    }
 }
 
 
@@ -378,6 +404,9 @@ var timerTimeoutHandle;
 var timerIntervalHandle;
 
 function setTimers(match) {
+    if (!match.ready) {
+        return;
+    }
     window.clearTimeout(timerTimeoutHandle);
     window.clearInterval(timerIntervalHandle);
     if (match.turnRemainingMilliseconds < 0) {
@@ -390,7 +419,8 @@ function setTimers(match) {
             conn.send("time_expired ");
             waitingResponse = true;
         },
-        match.turnRemainingMilliseconds
+        match.turnRemainingMilliseconds + 500      // extra half second as cushion (don't want to 
+                                                    // send too early or else server ignores event)
     );
     timerIntervalHandle = window.setInterval(
         function () {
@@ -401,10 +431,15 @@ function setTimers(match) {
     );
 }
 
-
-
+readyupButton.addEventListener('click', function (evt) {
+    conn.send("ready " );
+    waitingResponse = true;
+}, false);
 
 cardList.addEventListener('mousedown', function (evt) {
+    if (!matchState.ready) {
+        return
+    }
     if (matchState.winner !== 'none') {
         return
     }
@@ -420,29 +455,35 @@ cardList.addEventListener('mousedown', function (evt) {
 }, false);
 
 cardList.addEventListener('mouseleave', function (evt) {
+    if (!matchState.ready) {
+        return
+    }
     if (matchState.winner !== 'none') {
         return
     }
     for (var c of cardList.children) {
         c.classList.remove('highlight_card');
     }
-    var private = matchState.private;
-    if (private.selectedCard !== NO_SELECTED_CARD) {
-        cardDescription.innerHTML = cardDescriptions[private.cards[private.selectedCard].name];
-    } else {
-        cardDescription.innerHTML = '';
-    }
+    cardDescription.style.display = 'none';
+    logBox.style.display = 'block';
 }, false);
 
 cardList.addEventListener('mouseover', function (evt) {
+    if (!matchState.ready) {
+        return
+    }
     if (matchState.winner !== 'none') {
         return
     }
     var idx = evt.target.getAttribute('cardIdx');
     if (idx === '' || idx === null) {
+        cardDescription.style.display = 'none';
+        logBox.style.display = 'block';
         return;
     }
     cardDescription.innerHTML = cardDescriptions[matchState.private.cards[idx].name];
+    cardDescription.style.display = 'block';
+    logBox.style.display = 'none';
     for (var c of cardList.children) {
         if (c === evt.target) {
             c.classList.add('highlight_card');
@@ -454,6 +495,9 @@ cardList.addEventListener('mouseover', function (evt) {
 
 
 canvas.addEventListener('mousedown', function (evt) {
+    if (!matchState.ready) {
+        return
+    }
     if (matchState.winner !== 'none') {
         return
     }
@@ -480,6 +524,9 @@ canvas.addEventListener('mousedown', function (evt) {
 }, false);
 
 passButton.addEventListener('click', function (evt) {
+    if (!matchState.ready) {
+        return
+    }
     if (matchState.winner !== 'none') {
         return
     }
