@@ -2,10 +2,10 @@
 match shouldn't start until both players hit READY button
 
 
-splash banner and sound on start of new round
+log entries
 
 
-dispaly who goes first next round
+display who goes first next round
 
 put color choice in match url
 
