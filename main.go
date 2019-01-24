@@ -173,6 +173,14 @@ func (m *Match) IsOpen() bool {
 	return (m.WhiteConn == nil || m.BlackConn == nil) && m.Winner == none
 }
 
+func (m *Match) IsBlackOpen() bool {
+	return m.BlackConn == nil && m.Winner == none
+}
+
+func (m *Match) IsWhiteOpen() bool {
+	return m.WhiteConn == nil && m.Winner == none
+}
+
 func (m *Match) IsFull() bool {
 	return (m.WhiteConn != nil && m.BlackConn != nil) && m.Winner == none
 }
@@ -205,7 +213,7 @@ func initMatch(m *Match) {
 	m.StartTime = m.LastMoveTime
 	m.Turn = white
 	m.Winner = none
-	m.Round = 1
+	m.Round = 0 // will get incremented to 1 once both players ready up
 
 	m.WhitePublic.ManaCurrent = 3
 	m.WhitePublic.ManaMax = 3
@@ -582,21 +590,11 @@ func (m *Match) RandomFreeSquare(player string) (Pos, bool) {
 	return freeSquares[rand.Intn(len(freeSquares))], false
 }
 
-func (m *Match) TimeoutTurn() {
-	var public *PublicState
-	if m.Turn == black {
-		public = &m.BlackPublic
+func (m *Match) states(color string) (*PublicState, *PrivateState) {
+	if color == black {
+		return &m.BlackPublic, &m.BlackPrivate
 	} else {
-		public = &m.WhitePublic
-	}
-	if public.KingPlayed {
-		m.EndTurn(true, m.Turn)
-	} else {
-		// randomly place king in free slot
-		pos, _ := m.RandomFreeSquare(m.Turn) // there will always be a free square here
-		m.setPiece(pos, Piece{king, m.Turn, public.KingHP, public.KingAttack, 0})
-		public.KingPlayed = true
-		m.EndTurn(false, m.Turn)
+		return &m.WhitePublic, &m.WhitePrivate
 	}
 }
 
@@ -703,18 +701,10 @@ func processMessage(msg []byte, match *Match, player string) bool {
 			msg = msg[idx+1:]
 		}
 	}
-	fmt.Println("event ", event, string(msg))
+	//fmt.Println("event ", event, string(msg))
 	match.Mutex.Lock()
 	if match.Winner == none {
-		var private *PrivateState
-		var public *PublicState
-		if player == black {
-			private = &match.BlackPrivate
-			public = &match.BlackPublic
-		} else {
-			private = &match.WhitePrivate
-			public = &match.WhitePublic
-		}
+		public, private := match.states(player)
 		switch event {
 		case "get_state":
 			// doesn't change anything, just fetches current state
@@ -722,6 +712,7 @@ func processMessage(msg []byte, match *Match, player string) bool {
 			public.Ready = true
 			if match.BlackPublic.Ready && match.WhitePublic.Ready {
 				match.Ready = true
+				match.Round = 1 // by incrementing from 0, will sound new round fanfare
 			}
 			notifyOpponent = true
 		case "time_expired":
@@ -737,7 +728,17 @@ func processMessage(msg []byte, match *Match, player string) bool {
 			if remainingTurnTime > 0 {
 				break // ignore if time hasn't actually expired
 			}
-			match.TimeoutTurn()
+			public, private := match.states(match.Turn)
+			if public.KingPlayed {
+				match.EndTurn(true, match.Turn)
+			} else {
+				// randomly place king in free slot
+				pos, _ := match.RandomFreeSquare(match.Turn) // there will always be a free square here
+				match.setPiece(pos, Piece{king, match.Turn, public.KingHP, public.KingAttack, 0})
+				public.KingPlayed = true
+				private.RemoveCard(0) // king is always the first card
+				match.EndTurn(false, match.Turn)
+			}
 			newTurn = true
 			notifyOpponent = true
 		case "click_card":
@@ -855,6 +856,7 @@ func processMessage(msg []byte, match *Match, player string) bool {
 				"whitePublic":               match.WhitePublic,
 				"passPrior":                 match.PassPrior,
 				"ready":                     match.Ready,
+				"firstTurnColor":            match.FirstTurnColor,
 			}
 			bytes, err := json.Marshal(response)
 			if err != nil {
@@ -940,41 +942,25 @@ func main() {
 	// list open matches
 	router.GET("/", func(c *gin.Context) {
 		type openMatch struct {
-			Name string
-			UUID string
+			Name      string
+			UUID      string
+			BlackOpen bool
+			WhiteOpen bool
 		}
 		liveMatches.Lock()
-		openMatches := []openMatch{}
+		openMatches := make([]openMatch, len(liveMatches.internal))
+		i := 0
 		for _, m := range liveMatches.internal {
-			if m.IsOpen() {
-				openMatches = append(openMatches, openMatch{m.Name, m.UUID})
-			}
+			openMatches[i] = openMatch{m.Name, m.UUID, m.IsBlackOpen(), m.IsWhiteOpen()}
+			i++
 		}
 		liveMatches.Unlock()
 
 		c.HTML(http.StatusOK, "browse.tmpl", openMatches)
 	})
 
-	// browse non-open matches
-	router.GET("/rest", func(c *gin.Context) {
-		type openMatch struct {
-			Name     string
-			UUID     string
-			Finished bool
-		}
-		liveMatches.Lock()
-		openMatches := []openMatch{}
-		for _, m := range liveMatches.internal {
-			if m.IsFull() {
-				openMatches = append(openMatches, openMatch{m.Name, m.UUID, false})
-			}
-			if m.IsFinished() {
-				openMatches = append(openMatches, openMatch{m.Name, m.UUID, true})
-			}
-		}
-		liveMatches.Unlock()
-
-		c.HTML(http.StatusOK, "browse_rest.tmpl", openMatches)
+	router.GET("/guide", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "guide.tmpl", nil)
 	})
 
 	// periodically clean liveMatches of finished or timedout games
@@ -999,18 +985,28 @@ func main() {
 			return
 		}
 		u4Str := u4.String()
-		// todo give match a random name (adjective--animal)
 		match := &Match{
 			UUID: u4Str,
 		}
 		initMatch(match)
 		liveMatches.Store(u4Str, match)
-		c.Redirect(http.StatusSeeOther, "/match/"+u4Str)
+		var color string
+		if rand.Intn(2) == 0 {
+			color = black
+		} else {
+			color = white
+		}
+		c.Redirect(http.StatusSeeOther, "/match/"+u4Str+"/"+color)
 	})
 
 	// pass in UUID and optionally a password (from cookie? get param?)
-	router.GET("/match/:id", func(c *gin.Context) {
+	router.GET("/match/:id/:color", func(c *gin.Context) {
 		id := c.Param("id")
+		color := c.Param("color")
+		if color != "black" && color != "white" {
+			c.String(http.StatusNotFound, "Must specify black or white. Invalid match color: '%s'.", color)
+			return
+		}
 		log.Printf("joining match: %v\n", id)
 		if _, ok := liveMatches.Load(id); !ok {
 			c.String(http.StatusNotFound, "No match with id '%s' exists.", id)
@@ -1019,46 +1015,47 @@ func main() {
 		c.HTML(http.StatusOK, "index.tmpl", nil)
 	})
 
-	router.GET("/ws/:id", func(c *gin.Context) {
+	router.GET("/ws/:id/:color", func(c *gin.Context) {
 		id := c.Param("id")
-		log.Printf("making match connection: " + id)
+		color := c.Param("color")
+		log.Printf("making match connection: " + id + " " + color)
+		if color != "black" && color != "white" {
+			c.String(http.StatusNotFound, "Must specify black or white. Invalid match color: '%s'.", color)
+			return
+		}
 		match, ok := liveMatches.Load(id)
 		if !ok {
 			c.String(http.StatusNotFound, "No match with id '%s' exists.", id)
 			return
 		}
 
+		match.Mutex.Lock()
 		conn, err := wsupgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
 			fmt.Printf("Failed to set websocket upgrade: %+v", err)
 			return
 		}
 
-		var player string
-
-		match.Mutex.Lock()
-		if match.BlackConn != nil && match.WhiteConn != nil {
-			err := conn.WriteMessage(websocket.TextMessage, []byte("Match is full."))
+		if (color == black && match.BlackConn != nil) || (color == white && match.WhiteConn != nil) {
+			response := gin.H{
+				"error": "This match already has a player for '" + color + "'.",
+			}
+			bytes, err := json.Marshal(response)
+			if err != nil {
+				fmt.Printf("Error JSON encoding state: %+v", err)
+			}
+			err = conn.WriteMessage(websocket.TextMessage, bytes)
 			if err != nil {
 				fmt.Printf("Error sending 'match full' message: %+v", err)
 			}
 			match.Mutex.Unlock()
 			goto exit
-		} else if match.BlackConn == nil && match.WhiteConn == nil {
-			if rand.Intn(2) == 0 {
-				match.BlackConn = conn
-				player = black
-			} else {
-				match.WhiteConn = conn
-				player = white
-			}
-		} else if match.BlackConn == nil {
+		} else if color == black {
 			match.BlackConn = conn
-			player = black
-		} else if match.WhiteConn == nil {
+		} else if color == white {
 			match.WhiteConn = conn
-			player = white
 		}
+
 		match.Mutex.Unlock()
 
 		for {
@@ -1066,7 +1063,7 @@ func main() {
 			if err != nil {
 				break
 			}
-			if processMessage(msg, match, player) {
+			if processMessage(msg, match, color) {
 				break
 			}
 		}
@@ -1074,13 +1071,13 @@ func main() {
 	exit:
 		conn.Close()
 		match.Mutex.Lock()
-		if player == black {
+		if color == black {
 			match.BlackConn = nil
-		} else if player == white {
+		} else if color == white {
 			match.WhiteConn = nil
 		}
+		fmt.Printf("Closed connection '%s' in match %s %s", color, match.Name, match.UUID)
 		match.Mutex.Unlock()
-		fmt.Printf("Closed connection %s in match %s %s", player, match.Name, match.UUID)
 	})
 
 	router.Run(":" + port)

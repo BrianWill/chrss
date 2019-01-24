@@ -8,6 +8,7 @@
   
 <div>
   <h1>LET'S PLAY CHRSS!</h1>
+  <h2><a href="/guide">How to play guide</a><h2>
   <h2>Open matches<h2>
     <a href="/createMatch">Create match</a>
     {{if not .}}
@@ -15,7 +16,10 @@
     {{end}}
     <ul>
         {{range .}}
-            <li>{{.Name}} <a href="/match/{{.UUID}}">Join</a></li>
+            <li>{{.Name}}
+              {{if .BlackOpen}}<a href="/match/{{.UUID}}/black">black</a>{{end}} 
+              {{if .WhiteOpen}}<a href="/match/{{.UUID}}/white">white</a>{{end}}
+            </li>
         {{end}}
     </ul>
   

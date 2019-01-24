@@ -93,11 +93,11 @@ var waitingResponse = false;
 conn.onmessage = function(msg){
     console.log(" <== " + new Date() + " <== \n");
     console.log(msg);
-    if (msg.data === "Match is full.") {
-        cardList.innerHTML = "Cannot join match. Match already has two players.";
-        return;
+
+    matchState = JSON.parse(msg.data);
+    if (matchState.error) {
+        alert(matchState.error);  // todo: use overlay instead of alert
     }
-    matchState  = JSON.parse(msg.data);
 
     if (matchState.color === 'black') {
         matchState.public = matchState.blackPublic;
@@ -275,6 +275,12 @@ function draw(matchState) {
             x += gap;
             textX += gap;    
         }
+
+        var initiativeNext = (matchState.firstTurnColor === 'black') ? 'white initiative' : 'black initiative';
+        ctx.font = '14px Arial';
+        ctx.fillStyle = 'black';
+        ctx.textAlign = 'left';
+        ctx.fillText(initiativeNext, 480, 45);
     }
 
     function drawPieces(ctx, matchState) {

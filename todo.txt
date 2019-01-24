@@ -1,25 +1,25 @@
 
 
-fanfare when first round starts after ready up
-
-protection against bad behaving clients (flooding with messages)
-    rate limit, cut off client if it exceeds threshold
-
 log turns and log message when a new round starts
+
+
+better match browser styling (create a banner / logo, center on page, styling, web fonts)
+
+
 
 
 what if client sends timer_expired too early? keep sending until response?
 
 
-display who goes first next round
 
-put color choice in match url
+
+
+protection against bad behaving clients (flooding with messages)
+    rate limit, cut off client if it exceeds threshold
 
 
 stun vassals (disable them for next round) by inflicting certain damage? or playing certain cards?
 
-
-convert fanfare to mp3
 
 pawns buff up between rounds (increase HP by 5?)
 

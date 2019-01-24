@@ -89,7 +89,6 @@ body {
 }
 
 #log {
-  border: solid 2px black;
   height: 210px;
   overflow-y: scroll;
 }
