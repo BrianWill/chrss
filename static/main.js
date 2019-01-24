@@ -83,7 +83,10 @@ var cardDescriptions = {
 
 
 var matchId = window.location.pathname.substring(7);
-var url = 'ws://localhost:5000/ws/' + matchId;
+var url = 'ws://chrss-game.herokuapp.com/ws/' + matchId;
+if (location.hostname == 'localhost') {
+    url = 'ws://localhost:5000/ws/' + matchId;
+}
 var conn = new WebSocket(url);
 
 

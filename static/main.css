@@ -69,7 +69,7 @@ body {
   border: solid 2px black;
   -moz-user-select: none;
   user-select: none;
-  overflow-y: scroll;
+  overflow-y: auto;
 }
 
 #card_list > div {
@@ -90,7 +90,7 @@ body {
 
 #log {
   height: 210px;
-  overflow-y: scroll;
+  overflow-y: auto;
 }
 
 #wait_opponent {
@@ -112,3 +112,8 @@ body {
 #board {
   margin-top: 10px;
 }
+
+
+.invisible_scroll::-webkit-scrollbar { width: 0 !important }
+
+.invisible_scroll { overflow: -moz-scrollbars-none; }
