@@ -1,7 +1,37 @@
 body {
-  background-color: #bbb;
+  background-color: #2d2d2d;
   font-family: "Arial";
   margin: 0px 0px;
+  color:#aaa;
+}
+
+#browse {
+  margin: 30px auto;
+  width: 80%;
+}
+
+#match_list {
+
+}
+
+#banner {
+  font-family: Palatino;
+  text-align:center;
+  font-size: 280%;
+}
+
+/* unvisited link */
+a:link {
+  color: rgb(79, 79, 201);
+}
+
+/* visited link */
+a:visited {
+  color: rgb(79, 79, 201);
+}
+
+#join_instruction {
+  font-size: 60%;
 }
 
 
@@ -57,11 +87,13 @@ body {
 
 .highlight_card {
   background-color: #1ccccc;
+  color: white;
 }
 
 .select_card {
   background-color: #ef9ba9;
   font-weight: bold;
+  color: white;
 }
 
 #card_list {
@@ -101,7 +133,7 @@ body {
 }
 
 #pass_button {
-  color: darkblue;
+  color: #0a750a;
   font-size: 110%;
   font-weight: bold;
   text-align: right;
@@ -113,6 +145,23 @@ body {
   margin-top: 10px;
 }
 
+.log_entry {
+  padding: 5px 5px;
+}
+
+.white_log {
+  background-color: white;
+  color: black;
+}
+
+.black_log {
+
+}
+
+.neutral_log {
+  background-color: rgb(167, 42, 63);
+  color: white;
+}
 
 .invisible_scroll::-webkit-scrollbar { width: 0 !important }
 

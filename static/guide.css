@@ -1,0 +1,19 @@
+
+body {
+    background-color: #222;
+    font-family: "Arial";
+    margin: 0px 0px;
+    color:#aaa;
+}
+
+#main {
+    border: solid #aaa 3px;
+    margin: 30px auto;
+    width: 500pt;
+    padding: 20px 20px;
+}
+
+.automatic {
+    font-size: 80%;
+    color: #7ab;
+}

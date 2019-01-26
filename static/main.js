@@ -107,6 +107,9 @@ conn.onmessage = function(msg){
     } else {
         matchState.public = matchState.whitePublic;
     }
+    if (!matchState.log) {
+        matchState.log = [];
+    }
     setTimers(matchState);
     draw(matchState);
     if (matchState.newRound) {
@@ -140,6 +143,7 @@ function draw(matchState) {
     drawButtons(matchState);
     drawTimer(matchState);
     drawReadyUp(matchState);
+    drawLog(matchState);
 
     function drawReadyUp(matchState) {
         if (matchState.ready) {
@@ -172,7 +176,7 @@ function draw(matchState) {
 
     function drawWait(ctx, matchState) {
         if (matchState.winner === 'none' && matchState.turn !== matchState.color) {
-            ctx.fillStyle = 'rgba(0, 30, 100, 0.20)';
+            ctx.fillStyle = 'rgba(20, 30, 100, 0.25)';
             ctx.fillRect(0, 0, board.width, board.height);    
         } 
     }
@@ -278,12 +282,6 @@ function draw(matchState) {
             x += gap;
             textX += gap;    
         }
-
-        var initiativeNext = (matchState.firstTurnColor === 'black') ? 'white initiative' : 'black initiative';
-        ctx.font = '14px Arial';
-        ctx.fillStyle = 'black';
-        ctx.textAlign = 'left';
-        ctx.fillText(initiativeNext, 480, 45);
     }
 
     function drawPieces(ctx, matchState) {
@@ -397,6 +395,23 @@ function draw(matchState) {
         }
         cardList.innerHTML = s;
     }
+
+    function drawLog(match) {
+        var s = '';
+        for (var i = match.log.length - 1; i >= 0; i--) {
+            var entry = match.log[i];
+            if (entry.startsWith("black")) {
+                s += '<div class="log_entry black_log">' + entry + '</div>';
+            } else if (entry.startsWith("white")) {
+                s += '<div class="log_entry white_log">' + entry + '</div>';
+            } else {
+                s += '<div class="log_entry neutral_log">' + entry + '</div>';
+            }
+            
+        }
+        log.innerHTML = s;
+    }
+
 }
 
 function drawTimer(match) {

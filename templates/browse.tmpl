@@ -6,23 +6,33 @@
   </head>
 <body>
   
-<div>
-  <h1>LET'S PLAY CHRSS!</h1>
+<div id="browse">
+  <h1 id="banner">Let's Play Chrss!</h1>
   <h2><a href="/guide">How to play</a><h2>
-  <h2>Open matches<h2>
+
     <a href="/createMatch">Create match</a>
-    {{if not .}}
-    <h3>No open matches.</h3>
-    {{end}}
-    <ul>
-        {{range .}}
-            <li>{{.Name}}
-              {{if .BlackOpen}}<a href="/match/{{.UUID}}/black">black</a>{{end}} 
-              {{if .WhiteOpen}}<a href="/match/{{.UUID}}/white">white</a>{{end}}
-            </li>
-        {{end}}
-    </ul>
-  
+    <div id="match_list">
+      {{if .Open}}
+      <h3>Open matches:</h3>
+      <p id="join_instruction">(click white or black to join as that color)</p>
+      <ul>
+          {{range .Open}}
+              <li>{{.Name}}
+                {{if .BlackOpen}}<a href="/match/{{.UUID}}/black">black</a>{{end}} 
+                {{if .WhiteOpen}}<a href="/match/{{.UUID}}/white">white</a>{{end}}
+              </li>
+          {{end}}
+      </ul>
+      {{end}}
+      {{if .Full}}
+      <h3>Full matches:</h3>
+      <ul>
+          {{range .Full}}
+              <li>{{.Name}}</li>
+          {{end}}
+      </ul>
+      {{end}}
+    </div>
 </div>
 
 

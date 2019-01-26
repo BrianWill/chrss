@@ -5,20 +5,54 @@
         <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
     </head>
     <body>
-        <h1>How to play Chrss</h1>
-        
-        <h2>Cards</h2>
-        <h3>King</h3>
-        <p></p>
-        <h3>Bishop</h3>
-        <p></p>
-        <h3>Knight</h3>
-        <p></p>
-        <h3>Rook</h3>
-        <p></p>
-        <h3>Pawn</h3>
-        <p></p>
-    
+        <div id="main">
+            <h1>How to play Chrss</h1>
+            <p>(pronounced like CHUR-SS, but with your jaw kept shut)</p>
+            <h2>Goal</h2>
+            <p>Win by killing the enemy King or by killing all three enemy vassals (Bishop, Knight, and Rook). </p>
+            <h2>Round structure</h2>
+            <ol>
+                <li>Increase and replenish mana pool <span class="automatic">(automatic)</span></li>
+                <li>Spawn and place pawns <span class="automatic">(automatic)</span></li>
+                <li>Draw cards <span class="automatic">(automatic)</span></li>
+                <li>Play King cards</li>
+                <li>Play other cards (until both players pass in immediate succession)</li>
+                <li>Combat resolution <span class="automatic">(automatic)</span></li>
+                <li>Reclaim up to two pieces</li>
+            </ol>
+            <h2>Rules</h2>
+            <p>The game is played in rounds.</p>
+
+            <p>Each round, the player has a number of mana points to spend playing cards (different cards have different costs). In the first round, players have 3 mana each. At the start of each round, the players' max mana pools are increased by one and their mana replenished.</p>
+
+            <p>In the first round, each player is given four pawns, which are automatically and randomly placed on the board. In subsequent rounds, the player is given one additional pawn (or two if they have zero on the board) up to a max of five on the board. Pawns will not be placed in the back row nor placed in a column occupied by a pawn of the same color. (A new pawn is discarded if it has no valid space for placement.)</p>
+
+            <p>At the start of the match, the player's hand starts with a King, a Bishop, a Knight, a Rook, and 4 other cards drawn at random. In subsequent rounds, the player draws two additional cards. Card draws are not entirely random: the draw is biased towards cards with a mana cost less than or equal to a player's max mana.</p>
+
+            <p>Before playing other cards, both players must play their King cards if in their hands. (If the turn time expires before a player plays their King, the King is randomly placed in a free spot on the player's side of the board.)</p>
+
+            <p>Once both Kings are on the board, the players take turns playing cards. A player can pass instead of playing a card. This goes back and forth until the players pass one immediately after the other (either black followed by white or white followed by black). White has first turn in the first round, black has first turn in the second, white has first turn in the third, and so forth.</p>
+
+            <p>After both players pass in succession, the pieces on the board damage each other according to their attack strength and lines of attack (<em>e.g.</em> diagonal for bishops, cardinal directions for rooks, <em>etc.</em>). A single piece can damage multiple other targets, <em>e.g.</em> a bishop damages enemy pieces in all diagonal directions.</p>
+
+            <p>After combat resolution, each player can reclaim up to two pieces from the board. A reclaimed Pawn or Rook partially heals when reclaimed, but a Bishop, Knight, or King does not (unless modified by certain card effects).</p>
+            
+            <p>Excepting for some special card effects, pieces can be placed only on the player's side of the board.</p>
+            
+            
+            
+            <h2>Cards</h2>
+            <h3>King</h3>
+            <p></p>
+            <h3>Bishop</h3>
+            <p></p>
+            <h3>Knight</h3>
+            <p></p>
+            <h3>Rook</h3>
+            <p></p>
+            <h3>Pawn</h3>
+            <p></p>
+        </div>
     </body>
 </html>
       

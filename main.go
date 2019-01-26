@@ -7,6 +7,8 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -85,6 +87,7 @@ type Match struct {
 	Winner         string // white, black, none, draw
 	StartTime      int64  // unix time
 	LastMoveTime   int64  // should be initialized to match start time
+	Log            []string
 }
 
 // info a player doesn't want opponent to see
@@ -606,15 +609,20 @@ func (m *Match) EndTurn(pass bool, player string) {
 	if pass && m.PassPrior { // if players both pass in succession, end round
 		m.InflictDamage()
 
-		if m.BlackPublic.KingHP <= 0 && m.WhitePublic.KingHP <= 0 {
+		blackVassalsDead := m.BlackPublic.BishopHP <= 0 && m.BlackPublic.KnightHP <= 0 && m.BlackPublic.RookHP <= 0
+		whiteVassalsDead := m.WhitePublic.BishopHP <= 0 && m.WhitePublic.KnightHP <= 0 && m.WhitePublic.RookHP <= 0
+		blackKingDead := m.BlackPublic.KingHP <= 0
+		whiteKingDead := m.WhitePublic.KingHP <= 0
+		if (blackKingDead || blackVassalsDead) && (whiteKingDead || whiteVassalsDead) {
 			m.Winner = draw
-		} else if m.BlackPublic.KingHP <= 0 {
+		} else if blackKingDead || blackVassalsDead {
 			m.Winner = white
-		} else if m.WhitePublic.KingHP <= 0 {
+		} else if whiteKingDead || whiteVassalsDead {
 			m.Winner = black
 		}
 
 		m.Round++
+
 		if m.FirstTurnColor == black {
 			m.Turn = white
 			m.FirstTurnColor = white
@@ -638,6 +646,8 @@ func (m *Match) EndTurn(pass bool, player string) {
 			m.WhitePrivate.SelectedCard = -1
 			m.WhitePrivate.HighlightEmpty = false
 		}
+
+		m.Log = append(m.Log, "Round "+strconv.Itoa(m.Round))
 
 		m.BlackPublic.ManaMax++
 		m.BlackPublic.ManaCurrent = m.BlackPublic.ManaMax
@@ -713,6 +723,7 @@ func processMessage(msg []byte, match *Match, player string) bool {
 			if match.BlackPublic.Ready && match.WhitePublic.Ready {
 				match.Ready = true
 				match.Round = 1 // by incrementing from 0, will sound new round fanfare
+				match.Log = []string{"Round 1"}
 			}
 			notifyOpponent = true
 		case "time_expired":
@@ -730,6 +741,7 @@ func processMessage(msg []byte, match *Match, player string) bool {
 			}
 			public, private := match.states(match.Turn)
 			if public.KingPlayed {
+				match.Log = append(match.Log, match.Turn+" passed")
 				match.EndTurn(true, match.Turn)
 			} else {
 				// randomly place king in free slot
@@ -737,6 +749,7 @@ func processMessage(msg []byte, match *Match, player string) bool {
 				match.setPiece(pos, Piece{king, match.Turn, public.KingHP, public.KingAttack, 0})
 				public.KingPlayed = true
 				private.RemoveCard(0) // king is always the first card
+				match.Log = append(match.Log, match.Turn+" played King")
 				match.EndTurn(false, match.Turn)
 			}
 			newTurn = true
@@ -814,6 +827,7 @@ func processMessage(msg []byte, match *Match, player string) bool {
 			case rook:
 				p = Piece{rook, player, public.RookHP, public.RookAttack, 0}
 			}
+			match.Log = append(match.Log, player+" played "+card.Name)
 			match.setPiece(Pos{event.X, event.Y}, p)
 			// remove card
 			private.RemoveCard(private.SelectedCard)
@@ -830,6 +844,7 @@ func processMessage(msg []byte, match *Match, player string) bool {
 			if !public.KingPlayed {
 				break // cannot pass when king has not been played
 			}
+			match.Log = append(match.Log, player+" passed")
 			match.EndTurn(true, player)
 			newTurn = true
 			notifyOpponent = true
@@ -857,6 +872,7 @@ func processMessage(msg []byte, match *Match, player string) bool {
 				"passPrior":                 match.PassPrior,
 				"ready":                     match.Ready,
 				"firstTurnColor":            match.FirstTurnColor,
+				"log":                       match.Log,
 			}
 			bytes, err := json.Marshal(response)
 			if err != nil {
@@ -941,22 +957,33 @@ func main() {
 
 	// list open matches
 	router.GET("/", func(c *gin.Context) {
-		type openMatch struct {
+		type match struct {
 			Name      string
 			UUID      string
 			BlackOpen bool
 			WhiteOpen bool
 		}
+		type matchList struct {
+			Open []match
+			Full []match
+		}
 		liveMatches.Lock()
-		openMatches := make([]openMatch, len(liveMatches.internal))
+		matches := matchList{}
 		i := 0
 		for _, m := range liveMatches.internal {
-			openMatches[i] = openMatch{m.Name, m.UUID, m.IsBlackOpen(), m.IsWhiteOpen()}
+			black, white := m.IsBlackOpen(), m.IsWhiteOpen()
+			if black || white {
+				matches.Open = append(matches.Open, match{m.Name, m.UUID, black, white})
+			} else {
+				matches.Full = append(matches.Full, match{m.Name, m.UUID, black, white})
+			}
 			i++
 		}
+		sort.Slice(matches.Open, func(i, j int) bool { return matches.Open[i].Name < matches.Open[j].Name })
+		sort.Slice(matches.Full, func(i, j int) bool { return matches.Full[i].Name < matches.Full[j].Name })
 		liveMatches.Unlock()
 
-		c.HTML(http.StatusOK, "browse.tmpl", openMatches)
+		c.HTML(http.StatusOK, "browse.tmpl", matches)
 	})
 
 	router.GET("/guide", func(c *gin.Context) {

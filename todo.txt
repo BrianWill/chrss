@@ -1,9 +1,20 @@
 
+at end of round (after combat), both players can (optionally) reclaim one or two units, which they can play in the next round
 
-log turns and log message when a new round starts
+    [should playing units be done first before playing other cards?]
 
 
-better match browser styling (create a banner / logo, center on page, styling, web fonts)
+
+in deck builds, players choose a few high cost cards to start in their hand 
+    (so player's can better plan around high impact end game cards)
+    or perhaps card draw always gives players one card of their current max mana? or max mana minus 1 or 2?
+
+
+perhaps vassals should be tankiest so using them as shields is not so discouraged
+
+
+browse page lists matches reverse chronologically
+
 
 
 
@@ -13,12 +24,9 @@ what if client sends timer_expired too early? keep sending until response?
 
 
 
-
 protection against bad behaving clients (flooding with messages)
     rate limit, cut off client if it exceeds threshold
 
-
-stun vassals (disable them for next round) by inflicting certain damage? or playing certain cards?
 
 
 pawns buff up between rounds (increase HP by 5?)
@@ -27,7 +35,7 @@ what to do about your own pawns in the way? include 'pawn sacrafice' card in sto
     -- give enemy incentive to attack? discourage stalling strategies?
     -- in round 5 and after, if 3 rounds pass without any hits on either king; side with lowest hp king loses
 
-timer for move (display countdown clock); auto pass if you let it expire? total time clock that forfeits if it expires?
+total time clock that forfeits if it expires?
 
 communal cards? deck building?
 
@@ -46,7 +54,79 @@ escalation:
     (maybe even choose your own square, which could be useful if cursed squares block attacks)
 
 
+    pawns should have more hp, do a bit more damage? pawns should be harder to kill (otherwise 
+    the board has too little continuity from round to round)
+
+
+    some cards might be too powerful if cast after vassal placement, some too powerful if cast before?
+
+    player must pick cards they will play for that round at start of round, or after king placement 
+        (and opponent sees the cards)
+        -take turns picking the cards?
+
+
 card ideas:
 
-    King Nuke: your own king does damage in 2 space radius to all units 
+    cards with variable 
+
+    King Nuke: your own king does half damage to all units in 2 space radius
+
         (perhaps can choose to also use on enemy king such that enemy king damages all units in 2 space radius)
+
+
+    heal
+
+    stun vassal - make vassal sit out next round, only works if vassal takes damage at end of this round
+
+    toggle pawn - move an allied or enemy pawn from first row to second or second to first 
+        (cannot be cast on pawn that is blocked)
+
+    wrapped targeting - a piece modified such that attacks wrap around board like pacman 
+        (but also becomes vulnerable to wrapped attacks?)
+
+    poison square - in next round, a square will damage occupied unit (lasts multiple rounds?)
+
+    poison row - in next round, all squares in a row will damage occupied unit
+
+    transparency - cast on enemy unit: this round, all rook and bishop attacks will penetrate 
+        one square beyond this unit
+
+
+    block square/row - temporarily or permanently block square from occupation (does it block attacks or do theyy go through?)
+
+
+    castle - swap position of king and rook (can be cast on enemy?)
+
+
+    reclaim vassal  - move vassal from the board back into your hand
+
+    reclaim pawn - remove pawn from the board (if a mutated pawn, puts card back into your hand?)
+
+    secondary bishop, rook, knight cards   (cost mana and only last for the round? or persist?)
+
+    shift pawn - move pawn (ally or enemy) to random other column without a pawn
+
+    armour - apply to unit to protect it this round from damage
+
+    block pawn spawn in column - prevents auto spawn of pawn in column for next two rounds
+
+    poison unit - takes damage every 
+
+    amplify - cast on enemy - doubles all damage taken this round
+
+    mana supress - decrease enemies mana pool by N (permanently? just this round? a few rounds?)
+
+    force combat - ends the round, skipping to combat
+
+    resurect - resurect a dead vassal (full health / half health?) [probably a high cost card]
+
+    invade - open the enemy's front row for placing your pieces in this round
+
+    attack buff - temp or permanent increase a piece's attack
+    hp buff - temp or permanent increase a piece's hp (potentially above their starting max)
+
+
+cards that can only be cast on enemies in line of attack
+    - in some cases, require line of attack from specific vassal, e.g. can only cast on enemy threatened by bishop
+
+cards that can be cast on an enemy but doesn't take effect unless it takes damage at end of round
