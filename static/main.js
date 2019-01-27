@@ -136,6 +136,7 @@ function draw(matchState) {
     drawBoard(ctx);
     drawPieces(ctx, matchState);
     drawSquareHighlight(ctx, matchState);
+    drawHighlightSelection(ctx, matchState);
     drawWait(ctx, matchState);
     drawWinner(ctx, matchState.winner);
     drawCards(matchState);
@@ -146,36 +147,57 @@ function draw(matchState) {
     drawLog(matchState);
 
     function drawReadyUp(matchState) {
-        if (matchState.ready) {
-            readyup.style.display = 'none';
-        } else {
+        if (matchState.phase === 'readyUp') {
             if (matchState.public.ready) {
                 readyup.innerHTML = '<div>WAITING FOR OTHER PLAYER TO READY UP</div>';
             }
             readyup.style.display = 'block';
+        } else {
+            readyup.style.display = 'none';
         }
     }
 
     function drawButtons(matchState) {
-        if (matchState.color === matchState.turn && matchState.public.kingPlayed) {
-            passButton.style.display = 'block';
-            if (matchState.passPrior) {
-                passButton.innerHTML = 'End round';
-            } else {
-                passButton.innerHTML = 'Pass';
-            }
-        } else {
-            passButton.style.display = 'none';
-        }
-        if (matchState.color === matchState.turn) {
-            waitOpponent.style.display = 'none';
-        } else {
-            waitOpponent.style.display = 'block';
+        switch (matchState.phase) {
+            case 'main':
+                if (matchState.color === matchState.turn) {
+                    waitOpponent.style.visibility = 'hidden';
+                    passButton.innerHTML = 'Pass';
+                    if (matchState.passPrior) {
+                        passButton.innerHTML = 'Combat!';
+                    }
+                    passButton.style.visibility = 'visible';
+                } else {
+                    waitOpponent.innerHTML = "Opponent's turn";
+                    waitOpponent.style.visibility = 'visible';
+                    passButton.style.visibility = 'hidden';
+                }
+                break;
+            case 'kingPlacement':    
+                passButton.style.visibility = 'hidden';
+                waitOpponent.style.visibility = 'visible';
+                if (matchState.public.kingPlayed) {
+                    waitOpponent.innerHTML = "Opponent placing King";
+                } else {
+                    waitOpponent.innerHTML = "Place your King";
+                }
+                break;
+            case 'reclaim':
+                waitOpponent.style.visibility = 'visible';
+                if (matchState.public.reclaimSelectionMade) {
+                    waitOpponent.innerHTML = "Waiting for opponent";
+                    passButton.style.visibility = 'hidden';
+                } else {
+                    waitOpponent.innerHTML = "Select 0 to 2 pieces";
+                    passButton.innerHTML = 'Reclaim selected piece(s)';
+                    passButton.style.visibility = 'visible';
+                }
+                break;
         }
     }
 
     function drawWait(ctx, matchState) {
-        if (matchState.winner === 'none' && matchState.turn !== matchState.color) {
+        if (matchState.phase === 'main' && matchState.turn !== matchState.color) {
             ctx.fillStyle = 'rgba(20, 30, 100, 0.25)';
             ctx.fillRect(0, 0, board.width, board.height);    
         } 
@@ -335,28 +357,74 @@ function draw(matchState) {
         }
     }
 
-    function drawSquareHighlight(ctx, matchState) {
-        if (!matchState.private.highlightEmpty) {
-            return
+    function drawHighlightSelection(ctx, match) {
+        switch (match.phase) {
+        case 'reclaim':
+            var flipped = matchState.color === 'white';
+            var positions = matchState.private.reclaimSelections;
+            if (positions === null) {
+                break;
+            }
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+            for (var pos of positions) {
+                var x = flipped ? board.nColumns - 1 - pos.x : pos.x;
+                var y = flipped ? board.nRows - 1 - pos.y : pos.y;
+                ctx.fillRect(x * board.squareWidth, y * board.squareHeight, board.squareWidth, board.squareHeight);
+            }       
+            break;
         }
-        var flipped = matchState.color === 'white';
-        var pieces = matchState.board;
-        var x = 0;
-        var y = 0;
-        var column = 0;
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
-        for (var i = 0; i < pieces.length; i++) {
-            var idx = flipped ? pieces.length -1 - i : i;
-            if (pieces[idx] !== null || i < pieces.length / 2) {
-                ctx.fillRect(x, y, board.squareWidth, board.squareHeight);
-            }
-            x += board.squareWidth;
-            column++;
-            if (column == board.nColumns) {
-                x = 0;
-                column = 0;
-                y += board.squareHeight;
-            }
+    }
+
+    function drawSquareHighlight(ctx, match) {
+        switch (match.phase) {
+            case 'kingPlacement':
+            case 'main':
+                if (!matchState.private.highlightEmpty) {
+                    return
+                }
+                var flipped = match.color === 'white';
+                var pieces = match.board;
+                var x = 0;
+                var y = 0;
+                var column = 0;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+                for (var i = 0; i < pieces.length; i++) {
+                    var idx = flipped ? pieces.length - 1 - i : i;
+                    if (pieces[idx] !== null || i < pieces.length / 2) {
+                        ctx.fillRect(x, y, board.squareWidth, board.squareHeight);
+                    }
+                    x += board.squareWidth;
+                    column++;
+                    if (column == board.nColumns) {
+                        x = 0;
+                        column = 0;
+                        y += board.squareHeight;
+                    }
+                }
+                break;
+            case 'reclaim':
+                // ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+                // ctx.fillRect(0, 0, board.width, board.height / 2);
+                var flipped = match.color === 'white';
+                var pieces = match.board;
+                var x = 0;
+                var y = 0;
+                var column = 0;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+                for (var i = 0; i < pieces.length; i++) {
+                    var idx = flipped ? pieces.length - 1 - i : i;
+                    if (pieces[idx] === null || i < pieces.length / 2) {
+                        ctx.fillRect(x, y, board.squareWidth, board.squareHeight);
+                    }
+                    x += board.squareWidth;
+                    column++;
+                    if (column == board.nColumns) {
+                        x = 0;
+                        column = 0;
+                        y += board.squareHeight;
+                    }
+                }
+                break;
         }
     }
 
@@ -407,16 +475,19 @@ function draw(matchState) {
             } else {
                 s += '<div class="log_entry neutral_log">' + entry + '</div>';
             }
-            
         }
         log.innerHTML = s;
     }
-
 }
 
 function drawTimer(match) {
-    if (match.ready) {
-        timer.innerHTML = Math.floor(match.turnRemainingMilliseconds / 1000) + ' seconds';
+    switch (matchState.phase) {
+        case 'main':
+        case 'reclaim':
+        case 'kingPlacement':
+            var seconds = Math.floor(match.turnRemainingMilliseconds / 1000);
+            timer.innerHTML = ((seconds < 0) ? 0 : seconds) + ' seconds';
+            break;
     }
 }
 
@@ -424,137 +495,130 @@ function drawTimer(match) {
 
 // *** logic ***
 
-var timerTimeoutHandle;
-var timerIntervalHandle;
+var timerHandle;
 
 function setTimers(match) {
-    if (!match.ready) {
-        return;
+    window.clearInterval(timerHandle);
+    switch (match.phase) {
+        case 'reclaim':
+        case 'kingPlacement':
+        case 'main':    
+            timerHandle = window.setInterval(
+                function () {
+                    match.turnRemainingMilliseconds -= 1000;
+                    drawTimer(match);
+
+                    // extra half second as cushion (don't want to 
+                    // send too early or else server ignores event)
+                    if (match.turnRemainingMilliseconds + 500 < 0) {
+                        conn.send(match.phase === 'reclaim' ? "reclaim_time_expired " : "time_expired ");
+                        waitingResponse = true;
+                    }
+                }, 
+                1000
+            );
+            break;
     }
-    window.clearTimeout(timerTimeoutHandle);
-    window.clearInterval(timerIntervalHandle);
-    if (match.turnRemainingMilliseconds < 0) {
-        conn.send("time_expired ");
-        waitingResponse = true;
-        return
-    }
-    timerTimeoutHandle = window.setTimeout(
-        function () {
-            conn.send("time_expired ");
-            waitingResponse = true;
-        },
-        match.turnRemainingMilliseconds + 500      // extra half second as cushion (don't want to 
-                                                    // send too early or else server ignores event)
-    );
-    timerIntervalHandle = window.setInterval(
-        function () {
-            match.turnRemainingMilliseconds -= 1000;
-            drawTimer(match);
-        }, 
-        1000
-    );
 }
 
 readyupButton.addEventListener('click', function (evt) {
-    conn.send("ready " );
-    waitingResponse = true;
+    switch (matchState.phase) {
+        case 'readyUp':
+            conn.send("ready " );
+            waitingResponse = true;
+            break;
+    }
 }, false);
 
 cardList.addEventListener('mousedown', function (evt) {
-    if (!matchState.ready) {
-        return
+    switch (matchState.phase) {
+        case 'main':
+            if (waitingResponse || (matchState.color !== matchState.turn)) {
+                return; // not your turn!
+            }
+            var idx = evt.target.getAttribute('cardIdx');
+            if (idx === '' || idx === null) {
+                return;
+            }
+            conn.send("click_card " + JSON.stringify({selectedCard: parseInt(idx)}));
+            waitingResponse = true;
+            break;
     }
-    if (matchState.winner !== 'none') {
-        return
-    }
-    if (waitingResponse || (matchState.color !== matchState.turn)) {
-        return; // not your turn!
-    }
-    var idx = evt.target.getAttribute('cardIdx');
-    if (idx === '' || idx === null) {
-        return;
-    }
-    conn.send("click_card " + JSON.stringify({selectedCard: parseInt(idx)}));
-    waitingResponse = true;
 }, false);
 
 cardList.addEventListener('mouseleave', function (evt) {
-    if (!matchState.ready) {
-        return
+    switch (matchState.phase) {
+        case 'main':
+            for (var c of cardList.children) {
+                c.classList.remove('highlight_card');
+            }
+            cardDescription.style.display = 'none';
+            logBox.style.display = 'block';
+            break;
     }
-    if (matchState.winner !== 'none') {
-        return
-    }
-    for (var c of cardList.children) {
-        c.classList.remove('highlight_card');
-    }
-    cardDescription.style.display = 'none';
-    logBox.style.display = 'block';
 }, false);
 
 cardList.addEventListener('mouseover', function (evt) {
-    if (!matchState.ready) {
-        return
-    }
-    if (matchState.winner !== 'none') {
-        return
-    }
-    var idx = evt.target.getAttribute('cardIdx');
-    if (idx === '' || idx === null) {
-        cardDescription.style.display = 'none';
-        logBox.style.display = 'block';
-        return;
-    }
-    cardDescription.innerHTML = cardDescriptions[matchState.private.cards[idx].name];
-    cardDescription.style.display = 'block';
-    logBox.style.display = 'none';
-    for (var c of cardList.children) {
-        if (c === evt.target) {
-            c.classList.add('highlight_card');
-        } else {
-            c.classList.remove('highlight_card');
-        }
+    switch (matchState.phase) {
+        case 'main':
+            var idx = evt.target.getAttribute('cardIdx');
+            if (idx === '' || idx === null) {
+                cardDescription.style.display = 'none';
+                logBox.style.display = 'block';
+                return;
+            }
+            cardDescription.innerHTML = cardDescriptions[matchState.private.cards[idx].name];
+            cardDescription.style.display = 'block';
+            logBox.style.display = 'none';
+            for (var c of cardList.children) {
+                if (c === evt.target) {
+                    c.classList.add('highlight_card');
+                } else {
+                    c.classList.remove('highlight_card');
+                }
+            }
+            break;
     }
 }, false);
 
 
 canvas.addEventListener('mousedown', function (evt) {
-    if (!matchState.ready) {
-        return
-    }
-    if (matchState.winner !== 'none') {
-        return
-    }
-    if (waitingResponse || (matchState.color !== matchState.turn)) {
+    if (waitingResponse) {
         return; // not your turn!
     }
-
-    var rect = canvas.getBoundingClientRect();
-    var mouseX = evt.clientX - rect.left;
-    var mouseY = evt.clientY - rect.top;
-    
-
-    var squareX = Math.floor(mouseX / board.squareWidth);
-    var squareY = Math.floor(mouseY / board.squareHeight);
-
-    // invert for white player
-    if (matchState.color === "white") {
-        squareX = board.nColumns - 1 - squareX;
-        squareY = board.nRows - 1 - squareY;
+    switch (matchState.phase) {
+        case 'main':
+            if (matchState.color !== matchState.turn) {
+                return; // not your turn!
+            }
+        case 'reclaim':
+        case 'kingPlacement':
+            var rect = canvas.getBoundingClientRect();
+            var mouseX = evt.clientX - rect.left;
+            var mouseY = evt.clientY - rect.top;
+        
+            var squareX = Math.floor(mouseX / board.squareWidth);
+            var squareY = Math.floor(mouseY / board.squareHeight);
+        
+            // invert for white player
+            if (matchState.color === "white") {
+                squareX = board.nColumns - 1 - squareX;
+                squareY = board.nRows - 1 - squareY;
+            }
+     
+            conn.send("click_board " + JSON.stringify({x: squareX, y: squareY}));    
+            waitingResponse = true;
+            break;
     }
-    
-    conn.send("click_board " + JSON.stringify({x: squareX, y: squareY}));
-    waitingResponse = true;
 }, false);
 
 passButton.addEventListener('click', function (evt) {
-    if (!matchState.ready) {
-        return
+    switch (matchState.phase) {
+        case 'main':
+            conn.send("pass ");
+            waitingResponse = true;
+            break;
+        case 'reclaim':
+            conn.send("reclaim_done ")
     }
-    if (matchState.winner !== 'none') {
-        return
-    }
-    console.log("passed");
-    conn.send("pass ");
-    waitingResponse = true;
 }, false);

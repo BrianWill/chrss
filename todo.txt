@@ -1,7 +1,13 @@
 
-at end of round (after combat), both players can (optionally) reclaim one or two units, which they can play in the next round
 
-    [should playing units be done first before playing other cards?]
+
+check pawn spawning after reclaiming
+    show in log how many pawns spawned for white and black
+
+
+
+timedout matches not getting cleaned up
+
 
 
 
@@ -20,7 +26,6 @@ browse page lists matches reverse chronologically
 
 
 what if client sends timer_expired too early? keep sending until response?
-
 
 
 
@@ -125,6 +130,51 @@ card ideas:
     attack buff - temp or permanent increase a piece's attack
     hp buff - temp or permanent increase a piece's hp (potentially above their starting max)
 
+    draw cards - draw two cards
+
+    heal all pawns - restoration applied after combat?
+
+    ricochet - select your vassal - attack on target is transmitted from teh target in same pattern, e.g. bishop hits   enemy and so bishop's diagonal attack emanates in all 4 diagonals from that enemy
+
+    nullify - selected unit remains on board but takes no damage and inflicts no damage this round
+
+    aoe - curse unit for 1 turn: damage applied to unit hits all neighbor spaces (for half?) 
+
+    long pawn - restore pawn to max health and extend its attack range to two spaces 
+
+    shove - move a unit back one row (when cast on ally, moves towards your own back row)
+
+    chain attack - buff on ally or curse on enemy? attack on unit spreads recursively through all cardinally            contiguous pieces (maybe transmits through diagonals too?)
+
+    swap rows - swap ally/enemy back row with middle row
+
+    disable column - prevent placement in column for this round?
+
+    advance - move all pawns in middle row to front row
+
+    lock cards - lock 2 random, non-vassal cards in the enemy's hand for two rounds
+
+    body double - plant a king with 50% change to swap places with real king (opponent can't see which is real); false king lasts only for the round; false king does no damage
+
+    shitty bishop - a smaller, weaker bishop that has range of 3 and half attack/hp
+
+    long knight - a smaller, weaker knight that has range of 3 instead of 2 and half attack/hp
+
+    shitty rook - a smaller, weaker rook that has range of 3 and half attack/hp
+
+    restore mana - restore your mana to max
+
+    fog of war - mist covers a row, making all attacks on and from that row have a 50% chance of missing
+
+    summon pawns - summon up to two pawns (cannot exceed the standard max of 5)
+
+    pawn - place a pawn in a free pawn position (get to choose precise square); cannot exceed the max of 5 pawns    
+
+    friendly fire - enemy piece hits allies as well as enemies this rounds
+
+    mimic bishop - knight or rook adopts bishop attack pattern for this and next 2 rounds
+
+    force reclaim - reclaim the piece you played in last turn, or force enemy to reclaim the piece they played in       last turn; the reclaimed piece cannot be used again this round
 
 cards that can only be cast on enemies in line of attack
     - in some cases, require line of attack from specific vassal, e.g. can only cast on enemy threatened by bishop

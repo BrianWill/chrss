@@ -46,11 +46,13 @@ a:visited {
 
 #status_info {
   display: grid;
-  grid-template-columns: 410px auto;
+  grid-template-columns: 125px 225px auto;
   margin-bottom: 10px;
 }
 
 #status_info > * {
+  -moz-user-select: none;
+  user-select: none;
   display: inline-grid;
 }
 
@@ -129,7 +131,7 @@ a:visited {
   color: darkred;
   font-size: 110%;
   font-weight: bold;
-  text-align: right;
+  text-align: center;
 }
 
 #pass_button {

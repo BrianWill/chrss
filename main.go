@@ -55,6 +55,16 @@ const nRows = 6
 
 const turnTimer = 50 * int64(time.Second)
 
+type Phase string
+
+const (
+	readyUpPhase       Phase = "readyUp"
+	mainPhase          Phase = "main"
+	kingPlacementPhase Phase = "kingPlacement"
+	reclaimPhase       Phase = "reclaim"
+	gameoverPhase      Phase = "gameover"
+)
+
 var positions [nColumns * nRows]Pos // convenience for getting Pos of board index
 
 var wsupgrader = websocket.Upgrader{
@@ -62,6 +72,7 @@ var wsupgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
+const maxReclaim = 2 // max number of pieces to reclaim at end of round
 const matchTimeout = 120 * int64(time.Minute)
 
 type Match struct {
@@ -83,11 +94,11 @@ type Match struct {
 	PassPrior      bool   // true if prior move was a pass
 	FirstTurnColor string // color of player who had first turn this round
 	Round          int    // starts at 1
-	Ready          bool   // true when both players have readied up
 	Winner         string // white, black, none, draw
 	StartTime      int64  // unix time
 	LastMoveTime   int64  // should be initialized to match start time
 	Log            []string
+	Phase          Phase
 }
 
 // info a player doesn't want opponent to see
@@ -97,22 +108,27 @@ type PrivateState struct {
 	SelectedPos       Pos    `json:"selectedPos"`
 	HighlightEmpty    bool   `json:"highlightEmpty"` // highlight the empty squares on the player's side
 	PlayerInstruction string `json:"playerInstruction"`
+	ReclaimSelections []Pos  `json:"reclaimSelections"`
 }
 
 type PublicState struct {
-	Ready        bool `json:"ready"` // match does not start until both player's are ready
-	KingPlayed   bool `json:"kingPlayed"`
-	NumPawns     int  `json:"numPawns"`
-	ManaMax      int  `json:"manaMax"`
-	ManaCurrent  int  `json:"manaCurrent"`
-	KingHP       int  `json:"kingHP"`
-	KingAttack   int  `json:"kingAttack"`
-	BishopHP     int  `json:"bishopHP"`
-	BishopAttack int  `json:"bishopAttack"`
-	KnightHP     int  `json:"knightHP"`
-	KnightAttack int  `json:"knightAttack"`
-	RookHP       int  `json:"rookHP"`
-	RookAttack   int  `json:"rookAttack"`
+	Ready                bool `json:"ready"` // match does not start until both player's are ready
+	ReclaimSelectionMade bool `json:"reclaimSelectionMade"`
+	KingPlayed           bool `json:"kingPlayed"`
+	BishopPlayed         bool `json:"bishopPlayed"`
+	KnightPlayed         bool `json:"knightPlayed"`
+	RookPlayed           bool `json:"rookPlayed"`
+	NumPawns             int  `json:"numPawns"`
+	ManaMax              int  `json:"manaMax"`
+	ManaCurrent          int  `json:"manaCurrent"`
+	KingHP               int  `json:"kingHP"`
+	KingAttack           int  `json:"kingAttack"`
+	BishopHP             int  `json:"bishopHP"`
+	BishopAttack         int  `json:"bishopAttack"`
+	KnightHP             int  `json:"knightHP"`
+	KnightAttack         int  `json:"knightAttack"`
+	RookHP               int  `json:"rookHP"`
+	RookAttack           int  `json:"rookAttack"`
 }
 
 type Piece struct {
@@ -152,16 +168,14 @@ loop:
 	}
 	existing = existing[i:]
 
-	stock := []Card{
-		Card{king, owner, 0},
-	}
-	if public.BishopHP > 0 {
+	stock := []Card{}
+	if public.BishopHP > 0 && !public.BishopPlayed {
 		stock = append(stock, Card{bishop, owner, 0})
 	}
-	if public.KnightHP > 0 {
+	if public.KnightHP > 0 && !public.KnightPlayed {
 		stock = append(stock, Card{knight, owner, 0})
 	}
-	if public.RookHP > 0 {
+	if public.RookHP > 0 && !public.RookPlayed {
 		stock = append(stock, Card{rook, owner, 0})
 	}
 
@@ -217,6 +231,7 @@ func initMatch(m *Match) {
 	m.Turn = white
 	m.Winner = none
 	m.Round = 0 // will get incremented to 1 once both players ready up
+	m.Phase = readyUpPhase
 
 	m.WhitePublic.ManaCurrent = 3
 	m.WhitePublic.ManaMax = 3
@@ -249,13 +264,14 @@ func initMatch(m *Match) {
 		SelectedCard:      -1,
 		SelectedPos:       Pos{-1, -1},
 		PlayerInstruction: defaultInstruction,
+		HighlightEmpty:    true,
 	}
 	// white starts ready to play king
 	m.WhitePrivate = PrivateState{
 		Cards:             drawCards(white, nil, &m.WhitePublic),
-		SelectedCard:      0,
+		SelectedCard:      -1,
 		SelectedPos:       Pos{-1, -1},
-		PlayerInstruction: kingInstruction,
+		PlayerInstruction: defaultInstruction,
 		HighlightEmpty:    true,
 	}
 }
@@ -601,73 +617,124 @@ func (m *Match) states(color string) (*PublicState, *PrivateState) {
 	}
 }
 
+const reclaimHealRook = 5
+
+func (m *Match) ReclaimPieces() {
+	for _, color := range []string{white, black} {
+		public, private := m.states(color)
+		if public.ReclaimSelectionMade {
+			for i, pos := range private.ReclaimSelections {
+				if i >= 2 {
+					break // in case more than two selections were sent, we ignore all but first two
+				}
+				p := m.getPieceSafe(pos)
+				if p != nil { // selection might be off the board or a square without a piece (todo: send error to client)
+					// if reclaiming a king or vassal, add card back to hand
+					// if reclaiming a rook, heal the rook
+					switch p.Name {
+					case king:
+						m.removePieceAt(pos)
+						public.KingPlayed = false
+					case bishop:
+						m.removePieceAt(pos)
+						public.BishopPlayed = false
+					case knight:
+						m.removePieceAt(pos)
+						public.KnightPlayed = false
+					case rook:
+						m.removePieceAt(pos)
+						public.RookPlayed = false
+					case pawn:
+						m.removePieceAt(pos)
+					default:
+
+					}
+				}
+			}
+		}
+		private.ReclaimSelections = nil
+		public.ReclaimSelectionMade = false
+	}
+}
+
+func (m *Match) EndRound() {
+	m.LastMoveTime = time.Now().UnixNano()
+	m.Round++
+	m.Log = append(m.Log, "Round "+strconv.Itoa(m.Round))
+
+	if m.FirstTurnColor == black {
+		m.Turn = white
+		m.FirstTurnColor = white
+	} else {
+		m.Turn = black
+		m.FirstTurnColor = black
+	}
+
+	m.BlackPublic.ManaMax++
+	m.BlackPublic.ManaCurrent = m.BlackPublic.ManaMax
+
+	m.WhitePublic.ManaMax++
+	m.WhitePublic.ManaCurrent = m.WhitePublic.ManaMax
+
+	m.PassPrior = false
+
+	m.WhitePrivate.Cards = drawCards(white, m.WhitePrivate.Cards, &m.WhitePublic)
+	m.BlackPrivate.Cards = drawCards(black, m.BlackPrivate.Cards, &m.BlackPublic)
+	m.WhitePrivate.SelectedCard = -1
+	m.BlackPrivate.SelectedCard = -1
+
+	m.SpawnPawns(black, false)
+	m.SpawnPawns(white, false)
+	m.CalculateDamage()
+
+	if m.WhitePublic.KingPlayed && m.BlackPublic.KingPlayed {
+		m.Phase = mainPhase
+		m.BlackPrivate.HighlightEmpty = false
+		m.WhitePrivate.HighlightEmpty = false
+	} else {
+		m.Phase = kingPlacementPhase
+		m.BlackPrivate.HighlightEmpty = true
+		m.WhitePrivate.HighlightEmpty = true
+	}
+}
+
+func (m *Match) EndKingPlacement() bool {
+	if m.WhitePublic.KingPlayed && m.BlackPublic.KingPlayed {
+		m.CalculateDamage()
+		m.LastMoveTime = time.Now().UnixNano()
+		m.WhitePrivate.HighlightEmpty = false
+		m.BlackPrivate.HighlightEmpty = false
+		m.Phase = mainPhase
+		return true
+	}
+	return false
+}
+
 // pass = if turn is ending by passing; player = color whose turn is ending
 func (m *Match) EndTurn(pass bool, player string) {
 	m.LastMoveTime = time.Now().UnixNano()
 	m.CalculateDamage()
 
-	if pass && m.PassPrior { // if players both pass in succession, end round
+	if pass && m.PassPrior { // if players both pass in succession, do combat
 		m.InflictDamage()
 
 		blackVassalsDead := m.BlackPublic.BishopHP <= 0 && m.BlackPublic.KnightHP <= 0 && m.BlackPublic.RookHP <= 0
 		whiteVassalsDead := m.WhitePublic.BishopHP <= 0 && m.WhitePublic.KnightHP <= 0 && m.WhitePublic.RookHP <= 0
 		blackKingDead := m.BlackPublic.KingHP <= 0
 		whiteKingDead := m.WhitePublic.KingHP <= 0
+
 		if (blackKingDead || blackVassalsDead) && (whiteKingDead || whiteVassalsDead) {
 			m.Winner = draw
+			m.Phase = gameoverPhase
 		} else if blackKingDead || blackVassalsDead {
 			m.Winner = white
+			m.Phase = gameoverPhase
 		} else if whiteKingDead || whiteVassalsDead {
 			m.Winner = black
-		}
-
-		m.Round++
-
-		if m.FirstTurnColor == black {
-			m.Turn = white
-			m.FirstTurnColor = white
-
-			m.BlackPrivate.PlayerInstruction = defaultInstruction
-			m.BlackPrivate.SelectedCard = -1
-			m.BlackPrivate.HighlightEmpty = false
-
-			m.WhitePrivate.PlayerInstruction = kingInstruction
-			m.WhitePrivate.SelectedCard = 0
-			m.WhitePrivate.HighlightEmpty = true
+			m.Phase = gameoverPhase
 		} else {
-			m.Turn = black
-			m.FirstTurnColor = black
-
-			m.BlackPrivate.PlayerInstruction = kingInstruction
-			m.BlackPrivate.SelectedCard = 0
-			m.BlackPrivate.HighlightEmpty = true
-
-			m.WhitePrivate.PlayerInstruction = defaultInstruction
-			m.WhitePrivate.SelectedCard = -1
-			m.WhitePrivate.HighlightEmpty = false
+			m.Phase = reclaimPhase
 		}
-
-		m.Log = append(m.Log, "Round "+strconv.Itoa(m.Round))
-
-		m.BlackPublic.ManaMax++
-		m.BlackPublic.ManaCurrent = m.BlackPublic.ManaMax
-		m.BlackPublic.KingPlayed = false
-
-		m.WhitePublic.ManaMax++
-		m.WhitePublic.ManaCurrent = m.WhitePublic.ManaMax
-		m.WhitePublic.KingPlayed = false
-
-		m.PassPrior = false
-
-		m.WhitePrivate.Cards = drawCards(white, m.WhitePrivate.Cards, &m.WhitePublic)
-		m.BlackPrivate.Cards = drawCards(black, m.BlackPrivate.Cards, &m.BlackPublic)
-
-		m.RemoveNonPawns()
-
-		m.SpawnPawns(black, false)
-		m.SpawnPawns(white, false)
-		m.CalculateDamage()
-
 	} else {
 		if m.Turn == black {
 			m.Turn = white
@@ -676,25 +743,13 @@ func (m *Match) EndTurn(pass bool, player string) {
 		}
 		m.PassPrior = pass
 
-		if m.WhitePublic.KingPlayed {
-			m.WhitePrivate.PlayerInstruction = defaultInstruction
-			m.WhitePrivate.SelectedCard = -1
-			m.WhitePrivate.HighlightEmpty = false
-		} else {
-			m.WhitePrivate.PlayerInstruction = kingInstruction
-			m.WhitePrivate.SelectedCard = 0
-			m.WhitePrivate.HighlightEmpty = true
-		}
+		m.WhitePrivate.PlayerInstruction = defaultInstruction
+		m.WhitePrivate.SelectedCard = -1
+		m.WhitePrivate.HighlightEmpty = false
 
-		if m.BlackPublic.KingPlayed {
-			m.BlackPrivate.PlayerInstruction = defaultInstruction
-			m.BlackPrivate.SelectedCard = -1
-			m.BlackPrivate.HighlightEmpty = false
-		} else {
-			m.BlackPrivate.PlayerInstruction = kingInstruction
-			m.BlackPrivate.SelectedCard = 0
-			m.BlackPrivate.HighlightEmpty = true
-		}
+		m.BlackPrivate.PlayerInstruction = defaultInstruction
+		m.BlackPrivate.SelectedCard = -1
+		m.BlackPrivate.HighlightEmpty = false
 	}
 }
 
@@ -713,82 +768,113 @@ func processMessage(msg []byte, match *Match, player string) bool {
 	}
 	//fmt.Println("event ", event, string(msg))
 	match.Mutex.Lock()
-	if match.Winner == none {
+	if match.Phase != gameoverPhase {
 		public, private := match.states(player)
 		switch event {
 		case "get_state":
 			// doesn't change anything, just fetches current state
 		case "ready":
-			public.Ready = true
-			if match.BlackPublic.Ready && match.WhitePublic.Ready {
-				match.Ready = true
-				match.Round = 1 // by incrementing from 0, will sound new round fanfare
-				match.Log = []string{"Round 1"}
+			switch match.Phase {
+			case readyUpPhase:
+				public.Ready = true
+				if match.BlackPublic.Ready && match.WhitePublic.Ready {
+					match.Phase = kingPlacementPhase
+					match.Round = 1 // by incrementing from 0, will sound new round fanfare
+					match.Log = []string{"Round 1"}
+				}
+				notifyOpponent = true
 			}
-			notifyOpponent = true
+		case "reclaim_time_expired":
+			switch match.Phase {
+			case reclaimPhase:
+				turnElapsed := time.Now().UnixNano() - match.LastMoveTime
+				remainingTurnTime := turnTimer - turnElapsed
+				if remainingTurnTime > 0 {
+					break // ignore if time hasn't actually expired
+				}
+				match.ReclaimPieces()
+				match.EndRound()
+				notifyOpponent = true
+			}
+		case "reclaim_done":
+			switch match.Phase {
+			case reclaimPhase:
+				public.ReclaimSelectionMade = true
+				// if other player already has a reclaim selection, then we move on to next round
+				if (player == black && match.WhitePublic.ReclaimSelectionMade) ||
+					(player == white && match.BlackPublic.ReclaimSelectionMade) {
+					match.ReclaimPieces()
+					match.EndRound()
+					notifyOpponent = true
+				} else {
+					notifyOpponent = true
+				}
+			}
 		case "time_expired":
-			if !match.Ready {
-				break
-			}
-			// actual elapsed time is checked on server, but we rely upon clients to notify
-			// (not ideal because both clients might fail, but then we have bigger problem)
-			// Cheater could supress sending time_expired event from their client, but
-			// opponent also sends the event.
-			turnElapsed := time.Now().UnixNano() - match.LastMoveTime
-			remainingTurnTime := turnTimer - turnElapsed
-			if remainingTurnTime > 0 {
-				break // ignore if time hasn't actually expired
-			}
-			public, private := match.states(match.Turn)
-			if public.KingPlayed {
+			switch match.Phase {
+			case mainPhase:
+				turnElapsed := time.Now().UnixNano() - match.LastMoveTime
+				remainingTurnTime := turnTimer - turnElapsed
+				if remainingTurnTime > 0 {
+					break // ignore if time hasn't actually expired
+				}
+				// actual elapsed time is checked on server, but we rely upon clients to notify
+				// (not ideal because both clients might fail, but then we have bigger problem)
+				// Cheater could supress sending time_expired event from their client, but
+				// opponent also sends the event (and has interest to do so).
 				match.Log = append(match.Log, match.Turn+" passed")
 				match.EndTurn(true, match.Turn)
-			} else {
-				// randomly place king in free slot
-				pos, _ := match.RandomFreeSquare(match.Turn) // there will always be a free square here
-				match.setPiece(pos, Piece{king, match.Turn, public.KingHP, public.KingAttack, 0})
-				public.KingPlayed = true
-				private.RemoveCard(0) // king is always the first card
-				match.Log = append(match.Log, match.Turn+" played King")
-				match.EndTurn(false, match.Turn)
+				newTurn = true
+				notifyOpponent = true
+			case kingPlacementPhase:
+				turnElapsed := time.Now().UnixNano() - match.LastMoveTime
+				remainingTurnTime := turnTimer - turnElapsed
+				if remainingTurnTime > 0 {
+					break // ignore if time hasn't actually expired
+				}
+				for _, color := range []string{black, white} {
+					public, _ := match.states(color)
+					if !public.KingPlayed {
+						// randomly place king in free square
+						// because we must have reclaimed the King, there will always be a free square at this point
+						pos, _ := match.RandomFreeSquare(color)
+						match.setPiece(pos, Piece{king, color, public.KingHP, public.KingAttack, 0})
+						public.KingPlayed = true
+						match.Log = append(match.Log, color+" played King")
+					}
+				}
+				newTurn = match.EndKingPlacement()
+				notifyOpponent = true
 			}
-			newTurn = true
-			notifyOpponent = true
 		case "click_card":
-			if !match.Ready {
-				break
-			}
-			if player != match.Turn {
-				break // ignore if not the player's turn
-			}
-			if !public.KingPlayed {
-				break // cannot select other cards until king is played
-			}
-			type ClickCardEvent struct {
-				SelectedCard int
-			}
-			var event ClickCardEvent
-			err := json.Unmarshal(msg, &event)
-			if err != nil {
-				fmt.Println("unmarssalling click_card error", err)
-				break // todo: send error response
-			}
-			if event.SelectedCard == private.SelectedCard {
-				private.SelectedCard = -1
-				private.HighlightEmpty = false
-				private.PlayerInstruction = defaultInstruction
-			} else {
-				private.SelectedCard = event.SelectedCard
-				private.HighlightEmpty = true
-				private.PlayerInstruction = "Click an empty spot on your side of the board to place the card."
+			switch match.Phase {
+			case mainPhase:
+				if player != match.Turn {
+					break // ignore if not the player's turn
+				}
+				if !public.KingPlayed {
+					break // cannot select other cards until king is played
+				}
+				type ClickCardEvent struct {
+					SelectedCard int
+				}
+				var event ClickCardEvent
+				err := json.Unmarshal(msg, &event)
+				if err != nil {
+					fmt.Println("unmarssalling click_card error", err)
+					break // todo: send error response
+				}
+				if event.SelectedCard == private.SelectedCard {
+					private.SelectedCard = -1
+					private.HighlightEmpty = false
+					private.PlayerInstruction = defaultInstruction
+				} else {
+					private.SelectedCard = event.SelectedCard
+					private.HighlightEmpty = true
+					private.PlayerInstruction = "Click an empty spot on your side of the board to place the card."
+				}
 			}
 		case "click_board":
-			if !match.Ready {
-				break
-			}
-			if player != match.Turn {
-				break // ignore if not the player's turn
-			}
 			type ClickBoardEvent struct {
 				X int
 				Y int
@@ -798,56 +884,99 @@ func processMessage(msg []byte, match *Match, player string) bool {
 			if err != nil {
 				break // todo: send error response
 			}
-			// ignore if not card selected
-			if private.SelectedCard == -1 {
-				break
-			}
-			// ignore clicks on occupied spaces
-			if match.getPiece(Pos{event.X, event.Y}) != nil {
-				break
-			}
-			// square must be on player's side of board
-			if player == white && event.Y >= nColumns/2 {
-				break
-			}
-			if player == black && event.Y < nColumns/2 {
-				break
-			}
+			switch match.Phase {
+			case mainPhase:
+				if player != match.Turn {
+					break // ignore if not the player's turn
+				}
+				// ignore if not card selected
+				if private.SelectedCard == -1 {
+					break
+				}
+				// ignore clicks on occupied spaces
+				if match.getPieceSafe(Pos{event.X, event.Y}) != nil {
+					break
+				}
+				// square must be on player's side of board
+				if player == white && event.Y >= nColumns/2 {
+					break
+				}
+				if player == black && event.Y < nColumns/2 {
+					break
+				}
 
-			card := private.Cards[private.SelectedCard]
-			var p Piece
-			switch card.Name {
-			case king:
-				p = Piece{king, player, public.KingHP, public.KingAttack, 0}
+				card := private.Cards[private.SelectedCard]
+				var p Piece
+				switch card.Name {
+				case bishop:
+					p = Piece{bishop, player, public.BishopHP, public.BishopAttack, 0}
+					public.BishopPlayed = true
+				case knight:
+					p = Piece{knight, player, public.KnightHP, public.KnightAttack, 0}
+					public.KnightPlayed = true
+				case rook:
+					p = Piece{rook, player, public.RookHP, public.RookAttack, 0}
+					public.RookPlayed = true
+				}
+				match.Log = append(match.Log, player+" played "+card.Name)
+				match.setPiece(Pos{event.X, event.Y}, p)
+				// remove card
+				private.RemoveCard(private.SelectedCard)
+				match.EndTurn(false, player)
+				newTurn = true
+				notifyOpponent = true
+			case reclaimPhase:
+				pos := Pos{event.X, event.Y}
+				p := match.getPieceSafe(pos)
+				if p != nil && p.Color == player {
+					found := false
+					selections := private.ReclaimSelections
+					for i, selection := range selections {
+						if selection == pos {
+							selections = append(selections[:i], selections[i+1:]...)
+							found = true
+						}
+					}
+					if !found && len(selections) < maxReclaim {
+						selections = append(selections, pos)
+					}
+					private.ReclaimSelections = selections
+				}
+			case kingPlacementPhase:
+				if public.KingPlayed {
+					break
+				}
+				// ignore clicks on occupied spaces
+				if match.getPieceSafe(Pos{event.X, event.Y}) != nil {
+					break
+				}
+				// square must be on player's side of board
+				if player == white && event.Y >= nColumns/2 {
+					break
+				}
+				if player == black && event.Y < nColumns/2 {
+					break
+				}
 				public.KingPlayed = true
-			case bishop:
-				p = Piece{bishop, player, public.BishopHP, public.BishopAttack, 0}
-			case knight:
-				p = Piece{knight, player, public.KnightHP, public.KnightAttack, 0}
-			case rook:
-				p = Piece{rook, player, public.RookHP, public.RookAttack, 0}
+				match.Log = append(match.Log, player+" played King")
+				match.setPiece(Pos{event.X, event.Y}, Piece{king, player, public.KingHP, public.KingAttack, 0})
+				newTurn = match.EndKingPlacement()
+				notifyOpponent = true
 			}
-			match.Log = append(match.Log, player+" played "+card.Name)
-			match.setPiece(Pos{event.X, event.Y}, p)
-			// remove card
-			private.RemoveCard(private.SelectedCard)
-			match.EndTurn(false, player)
-			newTurn = true
-			notifyOpponent = true
 		case "pass":
-			if !match.Ready {
-				break
+			switch match.Phase {
+			case mainPhase:
+				if player != match.Turn {
+					break // ignore if not the player's turn
+				}
+				if !public.KingPlayed {
+					break // cannot pass when king has not been played
+				}
+				match.Log = append(match.Log, player+" passed")
+				match.EndTurn(true, player)
+				newTurn = true
+				notifyOpponent = true
 			}
-			if player != match.Turn {
-				break // ignore if not the player's turn
-			}
-			if !public.KingPlayed {
-				break // cannot pass when king has not been played
-			}
-			match.Log = append(match.Log, player+" passed")
-			match.EndTurn(true, player)
-			newTurn = true
-			notifyOpponent = true
 		default:
 			fmt.Println("bad event: ", event, msg) // todo: better error reporting
 		}
@@ -870,7 +999,7 @@ func processMessage(msg []byte, match *Match, player string) bool {
 				"blackPublic":               match.BlackPublic,
 				"whitePublic":               match.WhitePublic,
 				"passPrior":                 match.PassPrior,
-				"ready":                     match.Ready,
+				"phase":                     match.Phase,
 				"firstTurnColor":            match.FirstTurnColor,
 				"log":                       match.Log,
 			}
@@ -996,7 +1125,7 @@ func main() {
 			liveMatches.Lock()
 			for id, match := range liveMatches.internal {
 				exceededTimeout := time.Now().Unix() > match.LastMoveTime+matchTimeout
-				if match.Winner != none || exceededTimeout {
+				if match.Phase == gameoverPhase || exceededTimeout {
 					delete(liveMatches.internal, id)
 				}
 			}
