@@ -1,5 +1,4 @@
 
-heroku seems to close the websockets with prejudice (send keep alive messages every 10 seconds?)
 
 heroku: .play() is triggering exceptions? is it failing to play?
 
@@ -49,6 +48,7 @@ communal cards? deck building?
 
 
 
+damage number queen is obscured by the icon (draw background highlight on damage number? in all black?)
 
 
 give vassals high hp, but also a stun threshold that recharges every round; 
@@ -178,7 +178,14 @@ card ideas:
 
     mimic bishop - knight or rook adopts bishop attack pattern for this and next 2 rounds
 
-    force reclaim - reclaim the piece you played in last turn, or force enemy to reclaim the piece they played in       last turn; the reclaimed piece cannot be used again this round
+    force reclaim - reclaim the piece you played in last turn, or force enemy to reclaim the piece they played in     
+        last turn; the reclaimed piece cannot be used again this round
+
+    hp aura - buff hp of all adjacent pieces (including enemies?)
+    attack aura - buff attack " " " " "
+
+    time bomb - convert a pawn (enemy or allied) into a bomb: the bomb has 20hp and no attack, after 3 rounds, it   
+        detonates, hitting everything adjacent for big damage (the bomb counts as a pawn for spawning purposes)
 
 cards that can only be cast on enemies in line of attack
     - in some cases, require line of attack from specific vassal, e.g. can only cast on enemy threatened by bishop

@@ -68,16 +68,18 @@ skullImg.onload = function (evt) {
 };
 
 var cardDescriptions = {
-    'King': `<h3>King: 0 mana cost, 40 HP, 15 attack</h3>
-<div>Game is won by destroying enemy king. Can attack once per round. Attacks one space in all directions.</div>`,
-    'Rook': `<h3>Rook: 0 mana cost, 20 HP, 10 attack</h3>
-<div>Can attack once per round. Attacks in the four cardinal directions (up, down, left, right).</div>`,
-    'Bishop': `<h3>Bishop: 0 mana cost, 15 HP, 8 attack</h3>
-<div>Can attack once per round. Attacks diagonally.</div>`,
-    'Knight': `<h3>Knight: 0 mana cost, 15 HP, 5 attack</h3>
-<div>Can attack once per round. Attacks are not blocked by other units. Attacks in 'L' shape: two spaces in cardinal direction and one space over.</div>`,
-    'Pawn': `<h3>Pawn: 0 mana cost, 3 HP, 2 attack</h3>
-<div>Can attack once per round. Attacks one space diagonally towards opponent side.</div>`,
+    'King': `<h3>King: 0 mana cost, 50 HP, 12 attack</h3>
+<div>Game is won by destroying enemy king. Attacks one space in all directions.</div>`,
+    'Rook': `<h3>Rook: 0 mana cost, 20 HP, 6 attack</h3>
+<div>Attacks up/down/left/right. You only get one Rook in the match. When reclaimed, its HP and status effects persist, and you get a Rook card back in your hand. When reclaimed, healed for 5 HP.</div>`,
+    'Bishop': `<h3>Bishop: 0 mana cost, 25 HP, 4 attack</h3>
+<div>Attacks diagonally. You only get one Bishop in the match. When reclaimed, its HP and status effects persist, and you get a Bishop card back in your hand.</div>`,
+    'Knight': `<h3>Knight: 0 mana cost, 25 HP, 5 attack</h3>
+<div>Attacks are not blocked by other units. Attacks in 'L' shape: two spaces in cardinal direction and one space over. You only get one Knight in the match. When reclaimed, its HP and status effects persist, and you get a Knight card back in your hand.</div>`,
+    'Pawn': `<h3>Pawn: 0 mana cost, 5 HP, 2 attack</h3>
+<div>Attacks one space diagonally towards opponent side.</div>`,
+    'Queen': `<h3>Queen: 5 mana cost, 15 HP, 6 attack</h3>
+<div>Attacks diagonally and up/down/left/right.</div>`,
 };
 
 
@@ -325,6 +327,8 @@ function draw(matchState) {
         const damageOffsetY = 15;
         const skullOffsetX = 82;
         const skullOffsetY = 37;
+        const dmgBgWidth = 29;
+        const dmgBgHeight = 17;
 
         var column = 0;
         for (var i = 0; i < pieces.length; i++) {
@@ -342,7 +346,9 @@ function draw(matchState) {
                 ctx.textAlign = 'right';
                 ctx.fillText(piece.hp, rightX, y + hpOffsetY);
                 if (piece.damage > 0) {
-                    ctx.fillStyle = 'red';
+                    ctx.fillStyle = '#944';
+                    ctx.fillRect(rightX - 24, y + 17, dmgBgWidth, dmgBgHeight);
+                    ctx.fillStyle = 'white';
                     ctx.fillText(-piece.damage, rightX, y + hpOffsetY + damageOffsetY);
                 }
                 ctx.fillStyle = 'darkgreen';

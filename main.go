@@ -35,16 +35,22 @@ const (
 )
 
 const (
-	pawnHP       = 3
+	pawnHP       = 5
 	pawnAttack   = 2
-	kingHP       = 40
-	kingAttack   = 15
-	bishopHP     = 15
-	bishopAttack = 8
-	knightHP     = 15
+	kingHP       = 50
+	kingAttack   = 12
+	bishopHP     = 25
+	bishopAttack = 4
+	bishopMana   = 0
+	knightHP     = 25
 	knightAttack = 5
+	knightMana   = 0
 	rookHP       = 20
-	rookAttack   = 10
+	rookAttack   = 6
+	rookMana     = 0
+	queenHP      = 15
+	queenAttack  = 6
+	queenMana    = 3
 )
 
 const defaultInstruction = "Pick a card to play or pass."
@@ -73,7 +79,7 @@ var wsupgrader = websocket.Upgrader{
 }
 
 const maxReclaim = 2 // max number of pieces to reclaim at end of round
-const matchTimeout = 120 * int64(time.Minute)
+const matchTimeout = 20 * int64(time.Minute)
 
 type Match struct {
 	Name      string // used to identify the match in browser
@@ -146,7 +152,6 @@ type Pos struct {
 
 type Card struct {
 	Name     string `json:"name"`
-	Owner    string `json:"owner"` // black, white, none
 	ManaCost int    `json:"manaCost"`
 }
 
@@ -155,8 +160,8 @@ type MatchMap struct {
 	internal map[string]*Match
 }
 
-func drawCards(owner string, existing []Card, public *PublicState) []Card {
-	// remove stock from existing
+func drawCards(existing []Card, public *PublicState) []Card {
+	// remove vassal cards from existing
 	i := 0
 loop:
 	for ; i < len(existing); i++ {
@@ -170,13 +175,13 @@ loop:
 
 	stock := []Card{}
 	if public.BishopHP > 0 && !public.BishopPlayed {
-		stock = append(stock, Card{bishop, owner, 0})
+		stock = append(stock, Card{bishop, 0})
 	}
 	if public.KnightHP > 0 && !public.KnightPlayed {
-		stock = append(stock, Card{knight, owner, 0})
+		stock = append(stock, Card{knight, 0})
 	}
 	if public.RookHP > 0 && !public.RookPlayed {
-		stock = append(stock, Card{rook, owner, 0})
+		stock = append(stock, Card{rook, 0})
 	}
 
 	return append(stock, existing...)
@@ -259,8 +264,12 @@ func initMatch(m *Match) {
 	m.SpawnPawns(black, true)
 	m.CalculateDamage()
 
+	startingHand := []Card{
+		Card{queen, queenMana},
+	}
+
 	m.BlackPrivate = PrivateState{
-		Cards:             drawCards(black, nil, &m.BlackPublic),
+		Cards:             drawCards(startingHand, &m.BlackPublic),
 		SelectedCard:      -1,
 		SelectedPos:       Pos{-1, -1},
 		PlayerInstruction: defaultInstruction,
@@ -268,7 +277,7 @@ func initMatch(m *Match) {
 	}
 	// white starts ready to play king
 	m.WhitePrivate = PrivateState{
-		Cards:             drawCards(white, nil, &m.WhitePublic),
+		Cards:             drawCards(startingHand, &m.WhitePublic),
 		SelectedCard:      -1,
 		SelectedPos:       Pos{-1, -1},
 		PlayerInstruction: defaultInstruction,
@@ -458,6 +467,117 @@ func (m *Match) CalculateDamage() {
 		}
 	}
 
+	queenAttack := func(p Pos, color string, attack int) {
+		x := p.X + 1
+		y := p.Y + 1
+		for x < nColumns && y < nRows {
+			hit := m.getPiece(Pos{x, y})
+			if hit != nil {
+				if hit.Color != color {
+					hit.Damage += attack
+				}
+				break
+			}
+			x++
+			y++
+		}
+
+		x = p.X - 1
+		y = p.Y + 1
+		for x >= 0 && y < nRows {
+			hit := m.getPiece(Pos{x, y})
+			if hit != nil {
+				if hit.Color != color {
+					hit.Damage += attack
+				}
+				break
+			}
+			x--
+			y++
+		}
+
+		x = p.X + 1
+		y = p.Y - 1
+		for x < nColumns && y >= 0 {
+			hit := m.getPiece(Pos{x, y})
+			if hit != nil {
+				if hit.Color != color {
+					hit.Damage += attack
+				}
+				break
+			}
+			x++
+			y--
+		}
+
+		x = p.X - 1
+		y = p.Y - 1
+		for x >= 0 && y >= 0 {
+			hit := m.getPiece(Pos{x, y})
+			if hit != nil {
+				if hit.Color != color {
+					hit.Damage += attack
+				}
+				break
+			}
+			x--
+			y--
+		}
+
+		// cardinal directions
+		x = p.X + 1
+		y = p.Y
+		for x < nColumns {
+			hit := m.getPiece(Pos{x, y})
+			if hit != nil {
+				if hit.Color != color {
+					hit.Damage += attack
+				}
+				break
+			}
+			x++
+		}
+
+		x = p.X - 1
+		y = p.Y
+		for x >= 0 {
+			hit := m.getPiece(Pos{x, y})
+			if hit != nil {
+				if hit.Color != color {
+					hit.Damage += attack
+				}
+				break
+			}
+			x--
+		}
+
+		x = p.X
+		y = p.Y + 1
+		for y < nRows {
+			hit := m.getPiece(Pos{x, y})
+			if hit != nil {
+				if hit.Color != color {
+					hit.Damage += attack
+				}
+				break
+			}
+			y++
+		}
+
+		x = p.X
+		y = p.Y - 1
+		for y >= 0 {
+			hit := m.getPiece(Pos{x, y})
+			if hit != nil {
+				if hit.Color != color {
+					hit.Damage += attack
+				}
+				break
+			}
+			y--
+		}
+	}
+
 	kingAttack := func(p Pos, color string, attack int) {
 		ps := []Pos{
 			Pos{p.X + 1, p.Y + 1},
@@ -524,6 +644,7 @@ func (m *Match) CalculateDamage() {
 		knight: knightAttack,
 		rook:   rookAttack,
 		pawn:   pawnAttack,
+		queen:  queenAttack,
 	}
 
 	// visit each piece, adding the damage it inflicts on other pieces
@@ -644,6 +765,12 @@ func (m *Match) ReclaimPieces() {
 					case rook:
 						m.removePieceAt(pos)
 						public.RookPlayed = false
+						public.RookHP += reclaimHealRook
+						if public.RookHP > rookHP {
+							public.RookHP = rookHP
+						}
+					case queen:
+						m.removePieceAt(pos)
 					case pawn:
 						m.removePieceAt(pos)
 					default:
@@ -678,8 +805,8 @@ func (m *Match) EndRound() {
 
 	m.PassPrior = false
 
-	m.WhitePrivate.Cards = drawCards(white, m.WhitePrivate.Cards, &m.WhitePublic)
-	m.BlackPrivate.Cards = drawCards(black, m.BlackPrivate.Cards, &m.BlackPublic)
+	m.WhitePrivate.Cards = drawCards(m.WhitePrivate.Cards, &m.WhitePublic)
+	m.BlackPrivate.Cards = drawCards(m.BlackPrivate.Cards, &m.BlackPublic)
 	m.WhitePrivate.SelectedCard = -1
 	m.BlackPrivate.SelectedCard = -1
 
@@ -922,6 +1049,8 @@ func processMessage(msg []byte, match *Match, player string) {
 				case rook:
 					p = Piece{rook, player, public.RookHP, public.RookAttack, 0}
 					public.RookPlayed = true
+				case queen:
+					p = Piece{queen, player, queenHP, queenAttack, 0}
 				}
 				match.Log = append(match.Log, player+" played "+card.Name)
 				match.setPiece(Pos{event.X, event.Y}, p)
