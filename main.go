@@ -771,6 +771,8 @@ func processMessage(msg []byte, match *Match, player string) {
 		public, private := match.states(player)
 		switch event {
 		case "ping":
+			// used for keep alive (heroku timesout connections with no activity for 55 seconds)
+			// needn't send response to keep connection alive
 			match.Mutex.Unlock()
 			return
 		case "get_state":

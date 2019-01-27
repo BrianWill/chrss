@@ -528,7 +528,7 @@ function setTimers(match) {
                     }
 
                     timeSincePing += interval;
-                    if (timeSincePing) {
+                    if (timeSincePing > pingInterval) {
                         conn.send("ping ");
                         timeSincePing = 0;
                     }
