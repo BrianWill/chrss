@@ -753,8 +753,7 @@ func (m *Match) EndTurn(pass bool, player string) {
 	}
 }
 
-// return true if message triggers end of match
-func processMessage(msg []byte, match *Match, player string) bool {
+func processMessage(msg []byte, match *Match, player string) {
 	currentRound := match.Round
 	newTurn := false
 	var event string
@@ -771,6 +770,9 @@ func processMessage(msg []byte, match *Match, player string) bool {
 	if match.Phase != gameoverPhase {
 		public, private := match.states(player)
 		switch event {
+		case "ping":
+			match.Mutex.Unlock()
+			return
 		case "get_state":
 			// doesn't change anything, just fetches current state
 		case "ready":
@@ -781,6 +783,7 @@ func processMessage(msg []byte, match *Match, player string) bool {
 					match.Phase = kingPlacementPhase
 					match.Round = 1 // by incrementing from 0, will sound new round fanfare
 					match.Log = []string{"Round 1"}
+					match.LastMoveTime = time.Now().UnixNano()
 				}
 				notifyOpponent = true
 			}
@@ -1028,7 +1031,6 @@ func processMessage(msg []byte, match *Match, player string) bool {
 	}
 
 	match.Mutex.Unlock()
-	return false
 }
 
 func NewMatchMap() *MatchMap {
@@ -1219,9 +1221,7 @@ func main() {
 			if err != nil {
 				break
 			}
-			if processMessage(msg, match, color) {
-				break
-			}
+			processMessage(msg, match, color)
 		}
 
 	exit:

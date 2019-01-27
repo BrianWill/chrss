@@ -97,7 +97,11 @@ conn.onmessage = function(msg){
     console.log(" <== " + new Date() + " <== \n");
     console.log(msg);
 
-    matchState = JSON.parse(msg.data);
+    var response = JSON.parse(msg.data);
+    if (response === "ping") {
+        return;
+    }
+    matchState = response;
     if (matchState.error) {
         alert(matchState.error);  // todo: use overlay instead of alert
     }
@@ -121,9 +125,14 @@ conn.onmessage = function(msg){
 }
 
 conn.onerror = function(err) {
-    console.log(new Date() + " error: "+err.data+"\n");
+    console.log("Connection error " + new Date() + " error: ", err);
     console.log(err);
-  }
+}
+
+conn.onclose = function(err) {
+    console.log("Connection close " + new Date() + err);
+    console.log(err);
+}
 
 conn.onopen = function(){
     conn.send("get_state ");
@@ -198,7 +207,7 @@ function draw(matchState) {
 
     function drawWait(ctx, matchState) {
         if (matchState.phase === 'main' && matchState.turn !== matchState.color) {
-            ctx.fillStyle = 'rgba(20, 30, 100, 0.25)';
+            ctx.fillStyle = 'rgba(20, 30, 100, 0.40)';
             ctx.fillRect(0, 0, board.width, board.height);    
         } 
     }
@@ -403,8 +412,6 @@ function draw(matchState) {
                 }
                 break;
             case 'reclaim':
-                // ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
-                // ctx.fillRect(0, 0, board.width, board.height / 2);
                 var flipped = match.color === 'white';
                 var pieces = match.board;
                 var x = 0;
@@ -496,16 +503,21 @@ function drawTimer(match) {
 // *** logic ***
 
 var timerHandle;
+var timeSincePing;
+const interval = 1000;
+const pingInterval = 20000;
 
 function setTimers(match) {
     window.clearInterval(timerHandle);
+    timeSincePing = 0;
+    
     switch (match.phase) {
         case 'reclaim':
         case 'kingPlacement':
         case 'main':    
             timerHandle = window.setInterval(
                 function () {
-                    match.turnRemainingMilliseconds -= 1000;
+                    match.turnRemainingMilliseconds -= interval;
                     drawTimer(match);
 
                     // extra half second as cushion (don't want to 
@@ -514,8 +526,14 @@ function setTimers(match) {
                         conn.send(match.phase === 'reclaim' ? "reclaim_time_expired " : "time_expired ");
                         waitingResponse = true;
                     }
-                }, 
-                1000
+
+                    timeSincePing += interval;
+                    if (timeSincePing) {
+                        conn.send("ping ");
+                        timeSincePing = 0;
+                    }
+                },
+                interval
             );
             break;
     }

@@ -1,5 +1,7 @@
 
+heroku seems to close the websockets with prejudice (send keep alive messages every 10 seconds?)
 
+heroku: .play() is triggering exceptions? is it failing to play?
 
 check pawn spawning after reclaiming
     show in log how many pawns spawned for white and black
@@ -104,6 +106,8 @@ card ideas:
 
 
     reclaim vassal  - move vassal from the board back into your hand
+
+    Queen - attacks like a Queen, do not get card back if reclaimed, 20 hp, 8 attack, 5 mana
 
     reclaim pawn - remove pawn from the board (if a mutated pawn, puts card back into your hand?)
 
