@@ -154,14 +154,16 @@ func processMessage(msg []byte, match *Match, player string) {
 				}
 				if event.SelectedCard == private.SelectedCard {
 					private.SelectedCard = -1
-					private.HighlightEmpty = false
 					private.PlayerInstruction = defaultInstruction
+					private.highlightsOff()
 				} else {
 					card := private.Cards[event.SelectedCard]
 					if public.ManaCurrent >= card.ManaCost {
 						private.SelectedCard = event.SelectedCard
-						private.HighlightEmpty = true
 						private.PlayerInstruction = "Click an empty spot on your side of the board to place the card."
+
+						// todo: highlighting depends upon the type of card selected
+						private.dimAllButFree(player, match.Board[:])
 					}
 				}
 			}
@@ -232,15 +234,22 @@ func processMessage(msg []byte, match *Match, player string) {
 				if p != nil && p.Color == player {
 					found := false
 					selections := private.ReclaimSelections
+
+					// unselect if already selected
 					for i, selection := range selections {
 						if selection == pos {
 							selections = append(selections[:i], selections[i+1:]...)
+							private.highlightPosOff(pos)
 							found = true
 						}
 					}
+
+					// select if not already selected
 					if !found && len(selections) < maxReclaim {
+						private.highlightPosOn(pos)
 						selections = append(selections, pos)
 					}
+
 					private.ReclaimSelections = selections
 				}
 			case kingPlacementPhase:
@@ -450,6 +459,7 @@ func main() {
 		for id, match := range liveMatches.internal {
 			exceededTimeout := time.Now().UnixNano() > match.LastMoveTime+matchTimeout
 			if match.Phase == gameoverPhase || exceededTimeout {
+				liveMatches.internal[id].Mutex.Lock()
 				delete(liveMatches.internal, id)
 			}
 		}

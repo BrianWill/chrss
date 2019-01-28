@@ -56,8 +56,13 @@ const nColumns = 6
 const nRows = 6
 
 const turnTimer = 50 * int64(time.Second)
-
 const maxConcurrentMatches = 100
+
+const (
+	highlightOff = iota
+	highlightOn
+	highlightDim
+)
 
 type Phase string
 
@@ -100,12 +105,12 @@ type Match struct {
 
 // info a player doesn't want opponent to see
 type PrivateState struct {
-	Cards             []Card `json:"cards"`
-	SelectedCard      int    `json:"selectedCard"` // index into cards slice
-	SelectedPos       Pos    `json:"selectedPos"`
-	HighlightEmpty    bool   `json:"highlightEmpty"` // highlight the empty squares on the player's side
-	PlayerInstruction string `json:"playerInstruction"`
-	ReclaimSelections []Pos  `json:"reclaimSelections"`
+	Cards             []Card                `json:"cards"`
+	SelectedCard      int                   `json:"selectedCard"` // index into cards slice
+	SelectedPos       Pos                   `json:"selectedPos"`
+	Highlights        [nColumns * nRows]int `json:"highlights"`
+	PlayerInstruction string                `json:"playerInstruction"`
+	ReclaimSelections []Pos                 `json:"reclaimSelections"`
 }
 
 type PublicState struct {

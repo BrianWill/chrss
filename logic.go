@@ -53,7 +53,6 @@ func initMatch(m *Match) {
 		SelectedCard:      -1,
 		SelectedPos:       Pos{-1, -1},
 		PlayerInstruction: defaultInstruction,
-		HighlightEmpty:    true,
 	}
 	// white starts ready to play king
 	m.WhitePrivate = PrivateState{
@@ -61,13 +60,24 @@ func initMatch(m *Match) {
 		SelectedCard:      -1,
 		SelectedPos:       Pos{-1, -1},
 		PlayerInstruction: defaultInstruction,
-		HighlightEmpty:    true,
 	}
+
+	m.BlackPrivate.dimAllButFree(black, m.Board[:])
+	m.WhitePrivate.dimAllButFree(white, m.Board[:])
 }
 
 // returns nil for empty square
 func (m *Match) getPiece(p Pos) *Piece {
 	return m.Board[nColumns*p.Y+p.X]
+}
+
+// returns -1 if invalid
+func (p *Pos) getBoardIdx() int {
+	idx := nColumns*p.Y + p.X
+	if idx < 0 || idx >= (nColumns*nRows) {
+		return -1
+	}
+	return idx
 }
 
 // does not panic
@@ -622,12 +632,91 @@ func (m *Match) EndRound() {
 
 	if m.WhitePublic.KingPlayed && m.BlackPublic.KingPlayed {
 		m.Phase = mainPhase
-		m.BlackPrivate.HighlightEmpty = false
-		m.WhitePrivate.HighlightEmpty = false
+		m.WhitePrivate.highlightsOff()
+		m.BlackPrivate.highlightsOff()
 	} else {
 		m.Phase = kingPlacementPhase
-		m.BlackPrivate.HighlightEmpty = true
-		m.WhitePrivate.HighlightEmpty = true
+		if m.WhitePublic.KingPlayed {
+			m.WhitePrivate.highlightsOff()
+		} else {
+			m.WhitePrivate.dimAllButFree(white, m.Board[:])
+		}
+		if m.BlackPublic.KingPlayed {
+			m.BlackPrivate.highlightsOff()
+		} else {
+			m.BlackPrivate.dimAllButFree(black, m.Board[:])
+		}
+	}
+}
+
+func (p *PrivateState) dimAllButFree(color string, board []*Piece) {
+	halfIdx := len(board) / 2
+	if color == black {
+		for i, piece := range board {
+			if i < halfIdx {
+				p.Highlights[i] = highlightDim
+			} else if piece == nil {
+				p.Highlights[i] = highlightOff
+			} else {
+				p.Highlights[i] = highlightDim
+			}
+		}
+	} else {
+		halfIdx := len(board) / 2
+		for i, piece := range board {
+			if i >= halfIdx {
+				p.Highlights[i] = highlightDim
+			} else if piece == nil {
+				p.Highlights[i] = highlightOff
+			} else {
+				p.Highlights[i] = highlightDim
+			}
+		}
+	}
+}
+
+// color none leaves pieces of both colors undimmed
+func (p *PrivateState) dimAllButPieces(color string, board []*Piece) {
+	for i, piece := range board {
+		if piece != nil && (piece.Color == color || color == none) {
+			p.Highlights[i] = highlightOff
+		} else {
+			p.Highlights[i] = highlightDim
+		}
+	}
+}
+
+func (p *PrivateState) highlightSelections(selections []Pos) {
+	for _, pos := range selections {
+		idx := pos.getBoardIdx()
+		p.Highlights[idx] = highlightOn
+	}
+}
+
+func (p *PrivateState) highlightsOff() {
+	for i := range p.Highlights {
+		p.Highlights[i] = highlightOff
+	}
+}
+
+func (p *PrivateState) highlightPosOn(pos Pos) {
+	idx := pos.getBoardIdx()
+	p.Highlights[idx] = highlightOn
+}
+
+func (p *PrivateState) highlightPosOff(pos Pos) {
+	idx := pos.getBoardIdx()
+	p.Highlights[idx] = highlightOff
+}
+
+// highlights units of a specified type and color (or both colors if 'none')
+func (p *PrivateState) dimAllButType(pieceType string, color string, board []*Piece) {
+	for i, piece := range board {
+		if piece.Name == pieceType && (piece.Color == color || color == none) {
+			p.Highlights[i] = highlightOff
+		} else {
+			p.Highlights[i] = highlightDim
+		}
 	}
 }
 
@@ -635,8 +724,8 @@ func (m *Match) EndKingPlacement() bool {
 	if m.WhitePublic.KingPlayed && m.BlackPublic.KingPlayed {
 		m.CalculateDamage()
 		m.LastMoveTime = time.Now().UnixNano()
-		m.WhitePrivate.HighlightEmpty = false
-		m.BlackPrivate.HighlightEmpty = false
+		m.WhitePrivate.highlightsOff()
+		m.BlackPrivate.highlightsOff()
 		m.Phase = mainPhase
 		return true
 	}
@@ -667,6 +756,8 @@ func (m *Match) EndTurn(pass bool, player string) {
 			m.Phase = gameoverPhase
 		} else {
 			m.Phase = reclaimPhase
+			m.BlackPrivate.dimAllButPieces(black, m.Board[:])
+			m.WhitePrivate.dimAllButPieces(white, m.Board[:])
 		}
 	} else {
 		if m.Turn == black {
@@ -678,11 +769,11 @@ func (m *Match) EndTurn(pass bool, player string) {
 
 		m.WhitePrivate.PlayerInstruction = defaultInstruction
 		m.WhitePrivate.SelectedCard = -1
-		m.WhitePrivate.HighlightEmpty = false
+		m.WhitePrivate.highlightsOff()
 
 		m.BlackPrivate.PlayerInstruction = defaultInstruction
 		m.BlackPrivate.SelectedCard = -1
-		m.BlackPrivate.HighlightEmpty = false
+		m.BlackPrivate.highlightsOff()
 	}
 }
 

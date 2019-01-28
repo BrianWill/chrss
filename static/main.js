@@ -32,6 +32,12 @@ board.squareWidth = board.width / board.nColumns;
 Object.freeze(board);
 
 
+// need to keep synced with consts in server code
+const highlightOff = 0
+const highlightOn = 1
+const highlightDim = 2
+
+
 var piecesImg = new Image();
 piecesImg.pieceHeight = 45;
 piecesImg.pieceWidth = 45;
@@ -149,7 +155,6 @@ function draw(matchState) {
     drawBoard(ctx);
     drawPieces(ctx, matchState);
     drawSquareHighlight(ctx, matchState);
-    drawHighlightSelection(ctx, matchState);
     drawWait(ctx, matchState);
     drawWinner(ctx, matchState.winner);
     drawCards(matchState);
@@ -210,10 +215,12 @@ function draw(matchState) {
     }
 
     function drawWait(ctx, matchState) {
-        if (matchState.phase === 'main' && matchState.turn !== matchState.color) {
-            ctx.fillStyle = 'rgba(20, 30, 100, 0.40)';
+        if ((matchState.phase === 'main' && matchState.turn !== matchState.color) || 
+            (matchState.phase === 'reclaim' && matchState.public.reclaimSelectionMade) ||
+            (matchState.phase === 'kingPlacement' && matchState.public.kingPlayed)) {
+            ctx.fillStyle = 'rgba(20, 30, 100, 0.30)';
             ctx.fillRect(0, 0, board.width, board.height);    
-        } 
+        }
     }
 
     function drawWinner(ctx, winner) {
@@ -374,63 +381,34 @@ function draw(matchState) {
         }
     }
 
-    function drawHighlightSelection(ctx, match) {
-        switch (match.phase) {
-        case 'reclaim':
-            var flipped = matchState.color === 'white';
-            var positions = matchState.private.reclaimSelections;
-            if (positions === null) {
-                break;
-            }
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
-            for (var pos of positions) {
-                var x = flipped ? board.nColumns - 1 - pos.x : pos.x;
-                var y = flipped ? board.nRows - 1 - pos.y : pos.y;
-                ctx.fillRect(x * board.squareWidth, y * board.squareHeight, board.squareWidth, board.squareHeight);
-            }       
-            break;
-        }
-    }
 
     function drawSquareHighlight(ctx, match) {
         switch (match.phase) {
             case 'kingPlacement':
             case 'main':
-                if (!matchState.private.highlightEmpty) {
-                    return
-                }
-                var flipped = match.color === 'white';
-                var pieces = match.board;
-                var x = 0;
-                var y = 0;
-                var column = 0;
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
-                for (var i = 0; i < pieces.length; i++) {
-                    var idx = flipped ? pieces.length - 1 - i : i;
-                    if (pieces[idx] !== null || i < pieces.length / 2) {
-                        ctx.fillRect(x, y, board.squareWidth, board.squareHeight);
-                    }
-                    x += board.squareWidth;
-                    column++;
-                    if (column == board.nColumns) {
-                        x = 0;
-                        column = 0;
-                        y += board.squareHeight;
-                    }
-                }
-                break;
             case 'reclaim':
                 var flipped = match.color === 'white';
-                var pieces = match.board;
+                var highlights = match.private.highlights;
+                var len = highlights.length;
                 var x = 0;
                 var y = 0;
                 var column = 0;
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
-                for (var i = 0; i < pieces.length; i++) {
-                    var idx = flipped ? pieces.length - 1 - i : i;
-                    if (pieces[idx] === null || i < pieces.length / 2) {
-                        ctx.fillRect(x, y, board.squareWidth, board.squareHeight);
+                
+                for (var i = 0; i < len; i++) {
+                    var idx = flipped ? len - 1 - i : i;
+                    switch (highlights[idx]) {
+                        case highlightOff:
+                            break;
+                        case highlightOn:
+                            ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+                            ctx.fillRect(x, y, board.squareWidth, board.squareHeight);
+                            break;
+                        case highlightDim:
+                            ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+                            ctx.fillRect(x, y, board.squareWidth, board.squareHeight);
+                            break;
                     }
+
                     x += board.squareWidth;
                     column++;
                     if (column == board.nColumns) {
