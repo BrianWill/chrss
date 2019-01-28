@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"math/rand"
 	"strconv"
 	"time"
@@ -487,7 +486,14 @@ func (m *Match) SpawnPawns(player string, init bool) {
 		}
 		m.BlackPublic.NumPawns = blackNumPawns + n
 	}
-	m.Log = append(m.Log, player+" gained "+strconv.Itoa(n)+" pawns")
+	switch n {
+	case 0:
+		m.Log = append(m.Log, player+" gained no pawns")
+	case 1:
+		m.Log = append(m.Log, player+" gained 1 pawn")
+	default:
+		m.Log = append(m.Log, player+" gained "+strconv.Itoa(n)+" pawns")
+	}
 }
 
 // returns boolean true when no free slot
@@ -529,8 +535,15 @@ func (m *Match) states(color string) (*PublicState, *PrivateState) {
 	}
 }
 
+func (m *Match) allStates(color string) (*PublicState, *PrivateState, *PublicState, *PrivateState) {
+	if color == black {
+		return &m.BlackPublic, &m.BlackPrivate, &m.WhitePublic, &m.WhitePrivate
+	} else {
+		return &m.WhitePublic, &m.WhitePrivate, &m.BlackPublic, &m.BlackPrivate
+	}
+}
+
 func (m *Match) playCastle(pos Pos, color string) bool {
-	fmt.Println("castle")
 	piece := m.getPieceSafe(pos)
 	if piece == nil {
 		return false
@@ -538,7 +551,6 @@ func (m *Match) playCastle(pos Pos, color string) bool {
 	if piece.Name != king {
 		return false
 	}
-	fmt.Println("castle is king")
 	// find rook of same color as clicked king
 	var rookPiece *Piece
 	for _, p := range m.Board {
@@ -699,6 +711,12 @@ func (p *PrivateState) highlightsOff() {
 	}
 }
 
+func (p *PrivateState) dimAll() {
+	for i := range p.Highlights {
+		p.Highlights[i] = highlightDim
+	}
+}
+
 func (p *PrivateState) highlightPosOn(pos Pos) {
 	idx := pos.getBoardIdx()
 	p.Highlights[idx] = highlightOn
@@ -712,7 +730,7 @@ func (p *PrivateState) highlightPosOff(pos Pos) {
 // highlights units of a specified type and color (or both colors if 'none')
 func (p *PrivateState) dimAllButType(pieceType string, color string, board []*Piece) {
 	for i, piece := range board {
-		if piece.Name == pieceType && (piece.Color == color || color == none) {
+		if piece != nil && piece.Name == pieceType && (piece.Color == color || color == none) {
 			p.Highlights[i] = highlightOff
 		} else {
 			p.Highlights[i] = highlightDim

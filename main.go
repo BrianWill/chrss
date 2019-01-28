@@ -159,11 +159,23 @@ func processMessage(msg []byte, match *Match, player string) {
 				} else {
 					card := private.Cards[event.SelectedCard]
 					if public.ManaCurrent >= card.ManaCost {
-						private.SelectedCard = event.SelectedCard
-						private.PlayerInstruction = "Click an empty spot on your side of the board to place the card."
-
-						// todo: highlighting depends upon the type of card selected
-						private.dimAllButFree(player, match.Board[:])
+						switch card.Name {
+						case castleCard:
+							if match.WhitePublic.RookPlayed && match.BlackPublic.RookPlayed {
+								private.dimAllButType(king, none, match.Board[:])
+								private.SelectedCard = event.SelectedCard
+							} else if match.WhitePublic.RookPlayed {
+								private.dimAllButType(king, white, match.Board[:])
+								private.SelectedCard = event.SelectedCard
+							} else if match.BlackPublic.RookPlayed {
+								private.dimAllButType(king, black, match.Board[:])
+								private.SelectedCard = event.SelectedCard
+							}
+						default:
+							private.dimAllButFree(player, match.Board[:])
+							private.SelectedCard = event.SelectedCard
+							private.PlayerInstruction = "Click an empty spot on your side of the board to place the card."
+						}
 					}
 				}
 			}

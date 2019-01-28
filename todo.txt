@@ -1,8 +1,10 @@
 
-move highlighting logic to server (list of numbers 0 = no highlight 1 = highlight 2 = dimmed)
-    private state slice
+// todo: dim king of player that has no rook on board
 
-when user has castle card selected, highlight both kings
+
+
+
+
 
 split game logic of process file into separate functions in game logic
 
