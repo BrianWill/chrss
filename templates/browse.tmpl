@@ -20,6 +20,7 @@
               <li>{{.Name}} ({{.Elapsed}} ago) 
                 {{if .BlackOpen}}<a href="/match/{{.UUID}}/black">black</a>{{end}} 
                 {{if .WhiteOpen}}<a href="/match/{{.UUID}}/white">white</a>{{end}}
+                {{if and .WhiteOpen .BlackOpen}}<a href="/dev/{{.UUID}}">both (dev)</a>{{end}}
               </li>
           {{end}}
       </ul>

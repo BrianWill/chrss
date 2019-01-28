@@ -1,8 +1,11 @@
 
+move highlighting logic to server (list of numbers 0 = no highlight 1 = highlight 2 = dimmed)
+    private state slice
+
 when user has castle card selected, highlight both kings
 
+split game logic of process file into separate functions in game logic
 
-dev page that shows both players of a match (iframes?)
 
 
 on client, grey out cards that cost more mana than you currently have; flash mana when you click card that's too 
@@ -10,13 +13,13 @@ on client, grey out cards that cost more mana than you currently have; flash man
 
 heroku: .play() is triggering exceptions? is it failing to play?
 
+communal cards? deck building?
 in deck builds, players choose a few high cost cards to start in their hand 
     (so player's can better plan around high impact end game cards)
     or perhaps card draw always gives players one card of their current max mana? or max mana minus 1 or 2?
 
 perhaps vassals should be tankiest so using them as shields is not so discouraged
 
-browse page lists matches reverse chronologically
 
 
 
@@ -33,16 +36,12 @@ what to do about your own pawns in the way? include 'pawn sacrafice' card in sto
 
 total time clock that forfeits if it expires?
 
-communal cards? deck building?
 
 
 
 
-damage number queen is obscured by the icon (draw background highlight on damage number? in all black?)
 
 
-give vassals high hp, but also a stun threshold that recharges every round; 
-if stun meter zeroed at end of round, the vassal sits out next round
 
 
 escalation:
@@ -64,7 +63,6 @@ escalation:
 
 card ideas:
 
-    castle - swap position of king and rook (can be cast on enemy?)
 
     King Nuke: your own king does half damage to all units in 2 space radius
 

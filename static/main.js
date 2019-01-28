@@ -575,6 +575,8 @@ cardList.addEventListener('mousedown', function (evt) {
 cardList.addEventListener('mouseleave', function (evt) {
     switch (matchState.phase) {
         case 'main':
+        case 'kingPlacement':
+        case 'reclaim':
             for (var c of cardList.children) {
                 c.classList.remove('highlight_card');
             }
@@ -587,6 +589,8 @@ cardList.addEventListener('mouseleave', function (evt) {
 cardList.addEventListener('mouseover', function (evt) {
     switch (matchState.phase) {
         case 'main':
+        case 'kingPlacement':
+        case 'reclaim':
             var idx = evt.target.getAttribute('cardIdx');
             if (idx === '' || idx === null) {
                 cardDescription.style.display = 'none';
