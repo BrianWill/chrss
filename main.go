@@ -53,6 +53,11 @@ const (
 	queenMana    = 3
 )
 
+const (
+	castleMana = 2
+	castleCard = "Castle"
+)
+
 const defaultInstruction = "Pick a card to play or pass."
 const kingInstruction = "Pick a square to place your king."
 
@@ -268,6 +273,7 @@ func initMatch(m *Match) {
 
 	startingHand := []Card{
 		Card{queen, queenMana},
+		Card{castleCard, castleMana},
 	}
 
 	m.BlackPrivate = PrivateState{
@@ -741,6 +747,33 @@ func (m *Match) states(color string) (*PublicState, *PrivateState) {
 	}
 }
 
+func (m *Match) playCastle(pos Pos, color string) bool {
+	fmt.Println("castle")
+	piece := m.getPieceSafe(pos)
+	if piece == nil {
+		return false
+	}
+	if piece.Name != king {
+		return false
+	}
+	fmt.Println("castle is king")
+	// find rook of same color as clicked king
+	var rookPiece *Piece
+	for _, p := range m.Board {
+		if p != nil && p.Name == rook && p.Color == piece.Color {
+			rookPiece = p
+			break
+		}
+	}
+	if rookPiece == nil {
+		return false // no rook of matching color found
+	}
+	swap := *rookPiece
+	*rookPiece = *piece
+	*piece = swap
+	return true
+}
+
 const reclaimHealRook = 5
 
 func (m *Match) ReclaimPieces() {
@@ -1005,7 +1038,7 @@ func processMessage(msg []byte, match *Match, player string) {
 					private.PlayerInstruction = defaultInstruction
 				} else {
 					card := private.Cards[event.SelectedCard]
-					if public.ManaCurrent > card.ManaCost {
+					if public.ManaCurrent >= card.ManaCost {
 						private.SelectedCard = event.SelectedCard
 						private.HighlightEmpty = true
 						private.PlayerInstruction = "Click an empty spot on your side of the board to place the card."
@@ -1022,46 +1055,53 @@ func processMessage(msg []byte, match *Match, player string) {
 			if err != nil {
 				break // todo: send error response
 			}
+			p := Pos{event.X, event.Y}
 			switch match.Phase {
 			case mainPhase:
+				// ignore if not the player's turn
 				if player != match.Turn {
-					break // ignore if not the player's turn
+					break
 				}
 				// ignore if not card selected
 				if private.SelectedCard == -1 {
 					break
 				}
-				// ignore clicks on occupied spaces
-				if match.getPieceSafe(Pos{event.X, event.Y}) != nil {
-					break
-				}
-				// square must be on player's side of board
-				if player == white && event.Y >= nColumns/2 {
-					break
-				}
-				if player == black && event.Y < nColumns/2 {
-					break
+				card := private.Cards[private.SelectedCard]
+				if card.Name == castleCard {
+					if match.playCastle(p, player) {
+						public.ManaCurrent -= card.ManaCost
+					} else {
+						break
+					}
+				} else {
+					// ignore clicks on occupied spaces
+					if match.getPieceSafe(Pos{event.X, event.Y}) != nil {
+						break
+					}
+					// square must be on player's side of board
+					if player == white && event.Y >= nColumns/2 {
+						break
+					}
+					if player == black && event.Y < nColumns/2 {
+						break
+					}
 				}
 
-				card := private.Cards[private.SelectedCard]
-				var p Piece
 				switch card.Name {
 				case bishop:
-					p = Piece{bishop, player, public.BishopHP, public.BishopAttack, 0}
+					match.setPiece(p, Piece{bishop, player, public.BishopHP, public.BishopAttack, 0})
 					public.BishopPlayed = true
 				case knight:
-					p = Piece{knight, player, public.KnightHP, public.KnightAttack, 0}
+					match.setPiece(p, Piece{knight, player, public.KnightHP, public.KnightAttack, 0})
 					public.KnightPlayed = true
 				case rook:
-					p = Piece{rook, player, public.RookHP, public.RookAttack, 0}
+					match.setPiece(p, Piece{rook, player, public.RookHP, public.RookAttack, 0})
 					public.RookPlayed = true
 				case queen:
-					p = Piece{queen, player, queenHP, queenAttack, 0}
+					match.setPiece(p, Piece{queen, player, queenHP, queenAttack, 0})
 					public.ManaCurrent -= card.ManaCost
 				}
 				match.Log = append(match.Log, player+" played "+card.Name)
-				match.setPiece(Pos{event.X, event.Y}, p)
-				// remove card
 				private.RemoveCard(private.SelectedCard)
 				match.EndTurn(false, player)
 				newTurn = true

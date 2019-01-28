@@ -1,33 +1,22 @@
 
+when user has castle card selected, highlight both kings
+
+
 dev page that shows both players of a match (iframes?)
 
 
 on client, grey out cards that cost more mana than you currently have; flash mana when you click card that's too 
     costly; (server prevents selection of too costly cards)
 
-
-
 heroku: .play() is triggering exceptions? is it failing to play?
-
 
 in deck builds, players choose a few high cost cards to start in their hand 
     (so player's can better plan around high impact end game cards)
     or perhaps card draw always gives players one card of their current max mana? or max mana minus 1 or 2?
 
-
 perhaps vassals should be tankiest so using them as shields is not so discouraged
 
-
-
-
 browse page lists matches reverse chronologically
-
-
-
-
-
-
-what if client sends timer_expired too early? keep sending until response?
 
 
 

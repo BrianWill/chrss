@@ -80,6 +80,8 @@ var cardDescriptions = {
 <div>Attacks one space diagonally towards opponent side.</div>`,
     'Queen': `<h3>Queen: 5 mana cost, 15 HP, 6 attack</h3>
 <div>Attacks diagonally and up/down/left/right.</div>`,
+    'Castle': `<h3>Castle: 2 mana cost</h3>
+<div>Select either King to swap its position with the Rook of the same color. (Can only use Castle on a King whose Rook is on the board.)</div>`,
 };
 
 
