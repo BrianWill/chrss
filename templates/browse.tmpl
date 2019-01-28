@@ -17,7 +17,7 @@
       <p id="join_instruction">(click white or black to join as that color)</p>
       <ul>
           {{range .Open}}
-              <li>{{.Name}}
+              <li>{{.Name}} ({{.Elapsed}} ago) 
                 {{if .BlackOpen}}<a href="/match/{{.UUID}}/black">black</a>{{end}} 
                 {{if .WhiteOpen}}<a href="/match/{{.UUID}}/white">white</a>{{end}}
               </li>
@@ -28,7 +28,7 @@
       <h3>Full matches:</h3>
       <ul>
           {{range .Full}}
-              <li>{{.Name}}</li>
+              <li>{{.Name}} ({{.Elapsed}} ago)</li>
           {{end}}
       </ul>
       {{end}}

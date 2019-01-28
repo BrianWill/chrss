@@ -61,6 +61,8 @@ const nRows = 6
 
 const turnTimer = 50 * int64(time.Second)
 
+const maxConcurrentMatches = 100
+
 type Phase string
 
 const (
@@ -697,6 +699,7 @@ func (m *Match) SpawnPawns(player string, init bool) {
 		}
 		m.BlackPublic.NumPawns = blackNumPawns + n
 	}
+	m.Log = append(m.Log, player+" gained "+strconv.Itoa(n)+" pawns")
 }
 
 // returns boolean true when no free slot
@@ -1001,9 +1004,12 @@ func processMessage(msg []byte, match *Match, player string) {
 					private.HighlightEmpty = false
 					private.PlayerInstruction = defaultInstruction
 				} else {
-					private.SelectedCard = event.SelectedCard
-					private.HighlightEmpty = true
-					private.PlayerInstruction = "Click an empty spot on your side of the board to place the card."
+					card := private.Cards[event.SelectedCard]
+					if public.ManaCurrent > card.ManaCost {
+						private.SelectedCard = event.SelectedCard
+						private.HighlightEmpty = true
+						private.PlayerInstruction = "Click an empty spot on your side of the board to place the card."
+					}
 				}
 			}
 		case "click_board":
@@ -1051,6 +1057,7 @@ func processMessage(msg []byte, match *Match, player string) {
 					public.RookPlayed = true
 				case queen:
 					p = Piece{queen, player, queenHP, queenAttack, 0}
+					public.ManaCurrent -= card.ManaCost
 				}
 				match.Log = append(match.Log, player+" played "+card.Name)
 				match.setPiece(Pos{event.X, event.Y}, p)
@@ -1164,6 +1171,19 @@ func processMessage(msg []byte, match *Match, player string) {
 	match.Mutex.Unlock()
 }
 
+func fmtDuration(d time.Duration) string {
+	d = d.Round(time.Minute)
+	h := d / time.Hour
+	d -= h * time.Hour
+	m := d / time.Minute
+	s := ""
+	if h > 0 {
+		s += strconv.Itoa(int(h)) + " hrs "
+	}
+	s += strconv.Itoa(int(m)) + " min"
+	return s
+}
+
 func NewMatchMap() *MatchMap {
 	return &MatchMap{
 		internal: make(map[string]*Match),
@@ -1219,11 +1239,14 @@ func main() {
 
 	// list open matches
 	router.GET("/", func(c *gin.Context) {
+		now := time.Now()
 		type match struct {
 			Name      string
 			UUID      string
 			BlackOpen bool
 			WhiteOpen bool
+			StartTime int64
+			Elapsed   string
 		}
 		type matchList struct {
 			Open []match
@@ -1234,15 +1257,16 @@ func main() {
 		i := 0
 		for _, m := range liveMatches.internal {
 			black, white := m.IsBlackOpen(), m.IsWhiteOpen()
+			elapsed := fmtDuration(now.Sub(time.Unix(0, m.StartTime)))
 			if black || white {
-				matches.Open = append(matches.Open, match{m.Name, m.UUID, black, white})
+				matches.Open = append(matches.Open, match{m.Name, m.UUID, black, white, m.StartTime, elapsed})
 			} else {
-				matches.Full = append(matches.Full, match{m.Name, m.UUID, black, white})
+				matches.Full = append(matches.Full, match{m.Name, m.UUID, black, white, m.StartTime, elapsed})
 			}
 			i++
 		}
-		sort.Slice(matches.Open, func(i, j int) bool { return matches.Open[i].Name < matches.Open[j].Name })
-		sort.Slice(matches.Full, func(i, j int) bool { return matches.Full[i].Name < matches.Full[j].Name })
+		sort.Slice(matches.Open, func(i, j int) bool { return matches.Open[i].StartTime > matches.Open[j].StartTime })
+		sort.Slice(matches.Full, func(i, j int) bool { return matches.Full[i].StartTime > matches.Full[j].StartTime })
 		liveMatches.Unlock()
 
 		c.HTML(http.StatusOK, "browse.tmpl", matches)
@@ -1251,21 +1275,6 @@ func main() {
 	router.GET("/guide", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "guide.tmpl", nil)
 	})
-
-	// periodically clean liveMatches of finished or timedout games
-	go func() {
-		for {
-			liveMatches.Lock()
-			for id, match := range liveMatches.internal {
-				exceededTimeout := time.Now().Unix() > match.LastMoveTime+matchTimeout
-				if match.Phase == gameoverPhase || exceededTimeout {
-					delete(liveMatches.internal, id)
-				}
-			}
-			liveMatches.Unlock()
-			time.Sleep(5 * time.Minute)
-		}
-	}()
 
 	router.GET("/createMatch", func(c *gin.Context) {
 		u4, err := uuid.NewV4()
@@ -1277,6 +1286,23 @@ func main() {
 		match := &Match{
 			UUID: u4Str,
 		}
+		liveMatches.Lock()
+		// clean up any dead or timedout matches
+		for id, match := range liveMatches.internal {
+			exceededTimeout := time.Now().UnixNano() > match.LastMoveTime+matchTimeout
+			if match.Phase == gameoverPhase || exceededTimeout {
+				delete(liveMatches.internal, id)
+			}
+		}
+		nMatches := len(liveMatches.internal)
+		liveMatches.Unlock()
+
+		if nMatches >= maxConcurrentMatches {
+			c.String(http.StatusInternalServerError, "Cannot create match. Server currently at max number of matches.")
+			return
+		}
+
+		// new match
 		initMatch(match)
 		liveMatches.Store(u4Str, match)
 		var color string

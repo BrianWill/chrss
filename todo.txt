@@ -1,15 +1,13 @@
 
+dev page that shows both players of a match (iframes?)
+
+
+on client, grey out cards that cost more mana than you currently have; flash mana when you click card that's too 
+    costly; (server prevents selection of too costly cards)
+
+
 
 heroku: .play() is triggering exceptions? is it failing to play?
-
-check pawn spawning after reclaiming
-    show in log how many pawns spawned for white and black
-
-
-
-timedout matches not getting cleaned up
-
-
 
 
 in deck builds, players choose a few high cost cards to start in their hand 
@@ -20,7 +18,10 @@ in deck builds, players choose a few high cost cards to start in their hand
 perhaps vassals should be tankiest so using them as shields is not so discouraged
 
 
+
+
 browse page lists matches reverse chronologically
+
 
 
 
@@ -74,7 +75,7 @@ escalation:
 
 card ideas:
 
-    cards with variable 
+    castle - swap position of king and rook (can be cast on enemy?)
 
     King Nuke: your own king does half damage to all units in 2 space radius
 
@@ -102,12 +103,12 @@ card ideas:
     block square/row - temporarily or permanently block square from occupation (does it block attacks or do theyy go through?)
 
 
-    castle - swap position of king and rook (can be cast on enemy?)
+
 
 
     reclaim vassal  - move vassal from the board back into your hand
 
-    Queen - attacks like a Queen, do not get card back if reclaimed, 20 hp, 8 attack, 5 mana
+    court jester - distracts? just used as a blocking piece?
 
     reclaim pawn - remove pawn from the board (if a mutated pawn, puts card back into your hand?)
 
