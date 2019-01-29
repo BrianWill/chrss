@@ -1,17 +1,10 @@
+king placement choice should not be shown until main phase
+    but if opponent did not reclaim king, then can see its placement during kingPlacement
+
+discard pawns if no valid place to put them
 
 
-front line swap - swap all pieces between front and middle row (for both white and black)
-mirror
 
-
-
-split game logic of process file into separate functions in game logic
-
-
-should grey out cards that user can't select because insufficient mana or other reason
-
-on client, grey out cards that cost more mana than you currently have; flash mana when you click card that's too 
-    costly; (server prevents selection of too costly cards)
 
 heroku: .play() is triggering exceptions? is it failing to play?
 

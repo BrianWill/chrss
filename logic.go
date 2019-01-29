@@ -42,8 +42,7 @@ func initMatch(m *Match) {
 	m.BlackPublic.RookHP = rookHP
 	m.BlackPublic.RookAttack = rookAttack
 
-	m.SpawnPawns(white, true)
-	m.SpawnPawns(black, true)
+	m.SpawnPawns(true)
 	m.CalculateDamage()
 
 	startingHand := []Card{
@@ -452,54 +451,53 @@ func (m *Match) CalculateDamage() {
 }
 
 // spawn n random pawns in free columns
-func (m *Match) SpawnPawns(player string, init bool) {
-	whiteNumPawns := m.WhitePublic.NumPawns
-	blackNumPawns := m.BlackPublic.NumPawns
-	n := 1
-	if init {
-		n = 4
-	}
-	var columns []int
-	if player == white {
-		if !init && whiteNumPawns == 0 {
+func (m *Match) SpawnPawns(init bool) {
+	public := m.WhitePublic
+	color := white
+	numPawns := public.NumPawns
+
+	for i := 0; i < 2; i++ {
+		n := 1
+		if init {
+			n = 4
+		}
+		var columns []int
+		if !init && numPawns == 0 {
 			n = 2
-		} else if whiteNumPawns == 5 {
+		} else if numPawns == 5 {
 			return // keep max pawns at 5
 		}
+		front := 2
+		mid := 1
+		offset := 1
+		if color == black {
+			front = 3
+			mid = 4
+			offset = 3
+		}
 		for i := 0; i < nColumns; i++ {
-			if m.getPiece(Pos{i, 1}) == nil && m.getPiece(Pos{i, 2}) == nil {
+			if m.getPiece(Pos{i, front}) == nil && m.getPiece(Pos{i, mid}) == nil {
 				columns = append(columns, i)
 			}
 		}
 		columns = randSelect(n, columns)
+		n = len(columns)
 		for _, v := range columns {
-			m.setPiece(Pos{v, rand.Intn(2) + 1}, Piece{pawn, white, pawnHP, pawnAttack, 0})
+			m.setPiece(Pos{v, rand.Intn(2) + offset}, Piece{pawn, color, pawnHP, pawnAttack, 0})
 		}
-		m.WhitePublic.NumPawns = whiteNumPawns + n
-	} else {
-		if !init && blackNumPawns == 0 {
-			n = 2
-		} else if blackNumPawns == 5 {
-			return // keep max pawns at 5
+		public.NumPawns = numPawns + n
+		switch n {
+		case 0:
+			m.Log = append(m.Log, color+" gained no pawns")
+		case 1:
+			m.Log = append(m.Log, color+" gained 1 pawn")
+		default:
+			m.Log = append(m.Log, color+" gained "+strconv.Itoa(n)+" pawns")
 		}
-		for i := 0; i < nColumns; i++ {
-			if m.getPiece(Pos{i, 3}) == nil && m.getPiece(Pos{i, 4}) == nil {
-				columns = append(columns, i)
-			}
-		}
-		columns = randSelect(n, columns)
-		for _, v := range columns {
-			m.setPiece(Pos{v, rand.Intn(2) + 3}, Piece{pawn, black, pawnHP, pawnAttack, 0})
-		}
-		m.BlackPublic.NumPawns = blackNumPawns + n
-	}
-	switch n {
-	case 0:
-		m.Log = append(m.Log, player+" gained no pawns")
-	case 1:
-		m.Log = append(m.Log, player+" gained 1 pawn")
-	default:
-		m.Log = append(m.Log, player+" gained "+strconv.Itoa(n)+" pawns")
+
+		public = m.BlackPublic
+		color = black
+		numPawns = public.NumPawns
 	}
 }
 
@@ -863,8 +861,7 @@ func (m *Match) EndRound() {
 	m.WhitePrivate.SelectedCard = -1
 	m.BlackPrivate.SelectedCard = -1
 
-	m.SpawnPawns(black, false)
-	m.SpawnPawns(white, false)
+	m.SpawnPawns(false)
 	m.CalculateDamage()
 
 	if m.WhitePublic.KingPlayed && m.BlackPublic.KingPlayed {
