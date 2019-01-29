@@ -50,6 +50,7 @@ func initMatch(m *Match) {
 		Card{queen, queenMana},
 		Card{castleCard, castleMana},
 		Card{reclaimVassalCard, reclaimVassalMana},
+		Card{swapFrontLinesCard, swapFrontLinesMana},
 	}
 
 	m.BlackPrivate = PrivateState{
@@ -561,6 +562,8 @@ func (m *Match) playableCards() {
 					if public.RookPlayed || public.KnightPlayed || public.BishopPlayed {
 						private.PlayableCards[j] = true
 					}
+				case swapFrontLinesCard:
+					private.PlayableCards[j] = true
 				}
 			}
 		}
@@ -593,6 +596,8 @@ func (m *Match) clickCard(player string, public *PublicState, private *PrivateSt
 						} else if m.BlackPublic.RookPlayed {
 							private.dimAllButType(king, black, m.Board[:])
 						}
+					case swapFrontLinesCard:
+						private.dimAllButType(king, none, m.Board[:])
 					case reclaimVassalCard:
 						if public.RookPlayed || public.KnightPlayed || public.BishopPlayed {
 							private.dimAllButTypes([]string{bishop, knight, rook}, player, m.Board[:])
@@ -619,12 +624,14 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 			if !m.playCastle(p, player) {
 				return
 			}
-			public.ManaCurrent -= card.ManaCost
 		case reclaimVassalCard:
 			if !m.playReclaimVassal(p, public, player) {
 				return
 			}
-			public.ManaCurrent -= card.ManaCost
+		case swapFrontLinesCard:
+			if !m.playSwapFrontLines(p) {
+				return
+			}
 		case bishop, knight, rook, queen:
 			// ignore clicks on occupied spaces
 			if m.getPieceSafe(p) != nil {
@@ -641,20 +648,17 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 			case bishop:
 				m.setPiece(p, Piece{bishop, player, public.BishopHP, public.BishopAttack, 0})
 				public.BishopPlayed = true
-				public.ManaCurrent -= card.ManaCost
 			case knight:
 				m.setPiece(p, Piece{knight, player, public.KnightHP, public.KnightAttack, 0})
 				public.KnightPlayed = true
-				public.ManaCurrent -= card.ManaCost
 			case rook:
 				m.setPiece(p, Piece{rook, player, public.RookHP, public.RookAttack, 0})
 				public.RookPlayed = true
-				public.ManaCurrent -= card.ManaCost
 			case queen:
 				m.setPiece(p, Piece{queen, player, queenHP, queenAttack, 0})
-				public.ManaCurrent -= card.ManaCost
 			}
 		}
+		public.ManaCurrent -= card.ManaCost
 		m.Log = append(m.Log, player+" played "+card.Name)
 		private.RemoveCard(private.SelectedCard)
 		m.playableCards()
@@ -711,10 +715,7 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 // return true if play is valid
 func (m *Match) playCastle(pos Pos, color string) bool {
 	piece := m.getPieceSafe(pos)
-	if piece == nil {
-		return false
-	}
-	if piece.Name != king {
+	if piece == nil && piece.Name != king {
 		return false
 	}
 	// find rook of same color as clicked king
@@ -755,6 +756,41 @@ func (m *Match) playReclaimVassal(pos Pos, public *PublicState, color string) bo
 	}
 	m.removePieceAt(pos)
 	return true
+}
+
+// return true if play is valid
+func (m *Match) playSwapFrontLines(pos Pos) bool {
+	piece := m.getPieceSafe(pos)
+	if piece == nil && piece.Name != king {
+		return false
+	}
+	frontIdx := (nRows/2 - 1) * nColumns
+	midIdx := (nRows/2 - 2) * nColumns
+	if piece.Color == black {
+		frontIdx = (nRows / 2) * nColumns
+		midIdx = (nRows/2 + 1) * nColumns
+	}
+	for i := 0; i < nColumns; i++ {
+		m.swapBoardIndex(frontIdx, midIdx)
+		frontIdx++
+		midIdx++
+	}
+	return true
+}
+
+// panics if i or j are out of bounds
+func (m *Match) swapBoardIndex(i, j int) {
+	if i == j {
+		return
+	}
+	m.pieces[i], m.pieces[j] = m.pieces[j], m.pieces[i]
+	if m.Board[i] == nil && m.Board[j] != nil {
+		m.Board[i] = &m.pieces[i]
+		m.Board[j] = nil
+	} else if m.Board[i] != nil && m.Board[j] == nil {
+		m.Board[i] = nil
+		m.Board[j] = &m.pieces[j]
+	}
 }
 
 func (m *Match) ReclaimPieces() {

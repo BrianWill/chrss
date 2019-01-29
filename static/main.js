@@ -94,6 +94,8 @@ var cardDescriptions = {
 <div>Select either King to swap its position with the Rook of the same color. (Can only use Castle on a King whose Rook is on the board.)</div>`,
     'Reclaim Vassal': `<h3>Reclaim Vassal: 2 mana cost</h3>
 <div>Select a Knight, Bishop, or Rook to reclaim immediately.</div>`,
+    'Swap Front Lines': `<h3>Swap Front Lines: 2 mana cost</h3>
+<div>Select a King to swap the front and middle rows on the King's side.</div>`,
 };
 
 

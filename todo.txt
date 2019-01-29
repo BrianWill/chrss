@@ -1,10 +1,7 @@
-reclaim vassal
 
-implement playableCards()
 
-row scramble
+front line swap - swap all pieces between front and middle row (for both white and black)
 mirror
-
 
 
 

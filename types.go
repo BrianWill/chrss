@@ -43,10 +43,12 @@ const (
 )
 
 const (
-	castleCard        = "Castle"
-	castleMana        = 2
-	reclaimVassalCard = "Reclaim Vassal"
-	reclaimVassalMana = 2
+	castleCard         = "Castle"
+	castleMana         = 2
+	reclaimVassalCard  = "Reclaim Vassal"
+	reclaimVassalMana  = 2
+	swapFrontLinesCard = "Swap Front Lines"
+	swapFrontLinesMana = 2
 )
 
 const reclaimHealRook = 5
