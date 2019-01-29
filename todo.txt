@@ -1,7 +1,9 @@
+reclaim vassal
 
-// todo: dim king of player that has no rook on board
+implement playableCards()
 
-
+row scramble
+mirror
 
 
 
@@ -9,6 +11,7 @@
 split game logic of process file into separate functions in game logic
 
 
+should grey out cards that user can't select because insufficient mana or other reason
 
 on client, grey out cards that cost more mana than you currently have; flash mana when you click card that's too 
     costly; (server prevents selection of too costly cards)

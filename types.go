@@ -43,8 +43,10 @@ const (
 )
 
 const (
-	castleMana = 2
-	castleCard = "Castle"
+	castleCard        = "Castle"
+	castleMana        = 2
+	reclaimVassalCard = "Reclaim Vassal"
+	reclaimVassalMana = 2
 )
 
 const reclaimHealRook = 5
@@ -106,31 +108,34 @@ type Match struct {
 // info a player doesn't want opponent to see
 type PrivateState struct {
 	Cards             []Card                `json:"cards"`
-	SelectedCard      int                   `json:"selectedCard"` // index into cards slice
-	SelectedPos       Pos                   `json:"selectedPos"`
+	SelectedCard      int                   `json:"selectedCard"`  // index into cards slice
+	PlayableCards     []bool                `json:"playableCards"` // parallel to Cards
 	Highlights        [nColumns * nRows]int `json:"highlights"`
 	PlayerInstruction string                `json:"playerInstruction"`
 	ReclaimSelections []Pos                 `json:"reclaimSelections"`
+	Other             *PrivateState         `json:"-"`
 }
 
 type PublicState struct {
-	Ready                bool `json:"ready"` // match does not start until both player's are ready
-	ReclaimSelectionMade bool `json:"reclaimSelectionMade"`
-	KingPlayed           bool `json:"kingPlayed"`
-	BishopPlayed         bool `json:"bishopPlayed"`
-	KnightPlayed         bool `json:"knightPlayed"`
-	RookPlayed           bool `json:"rookPlayed"`
-	NumPawns             int  `json:"numPawns"`
-	ManaMax              int  `json:"manaMax"`
-	ManaCurrent          int  `json:"manaCurrent"`
-	KingHP               int  `json:"kingHP"`
-	KingAttack           int  `json:"kingAttack"`
-	BishopHP             int  `json:"bishopHP"`
-	BishopAttack         int  `json:"bishopAttack"`
-	KnightHP             int  `json:"knightHP"`
-	KnightAttack         int  `json:"knightAttack"`
-	RookHP               int  `json:"rookHP"`
-	RookAttack           int  `json:"rookAttack"`
+	Ready                bool         `json:"ready"` // match does not start until both player's are ready
+	ReclaimSelectionMade bool         `json:"reclaimSelectionMade"`
+	KingPlayed           bool         `json:"kingPlayed"`
+	BishopPlayed         bool         `json:"bishopPlayed"`
+	KnightPlayed         bool         `json:"knightPlayed"`
+	RookPlayed           bool         `json:"rookPlayed"`
+	NumPawns             int          `json:"numPawns"`
+	ManaMax              int          `json:"manaMax"`
+	ManaCurrent          int          `json:"manaCurrent"`
+	KingHP               int          `json:"kingHP"`
+	KingAttack           int          `json:"kingAttack"`
+	BishopHP             int          `json:"bishopHP"`
+	BishopAttack         int          `json:"bishopAttack"`
+	KnightHP             int          `json:"knightHP"`
+	KnightAttack         int          `json:"knightAttack"`
+	RookHP               int          `json:"rookHP"`
+	RookAttack           int          `json:"rookAttack"`
+	Color                string       `json:"color"`
+	Other                *PublicState `json:"-"` // convenient way of getting opponent
 }
 
 type Piece struct {

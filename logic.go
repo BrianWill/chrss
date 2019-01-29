@@ -16,6 +16,8 @@ func initMatch(m *Match) {
 	m.Round = 0 // will get incremented to 1 once both players ready up
 	m.Phase = readyUpPhase
 
+	m.WhitePublic.Color = white
+	m.WhitePublic.Other = &m.BlackPublic
 	m.WhitePublic.ManaCurrent = 3
 	m.WhitePublic.ManaMax = 3
 	m.WhitePublic.KingHP = kingHP
@@ -27,6 +29,8 @@ func initMatch(m *Match) {
 	m.WhitePublic.RookHP = rookHP
 	m.WhitePublic.RookAttack = rookAttack
 
+	m.BlackPublic.Color = black
+	m.BlackPublic.Other = &m.WhitePublic
 	m.BlackPublic.ManaCurrent = 3
 	m.BlackPublic.ManaMax = 3
 	m.BlackPublic.KingHP = kingHP
@@ -45,21 +49,23 @@ func initMatch(m *Match) {
 	startingHand := []Card{
 		Card{queen, queenMana},
 		Card{castleCard, castleMana},
+		Card{reclaimVassalCard, reclaimVassalMana},
 	}
 
 	m.BlackPrivate = PrivateState{
 		Cards:             drawCards(startingHand, &m.BlackPublic),
 		SelectedCard:      -1,
-		SelectedPos:       Pos{-1, -1},
 		PlayerInstruction: defaultInstruction,
 	}
 	// white starts ready to play king
 	m.WhitePrivate = PrivateState{
 		Cards:             drawCards(startingHand, &m.WhitePublic),
 		SelectedCard:      -1,
-		SelectedPos:       Pos{-1, -1},
 		PlayerInstruction: defaultInstruction,
 	}
+
+	m.BlackPrivate.Other = &m.WhitePrivate
+	m.WhitePrivate.Other = &m.BlackPrivate
 
 	m.BlackPrivate.dimAllButFree(black, m.Board[:])
 	m.WhitePrivate.dimAllButFree(white, m.Board[:])
@@ -535,14 +541,174 @@ func (m *Match) states(color string) (*PublicState, *PrivateState) {
 	}
 }
 
-func (m *Match) allStates(color string) (*PublicState, *PrivateState, *PublicState, *PrivateState) {
-	if color == black {
-		return &m.BlackPublic, &m.BlackPrivate, &m.WhitePublic, &m.WhitePrivate
-	} else {
-		return &m.WhitePublic, &m.WhitePrivate, &m.BlackPublic, &m.BlackPrivate
+func (m *Match) playableCards() {
+	// determine which cards are playable for each player given state of board
+	public, private := m.states(white)
+	for i := 0; i < 2; i++ {
+		private.PlayableCards = make([]bool, len(private.Cards))
+		for j, c := range private.Cards {
+			private.PlayableCards[j] = false
+			if public.ManaCurrent >= c.ManaCost {
+				switch c.Name {
+				case bishop, knight, rook, queen:
+					// todo: check if a free square is available on player's side
+					private.PlayableCards[j] = true
+				case castleCard:
+					if public.RookPlayed || public.Other.RookPlayed {
+						private.PlayableCards[j] = true
+					}
+				case reclaimVassalCard:
+					if public.RookPlayed || public.KnightPlayed || public.BishopPlayed {
+						private.PlayableCards[j] = true
+					}
+				}
+			}
+		}
+		public, private = m.states(black)
 	}
 }
 
+func (m *Match) clickCard(player string, public *PublicState, private *PrivateState, cardIdx int) {
+	switch m.Phase {
+	case mainPhase:
+		// ignore if not the player's turn
+		if player != m.Turn {
+			return
+		}
+		if private.PlayableCards[cardIdx] {
+			if cardIdx == private.SelectedCard {
+				private.SelectedCard = -1
+				private.PlayerInstruction = defaultInstruction
+				private.highlightsOff()
+			} else {
+				card := private.Cards[cardIdx]
+				private.SelectedCard = cardIdx
+				if public.ManaCurrent >= card.ManaCost {
+					switch card.Name {
+					case castleCard:
+						if m.WhitePublic.RookPlayed && m.BlackPublic.RookPlayed {
+							private.dimAllButType(king, none, m.Board[:])
+						} else if m.WhitePublic.RookPlayed {
+							private.dimAllButType(king, white, m.Board[:])
+						} else if m.BlackPublic.RookPlayed {
+							private.dimAllButType(king, black, m.Board[:])
+						}
+					case reclaimVassalCard:
+						if public.RookPlayed || public.KnightPlayed || public.BishopPlayed {
+							private.dimAllButTypes([]string{bishop, knight, rook}, player, m.Board[:])
+						}
+					default:
+						private.dimAllButFree(player, m.Board[:])
+					}
+				}
+			}
+		}
+	}
+}
+
+func (m *Match) clickBoard(player string, public *PublicState, private *PrivateState, p Pos) (newTurn bool, notifyOpponent bool) {
+	switch m.Phase {
+	case mainPhase:
+		// ignore if not the player's turn and/or no card selected
+		if player != m.Turn || private.SelectedCard == -1 {
+			return
+		}
+		card := private.Cards[private.SelectedCard]
+		switch card.Name {
+		case castleCard:
+			if !m.playCastle(p, player) {
+				return
+			}
+			public.ManaCurrent -= card.ManaCost
+		case reclaimVassalCard:
+			if !m.playReclaimVassal(p, public, player) {
+				return
+			}
+			public.ManaCurrent -= card.ManaCost
+		case bishop, knight, rook, queen:
+			// ignore clicks on occupied spaces
+			if m.getPieceSafe(p) != nil {
+				return
+			}
+			// square must be on player's side of board
+			if player == white && p.Y >= nColumns/2 {
+				return
+			}
+			if player == black && p.Y < nColumns/2 {
+				return
+			}
+			switch card.Name {
+			case bishop:
+				m.setPiece(p, Piece{bishop, player, public.BishopHP, public.BishopAttack, 0})
+				public.BishopPlayed = true
+				public.ManaCurrent -= card.ManaCost
+			case knight:
+				m.setPiece(p, Piece{knight, player, public.KnightHP, public.KnightAttack, 0})
+				public.KnightPlayed = true
+				public.ManaCurrent -= card.ManaCost
+			case rook:
+				m.setPiece(p, Piece{rook, player, public.RookHP, public.RookAttack, 0})
+				public.RookPlayed = true
+				public.ManaCurrent -= card.ManaCost
+			case queen:
+				m.setPiece(p, Piece{queen, player, queenHP, queenAttack, 0})
+				public.ManaCurrent -= card.ManaCost
+			}
+		}
+		m.Log = append(m.Log, player+" played "+card.Name)
+		private.RemoveCard(private.SelectedCard)
+		m.playableCards()
+		m.EndTurn(false, player)
+		newTurn = true
+		notifyOpponent = true
+	case reclaimPhase:
+		piece := m.getPieceSafe(p)
+		if piece != nil && piece.Color == player {
+			found := false
+			selections := private.ReclaimSelections
+
+			// unselect if already selected
+			for i, selection := range selections {
+				if selection == p {
+					selections = append(selections[:i], selections[i+1:]...)
+					private.highlightPosOff(p)
+					found = true
+				}
+			}
+
+			// select if not already selected
+			if !found && len(selections) < maxReclaim {
+				private.highlightPosOn(p)
+				selections = append(selections, p)
+			}
+
+			private.ReclaimSelections = selections
+		}
+	case kingPlacementPhase:
+		if public.KingPlayed {
+			break
+		}
+		// ignore clicks on occupied spaces
+		if m.getPieceSafe(p) != nil {
+			break
+		}
+		// square must be on player's side of board
+		if player == white && p.Y >= nColumns/2 {
+			break
+		}
+		if player == black && p.Y < nColumns/2 {
+			break
+		}
+		public.KingPlayed = true
+		m.Log = append(m.Log, player+" played King")
+		m.setPiece(p, Piece{king, player, public.KingHP, public.KingAttack, 0})
+		newTurn = m.EndKingPlacement()
+		notifyOpponent = true
+	}
+	return
+}
+
+// return true if play is valid
 func (m *Match) playCastle(pos Pos, color string) bool {
 	piece := m.getPieceSafe(pos)
 	if piece == nil {
@@ -565,6 +731,29 @@ func (m *Match) playCastle(pos Pos, color string) bool {
 	swap := *rookPiece
 	*rookPiece = *piece
 	*piece = swap
+	return true
+}
+
+// return true if play is valid
+func (m *Match) playReclaimVassal(pos Pos, public *PublicState, color string) bool {
+	piece := m.getPieceSafe(pos)
+	if piece == nil {
+		return false
+	}
+	if piece.Color != color {
+		return false
+	}
+	switch piece.Name {
+	case bishop:
+		public.BishopPlayed = false
+	case knight:
+		public.KnightPlayed = false
+	case rook:
+		public.RookPlayed = false
+	default:
+		return false
+	}
+	m.removePieceAt(pos)
 	return true
 }
 
@@ -644,6 +833,7 @@ func (m *Match) EndRound() {
 
 	if m.WhitePublic.KingPlayed && m.BlackPublic.KingPlayed {
 		m.Phase = mainPhase
+		m.playableCards()
 		m.WhitePrivate.highlightsOff()
 		m.BlackPrivate.highlightsOff()
 	} else {
@@ -738,6 +928,35 @@ func (p *PrivateState) dimAllButType(pieceType string, color string, board []*Pi
 	}
 }
 
+func stringInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
+}
+
+func intInSlice(a int, list []int) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
+}
+
+// highlights units of a specified type and color (or both colors if 'none')
+func (p *PrivateState) dimAllButTypes(pieceTypes []string, color string, board []*Piece) {
+	for i, piece := range board {
+		if piece != nil && (piece.Color == color || color == none) && stringInSlice(piece.Name, pieceTypes) {
+			p.Highlights[i] = highlightOff
+		} else {
+			p.Highlights[i] = highlightDim
+		}
+	}
+}
+
 func (m *Match) EndKingPlacement() bool {
 	if m.WhitePublic.KingPlayed && m.BlackPublic.KingPlayed {
 		m.CalculateDamage()
@@ -745,6 +964,7 @@ func (m *Match) EndKingPlacement() bool {
 		m.WhitePrivate.highlightsOff()
 		m.BlackPrivate.highlightsOff()
 		m.Phase = mainPhase
+		m.playableCards()
 		return true
 	}
 	return false

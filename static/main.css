@@ -98,6 +98,11 @@ a:visited {
   color: white;
 }
 
+.unplayable_card {
+  color: #777;
+}
+
+
 #card_list {
   height: 250px;
   border: solid 2px black;

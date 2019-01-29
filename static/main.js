@@ -33,10 +33,14 @@ Object.freeze(board);
 
 
 // need to keep synced with consts in server code
-const highlightOff = 0
-const highlightOn = 1
-const highlightDim = 2
+const highlightOff = 0;
+const highlightOn = 1;
+const highlightDim = 2;
 
+
+const mainPhase = 'main';
+const reclaimPhase = 'reclaim';
+const kingPlacementPhase = 'kingPlacement';
 
 var piecesImg = new Image();
 piecesImg.pieceHeight = 45;
@@ -88,6 +92,8 @@ var cardDescriptions = {
 <div>Attacks diagonally and up/down/left/right.</div>`,
     'Castle': `<h3>Castle: 2 mana cost</h3>
 <div>Select either King to swap its position with the Rook of the same color. (Can only use Castle on a King whose Rook is on the board.)</div>`,
+    'Reclaim Vassal': `<h3>Reclaim Vassal: 2 mana cost</h3>
+<div>Select a Knight, Bishop, or Rook to reclaim immediately.</div>`,
 };
 
 
@@ -451,6 +457,8 @@ function draw(matchState) {
             s += '<div cardIdx="' + i + '" ';
             if (i === match.private.selectedCard) {
                 s += 'class="select_card"';
+            } else if (match.phase === mainPhase && !match.private.playableCards[i]) {
+                s += 'class="unplayable_card"';
             }
             s += '">' + c.manaCost + ' - ' + c.name + '</div>';
         }

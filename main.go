@@ -135,156 +135,23 @@ func processMessage(msg []byte, match *Match, player string) {
 				notifyOpponent = true
 			}
 		case "click_card":
-			switch match.Phase {
-			case mainPhase:
-				if player != match.Turn {
-					break // ignore if not the player's turn
-				}
-				if !public.KingPlayed {
-					break // cannot select other cards until king is played
-				}
-				type ClickCardEvent struct {
-					SelectedCard int
-				}
-				var event ClickCardEvent
-				err := json.Unmarshal(msg, &event)
-				if err != nil {
-					fmt.Println("unmarssalling click_card error", err)
-					break // todo: send error response
-				}
-				if event.SelectedCard == private.SelectedCard {
-					private.SelectedCard = -1
-					private.PlayerInstruction = defaultInstruction
-					private.highlightsOff()
-				} else {
-					card := private.Cards[event.SelectedCard]
-					if public.ManaCurrent >= card.ManaCost {
-						switch card.Name {
-						case castleCard:
-							if match.WhitePublic.RookPlayed && match.BlackPublic.RookPlayed {
-								private.dimAllButType(king, none, match.Board[:])
-								private.SelectedCard = event.SelectedCard
-							} else if match.WhitePublic.RookPlayed {
-								private.dimAllButType(king, white, match.Board[:])
-								private.SelectedCard = event.SelectedCard
-							} else if match.BlackPublic.RookPlayed {
-								private.dimAllButType(king, black, match.Board[:])
-								private.SelectedCard = event.SelectedCard
-							}
-						default:
-							private.dimAllButFree(player, match.Board[:])
-							private.SelectedCard = event.SelectedCard
-							private.PlayerInstruction = "Click an empty spot on your side of the board to place the card."
-						}
-					}
-				}
+			type ClickCardEvent struct {
+				SelectedCard int
 			}
-		case "click_board":
-			type ClickBoardEvent struct {
-				X int
-				Y int
-			}
-			var event ClickBoardEvent
+			var event ClickCardEvent
 			err := json.Unmarshal(msg, &event)
+			if err != nil {
+				fmt.Println("unmarshalling click_card error", err)
+				break // todo: send error response
+			}
+			match.clickCard(player, public, private, event.SelectedCard)
+		case "click_board":
+			var pos Pos
+			err := json.Unmarshal(msg, &pos)
 			if err != nil {
 				break // todo: send error response
 			}
-			p := Pos{event.X, event.Y}
-			switch match.Phase {
-			case mainPhase:
-				// ignore if not the player's turn
-				if player != match.Turn {
-					break
-				}
-				// ignore if not card selected
-				if private.SelectedCard == -1 {
-					break
-				}
-				card := private.Cards[private.SelectedCard]
-				if card.Name == castleCard {
-					if match.playCastle(p, player) {
-						public.ManaCurrent -= card.ManaCost
-					} else {
-						break
-					}
-				} else {
-					// ignore clicks on occupied spaces
-					if match.getPieceSafe(Pos{event.X, event.Y}) != nil {
-						break
-					}
-					// square must be on player's side of board
-					if player == white && event.Y >= nColumns/2 {
-						break
-					}
-					if player == black && event.Y < nColumns/2 {
-						break
-					}
-				}
-
-				switch card.Name {
-				case bishop:
-					match.setPiece(p, Piece{bishop, player, public.BishopHP, public.BishopAttack, 0})
-					public.BishopPlayed = true
-				case knight:
-					match.setPiece(p, Piece{knight, player, public.KnightHP, public.KnightAttack, 0})
-					public.KnightPlayed = true
-				case rook:
-					match.setPiece(p, Piece{rook, player, public.RookHP, public.RookAttack, 0})
-					public.RookPlayed = true
-				case queen:
-					match.setPiece(p, Piece{queen, player, queenHP, queenAttack, 0})
-					public.ManaCurrent -= card.ManaCost
-				}
-				match.Log = append(match.Log, player+" played "+card.Name)
-				private.RemoveCard(private.SelectedCard)
-				match.EndTurn(false, player)
-				newTurn = true
-				notifyOpponent = true
-			case reclaimPhase:
-				pos := Pos{event.X, event.Y}
-				p := match.getPieceSafe(pos)
-				if p != nil && p.Color == player {
-					found := false
-					selections := private.ReclaimSelections
-
-					// unselect if already selected
-					for i, selection := range selections {
-						if selection == pos {
-							selections = append(selections[:i], selections[i+1:]...)
-							private.highlightPosOff(pos)
-							found = true
-						}
-					}
-
-					// select if not already selected
-					if !found && len(selections) < maxReclaim {
-						private.highlightPosOn(pos)
-						selections = append(selections, pos)
-					}
-
-					private.ReclaimSelections = selections
-				}
-			case kingPlacementPhase:
-				if public.KingPlayed {
-					break
-				}
-				// ignore clicks on occupied spaces
-				if match.getPieceSafe(Pos{event.X, event.Y}) != nil {
-					break
-				}
-				// square must be on player's side of board
-				if player == white && event.Y >= nColumns/2 {
-					break
-				}
-				if player == black && event.Y < nColumns/2 {
-					break
-				}
-				public.KingPlayed = true
-				match.Log = append(match.Log, player+" played King")
-				match.setPiece(Pos{event.X, event.Y}, Piece{king, player, public.KingHP, public.KingAttack, 0})
-				newTurn = match.EndKingPlacement()
-				notifyOpponent = true
-			}
+			newTurn, notifyOpponent = match.clickBoard(player, public, private, pos)
 		case "pass":
 			switch match.Phase {
 			case mainPhase:
