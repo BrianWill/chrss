@@ -1,7 +1,30 @@
-king placement choice should not be shown until main phase
+mirror - flip left/right positions on board; can play on either King?
+
+heal - increase unit HP by 5; can be cast on any piece except King
+
+stun vassal - vassal neither takes nor inflicts damage this round and cannot be reclaimed
+
+toggle pawn - move an allied or enemy pawn from first row to second or second to first 
+        (cannot be cast on pawn that is blocked)
+
+court jester - distracts: nullifies attacks of any adjacent enemy; removed after combat
+
+
+force combat - ends the round, skipping to combat
+
+drain mana - decrease enemy current mana by 2
+
+King Nuke: your own king does 6 damage to all pieces (friend/foe) in 2 space radius
+
+        (perhaps can choose to also use on enemy king such that enemy king damages all units in 2 space radius)
+    
+resurect vassal - resurect a dead vassal to half health; puts back in your hand immediately? or for next turn?
+
+
+
+king placement choice should not be shown to opponent until main phase
     but if opponent did not reclaim king, then can see its placement during kingPlacement
 
-discard pawns if no valid place to put them
 
 
 
@@ -59,17 +82,8 @@ escalation:
 card ideas:
 
 
-    King Nuke: your own king does half damage to all units in 2 space radius
-
-        (perhaps can choose to also use on enemy king such that enemy king damages all units in 2 space radius)
-
-
-    heal
-
-    stun vassal - make vassal sit out next round, only works if vassal takes damage at end of this round
-
-    toggle pawn - move an allied or enemy pawn from first row to second or second to first 
-        (cannot be cast on pawn that is blocked)
+    
+    
 
     wrapped targeting - a piece modified such that attacks wrap around board like pacman 
         (but also becomes vulnerable to wrapped attacks?)
@@ -79,20 +93,10 @@ card ideas:
     poison row - in next round, all squares in a row will damage occupied unit
 
     transparency - cast on enemy unit: this round, all rook and bishop attacks will penetrate 
-        one square beyond this unit
+        one square beyond this unit (hitting the enemy unit as well?)
 
 
-    block square/row - temporarily or permanently block square from occupation (does it block attacks or do theyy go through?)
-
-
-
-
-
-    reclaim vassal  - move vassal from the board back into your hand
-
-    court jester - distracts? just used as a blocking piece?
-
-    reclaim pawn - remove pawn from the board (if a mutated pawn, puts card back into your hand?)
+    block square/row - temporarily or permanently block square from occupation (does it block attacks or do theyy go through?)    
 
     secondary bishop, rook, knight cards   (cost mana and only last for the round? or persist?)
 
@@ -106,11 +110,8 @@ card ideas:
 
     amplify - cast on enemy - doubles all damage taken this round
 
-    mana supress - decrease enemies mana pool by N (permanently? just this round? a few rounds?)
 
-    force combat - ends the round, skipping to combat
-
-    resurect - resurect a dead vassal (full health / half health?) [probably a high cost card]
+    
 
     invade - open the enemy's front row for placing your pieces in this round
 
@@ -135,7 +136,7 @@ card ideas:
 
     swap rows - swap ally/enemy back row with middle row
 
-    disable column - prevent placement in column for this round?
+    disable column - prevent placement in column for this round? affects whole column black and white
 
     advance - move all pawns in middle row to front row
 

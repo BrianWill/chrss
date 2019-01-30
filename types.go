@@ -49,6 +49,8 @@ const (
 	reclaimVassalMana  = 2
 	swapFrontLinesCard = "Swap Front Lines"
 	swapFrontLinesMana = 2
+	removePawnCard     = "Remove Pawn"
+	removePawnMana     = 2
 )
 
 const reclaimHealRook = 5

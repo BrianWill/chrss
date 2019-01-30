@@ -78,8 +78,6 @@ skullImg.onload = function (evt) {
 };
 
 var cardDescriptions = {
-    'King': `<h3>King: 0 mana cost, 50 HP, 12 attack</h3>
-<div>Game is won by destroying enemy king. Attacks one space in all directions.</div>`,
     'Rook': `<h3>Rook: 0 mana cost, 20 HP, 6 attack</h3>
 <div>Attacks up/down/left/right. You only get one Rook in the match. When reclaimed, its HP and status effects persist, and you get a Rook card back in your hand. When reclaimed, healed for 5 HP.</div>`,
     'Bishop': `<h3>Bishop: 0 mana cost, 25 HP, 4 attack</h3>
@@ -96,6 +94,8 @@ var cardDescriptions = {
 <div>Select a Knight, Bishop, or Rook to reclaim immediately.</div>`,
     'Swap Front Lines': `<h3>Swap Front Lines: 2 mana cost</h3>
 <div>Select a King to swap the front and middle rows on the King's side.</div>`,
+    'Remove Pawn': `<h3>Remove Pawn: 2 mana cost</h3>
+<div>Select a Pawn of either color to remove.</div>`,
 };
 
 

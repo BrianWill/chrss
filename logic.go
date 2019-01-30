@@ -50,6 +50,7 @@ func initMatch(m *Match) {
 		Card{castleCard, castleMana},
 		Card{reclaimVassalCard, reclaimVassalMana},
 		Card{swapFrontLinesCard, swapFrontLinesMana},
+		Card{removePawnCard, removePawnMana},
 	}
 
 	m.BlackPrivate = PrivateState{
@@ -452,9 +453,7 @@ func (m *Match) CalculateDamage() {
 
 // spawn n random pawns in free columns
 func (m *Match) SpawnPawns(init bool) {
-	public := m.WhitePublic
-	color := white
-	numPawns := public.NumPawns
+	public := &m.WhitePublic
 
 	for i := 0; i < 2; i++ {
 		n := 1
@@ -462,15 +461,15 @@ func (m *Match) SpawnPawns(init bool) {
 			n = 4
 		}
 		var columns []int
-		if !init && numPawns == 0 {
+		if !init && public.NumPawns == 0 {
 			n = 2
-		} else if numPawns == 5 {
+		} else if public.NumPawns == 5 {
 			return // keep max pawns at 5
 		}
 		front := 2
 		mid := 1
 		offset := 1
-		if color == black {
+		if public == &m.BlackPublic {
 			front = 3
 			mid = 4
 			offset = 3
@@ -483,21 +482,19 @@ func (m *Match) SpawnPawns(init bool) {
 		columns = randSelect(n, columns)
 		n = len(columns)
 		for _, v := range columns {
-			m.setPiece(Pos{v, rand.Intn(2) + offset}, Piece{pawn, color, pawnHP, pawnAttack, 0})
+			m.setPiece(Pos{v, rand.Intn(2) + offset}, Piece{pawn, public.Color, pawnHP, pawnAttack, 0})
 		}
-		public.NumPawns = numPawns + n
+		public.NumPawns += n
 		switch n {
 		case 0:
-			m.Log = append(m.Log, color+" gained no pawns")
+			m.Log = append(m.Log, public.Color+" gained no pawns")
 		case 1:
-			m.Log = append(m.Log, color+" gained 1 pawn")
+			m.Log = append(m.Log, public.Color+" gained 1 pawn")
 		default:
-			m.Log = append(m.Log, color+" gained "+strconv.Itoa(n)+" pawns")
+			m.Log = append(m.Log, public.Color+" gained "+strconv.Itoa(n)+" pawns")
 		}
 
-		public = m.BlackPublic
-		color = black
-		numPawns = public.NumPawns
+		public = &m.BlackPublic
 	}
 }
 
@@ -560,6 +557,10 @@ func (m *Match) playableCards() {
 					if public.RookPlayed || public.KnightPlayed || public.BishopPlayed {
 						private.PlayableCards[j] = true
 					}
+				case removePawnCard:
+					if public.NumPawns > 0 || public.Other.NumPawns > 0 {
+						private.PlayableCards[j] = true
+					}
 				case swapFrontLinesCard:
 					private.PlayableCards[j] = true
 				}
@@ -593,6 +594,10 @@ func (m *Match) clickCard(player string, public *PublicState, private *PrivateSt
 							private.dimAllButType(king, white, m.Board[:])
 						} else if m.BlackPublic.RookPlayed {
 							private.dimAllButType(king, black, m.Board[:])
+						}
+					case removePawnCard:
+						if public.NumPawns > 0 || public.Other.NumPawns > 0 {
+							private.dimAllButType(pawn, none, m.Board[:])
 						}
 					case swapFrontLinesCard:
 						private.dimAllButType(king, none, m.Board[:])
@@ -628,6 +633,10 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 			}
 		case swapFrontLinesCard:
 			if !m.playSwapFrontLines(p) {
+				return
+			}
+		case removePawnCard:
+			if !m.playRemovePawn(p) {
 				return
 			}
 		case bishop, knight, rook, queen:
@@ -773,6 +782,18 @@ func (m *Match) playSwapFrontLines(pos Pos) bool {
 		frontIdx++
 		midIdx++
 	}
+	return true
+}
+
+// return true if play is valid
+func (m *Match) playRemovePawn(pos Pos) bool {
+	piece := m.getPieceSafe(pos)
+	if piece == nil && piece.Name != pawn {
+		return false
+	}
+	public, _ := m.states(piece.Color)
+	m.removePieceAt(pos)
+	public.NumPawns--
 	return true
 }
 
@@ -951,14 +972,18 @@ func (p *PrivateState) highlightPosOff(pos Pos) {
 }
 
 // highlights units of a specified type and color (or both colors if 'none')
-func (p *PrivateState) dimAllButType(pieceType string, color string, board []*Piece) {
+// returns count of pieces matching type and color
+func (p *PrivateState) dimAllButType(pieceType string, color string, board []*Piece) int {
+	n := 0
 	for i, piece := range board {
 		if piece != nil && piece.Name == pieceType && (piece.Color == color || color == none) {
 			p.Highlights[i] = highlightOff
+			n++
 		} else {
 			p.Highlights[i] = highlightDim
 		}
 	}
+	return n
 }
 
 func stringInSlice(a string, list []string) bool {
