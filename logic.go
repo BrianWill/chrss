@@ -51,6 +51,7 @@ func initMatch(m *Match) {
 		Card{reclaimVassalCard, reclaimVassalMana},
 		Card{swapFrontLinesCard, swapFrontLinesMana},
 		Card{removePawnCard, removePawnMana},
+		Card{forceCombatCard, forceCombatMana},
 	}
 
 	m.BlackPrivate = PrivateState{
@@ -557,6 +558,8 @@ func (m *Match) playableCards() {
 					if public.RookPlayed || public.KnightPlayed || public.BishopPlayed {
 						private.PlayableCards[j] = true
 					}
+				case forceCombatCard:
+					private.PlayableCards[j] = true
 				case removePawnCard:
 					if public.NumPawns > 0 || public.Other.NumPawns > 0 {
 						private.PlayableCards[j] = true
@@ -599,6 +602,8 @@ func (m *Match) clickCard(player string, public *PublicState, private *PrivateSt
 						if public.NumPawns > 0 || public.Other.NumPawns > 0 {
 							private.dimAllButType(pawn, none, m.Board[:])
 						}
+					case forceCombatCard:
+						private.dimAllButType(king, player, m.Board[:])
 					case swapFrontLinesCard:
 						private.dimAllButType(king, none, m.Board[:])
 					case reclaimVassalCard:
@@ -637,6 +642,10 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 			}
 		case removePawnCard:
 			if !m.playRemovePawn(p) {
+				return
+			}
+		case forceCombatCard:
+			if !m.playForceCombat(p, player) {
 				return
 			}
 		case bishop, knight, rook, queen:
@@ -794,6 +803,17 @@ func (m *Match) playRemovePawn(pos Pos) bool {
 	public, _ := m.states(piece.Color)
 	m.removePieceAt(pos)
 	public.NumPawns--
+	return true
+}
+
+// return true if play is valid
+func (m *Match) playForceCombat(pos Pos, player string) bool {
+	piece := m.getPieceSafe(pos)
+	if piece == nil && piece.Name != king && piece.Color == player {
+		return false
+	}
+	m.PassPrior = true
+	m.EndTurn(true, player)
 	return true
 }
 

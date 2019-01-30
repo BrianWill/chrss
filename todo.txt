@@ -1,3 +1,6 @@
+grey out unplayable cards during kingPlacement and during reclaim phase
+
+
 mirror - flip left/right positions on board; can play on either King?
 
 heal - increase unit HP by 5; can be cast on any piece except King

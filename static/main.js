@@ -5,8 +5,10 @@ var scoreboardCtx = scoreboard.getContext('2d');
 
 const fanfare = document.getElementById('fanfare');
 const campanas = document.getElementById('campanas');
+const sword = document.getElementById('sword');
 fanfare.volume = 0.5;
 campanas.volume = 0.5;
+sword.volume = 0.5;
 
 var cardList = document.getElementById('card_list');
 var cardDescription = document.getElementById('card_description');
@@ -134,11 +136,21 @@ conn.onmessage = function(msg){
     }
     setTimers(matchState);
     draw(matchState);
+
+    // sounds
     if (matchState.newRound) {
         fanfare.play();
     } else if (matchState.newTurn) {
-        campanas.play();
+        switch (matchState.phase) {
+            case 'reclaim':
+                sword.play();
+                break;
+            case 'main':
+                campanas.play();
+                break;
+        }
     }
+
     waitingResponse = false;
 }
 

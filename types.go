@@ -51,6 +51,8 @@ const (
 	swapFrontLinesMana = 2
 	removePawnCard     = "Remove Pawn"
 	removePawnMana     = 2
+	forceCombatCard    = "Force Combat"
+	forceCombatMana    = 3
 )
 
 const reclaimHealRook = 5
