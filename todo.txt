@@ -1,4 +1,3 @@
-grey out unplayable cards during kingPlacement and during reclaim phase
 
 
 mirror - flip left/right positions on board; can play on either King?
@@ -13,7 +12,6 @@ toggle pawn - move an allied or enemy pawn from first row to second or second to
 court jester - distracts: nullifies attacks of any adjacent enemy; removed after combat
 
 
-force combat - ends the round, skipping to combat
 
 drain mana - decrease enemy current mana by 2
 

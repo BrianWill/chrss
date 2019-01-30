@@ -3,3 +3,5 @@ skull icon: https://www.flaticon.com/free-icon/skull_1382580#term=skull&page=1&p
 fanfare sound https://freesound.org/people/bone666138/sounds/198874/
 
 bell sound https://freesound.org/people/SansArt/sounds/430336/
+
+sword clash sound https://freesound.org/people/loudernoises/sounds/334169/

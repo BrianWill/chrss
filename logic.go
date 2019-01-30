@@ -71,6 +71,8 @@ func initMatch(m *Match) {
 
 	m.BlackPrivate.dimAllButFree(black, m.Board[:])
 	m.WhitePrivate.dimAllButFree(white, m.Board[:])
+
+	m.playableCards()
 }
 
 // returns nil for empty square
@@ -907,7 +909,6 @@ func (m *Match) EndRound() {
 
 	if m.WhitePublic.KingPlayed && m.BlackPublic.KingPlayed {
 		m.Phase = mainPhase
-		m.playableCards()
 		m.WhitePrivate.highlightsOff()
 		m.BlackPrivate.highlightsOff()
 	} else {
@@ -923,6 +924,7 @@ func (m *Match) EndRound() {
 			m.BlackPrivate.dimAllButFree(black, m.Board[:])
 		}
 	}
+	m.playableCards()
 }
 
 func (p *PrivateState) dimAllButFree(color string, board []*Piece) {

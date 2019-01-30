@@ -471,7 +471,7 @@ function draw(matchState) {
             s += '<div cardIdx="' + i + '" ';
             if (i === match.private.selectedCard) {
                 s += 'class="select_card"';
-            } else if (match.phase === mainPhase && !match.private.playableCards[i]) {
+            } else if (!match.private.playableCards[i]) {
                 s += 'class="unplayable_card"';
             }
             s += '">' + c.manaCost + ' - ' + c.name + '</div>';
