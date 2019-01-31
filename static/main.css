@@ -108,7 +108,7 @@ a:visited {
   border: solid 2px black;
   -moz-user-select: none;
   user-select: none;
-  overflow-y: auto;
+  overflow-y: scroll;
 }
 
 #card_list > div {
@@ -129,7 +129,7 @@ a:visited {
 
 #log {
   height: 210px;
-  overflow-y: auto;
+  overflow-y: scroll;
 }
 
 #wait_opponent {
@@ -169,7 +169,3 @@ a:visited {
   background-color: rgb(167, 42, 63);
   color: white;
 }
-
-.invisible_scroll::-webkit-scrollbar { width: 0 !important }
-
-.invisible_scroll { overflow: -moz-scrollbars-none; }

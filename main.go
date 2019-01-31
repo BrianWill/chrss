@@ -66,7 +66,6 @@ func processMessage(msg []byte, match *Match, player string) {
 				if match.BlackPublic.Ready && match.WhitePublic.Ready {
 					match.Phase = kingPlacementPhase
 					match.Round = 1 // by incrementing from 0, will sound new round fanfare
-					match.Log = []string{"Round 1"}
 					match.LastMoveTime = time.Now().UnixNano()
 				}
 				notifyOpponent = true
@@ -322,10 +321,16 @@ func main() {
 	})
 
 	router.GET("/createMatch", func(c *gin.Context) {
-		match := &Match{
-			Name: adjectives[rand.Intn(len(adjectives))] + "-" + animals[rand.Intn(len(animals))],
-		}
+		name := adjectives[rand.Intn(len(adjectives))] + "-" + animals[rand.Intn(len(animals))]
 		liveMatches.Lock()
+		// if name collision with existing match, randomly generate new names until finding one that's not in use
+		// (not ideal, but this is partly why we limit number of active matches)
+		for _, ok := liveMatches.internal[name]; ok; {
+			name = adjectives[rand.Intn(len(adjectives))] + "-" + animals[rand.Intn(len(animals))]
+		}
+		match := &Match{
+			Name: name,
+		}
 		// clean up any dead or timedout matches
 		for name, match := range liveMatches.internal {
 			exceededTimeout := time.Now().UnixNano() > match.LastMoveTime+matchTimeout

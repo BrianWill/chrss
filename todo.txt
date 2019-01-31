@@ -1,4 +1,4 @@
-
+on some browsers, scrollbar for card list and log not showing up when overflow-y
 
 
 heal - increase unit HP by 5; can be cast on any piece except King

@@ -81,27 +81,27 @@ skullImg.onload = function (evt) {
 
 var cardDescriptions = {
     'Rook': `<h3>Rook: 0 mana cost, 20 HP, 6 attack</h3>
-<div>Attacks up/down/left/right. You only get one Rook in the match. When reclaimed, its HP and status effects persist, and you get a Rook card back in your hand. When reclaimed, healed for 5 HP.</div>`,
+<div>Click free square on your side to place.</div><br/><div>Attacks up/down/left/right. You only get one Rook in the match. When reclaimed, its HP and status effects persist, and you get a Rook card back in your hand. When reclaimed, healed for 5 HP.</div>`,
     'Bishop': `<h3>Bishop: 0 mana cost, 25 HP, 4 attack</h3>
-<div>Attacks diagonally. You only get one Bishop in the match. When reclaimed, its HP and status effects persist, and you get a Bishop card back in your hand.</div>`,
+<div>Click free square on your side to place.</div><br/><div>Attacks diagonally. You only get one Bishop in the match. When reclaimed, its HP and status effects persist, and you get a Bishop card back in your hand.</div>`,
     'Knight': `<h3>Knight: 0 mana cost, 25 HP, 5 attack</h3>
-<div>Attacks are not blocked by other units. Attacks in 'L' shape: two spaces in cardinal direction and one space over. You only get one Knight in the match. When reclaimed, its HP and status effects persist, and you get a Knight card back in your hand.</div>`,
+<div>Click free square on your side to place.</div><br/><div>Attacks are not blocked by other units. Attacks in 'L' shape: two spaces in cardinal direction and one space over. You only get one Knight in the match. When reclaimed, its HP and status effects persist, and you get a Knight card back in your hand.</div>`,
     'Pawn': `<h3>Pawn: 0 mana cost, 5 HP, 2 attack</h3>
-<div>Attacks one space diagonally towards opponent side.</div>`,
+<div>Click free square on your side to place.</div><br/><div>Attacks one space diagonally towards opponent side.</div>`,
     'Queen': `<h3>Queen: 5 mana cost, 15 HP, 6 attack</h3>
-<div>Attacks diagonally and up/down/left/right.</div>`,
+<div>Click free square on your side to place.</div><br/><div>Attacks diagonally and up/down/left/right.</div>`,
     'Castle': `<h3>Castle: 2 mana cost</h3>
-<div>Select either King to swap its position with the Rook of the same color. (Can only use Castle on a King whose Rook is on the board.)</div>`,
+<div>Click either King.<br/><br/>Swaps the clicked King's position with the Rook of the same color. (Can only use Castle on a King whose Rook is on the board.)</div>`,
     'Reclaim Vassal': `<h3>Reclaim Vassal: 2 mana cost</h3>
-<div>Select a Knight, Bishop, or Rook to reclaim immediately.</div>`,
+<div>Click a Knight, Bishop, or Rook.<br/><br/>The clicked vassal is reclaimed immediately.</div>`,
     'Swap Front Lines': `<h3>Swap Front Lines: 2 mana cost</h3>
-<div>Select a King to swap the front and middle rows on the King's side.</div>`,
+<div>Click a King.<br/><br/>Swaps all pieces between the front and middle rows on the clicked King's side.</div>`,
     'Remove Pawn': `<h3>Remove Pawn: 2 mana cost</h3>
-<div>Select a Pawn of either color to remove.</div>`,
+<div>Click a Pawn of either color to remove.</div>`,
     'Force Combat': `<h3>Force Combat: 3 mana cost</h3>
-<div>Click your King to confirm. Immediately advances match to combat and the end of round.</div>`,
+<div>Click your King to confirm.<br/><br/>Immediately advances match to combat and the end of round.</div>`,
     'Mirror': `<h3>Mirror: 2 mana cost</h3>
-<div>Select either King. Moves all pieces of selected color to their horizontally-mirrored positions, <em>e.g.</em> all pieces in the leftmost column move to the rightmost column and <em>vice versa</em>.</div>`,
+<div>Click either King.<br/><br/>Moves all pieces of clicked color to their horizontally-mirrored positions, <em>e.g.</em> all pieces in the leftmost column move to the rightmost column and <em>vice versa</em>.</div>`,
 };
 
 
@@ -201,6 +201,10 @@ function draw(matchState) {
 
     function drawButtons(matchState) {
         switch (matchState.phase) {
+            case 'readyUp':
+                waitOpponent.style.visibility = 'hidden';
+                passButton.style.visibility = 'hidden';
+                break;
             case 'main':
                 if (matchState.color === matchState.turn) {
                     waitOpponent.style.visibility = 'hidden';

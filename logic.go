@@ -42,6 +42,8 @@ func initMatch(m *Match) {
 	m.BlackPublic.RookHP = rookHP
 	m.BlackPublic.RookAttack = rookAttack
 
+	m.Log = []string{"Round 1"}
+
 	m.SpawnPawns(true)
 	m.CalculateDamage()
 
