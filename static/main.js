@@ -104,6 +104,10 @@ var cardDescriptions = {
 <div>Click either King.<br/><br/>Moves all pieces of clicked color to their horizontally-mirrored positions, <em>e.g.</em> all pieces in the leftmost column move to the rightmost column and <em>vice versa</em>.</div>`,
     'Heal': `<h3>Heal: 2 mana cost</h3>
 <div>Click any of your pieces (except your King).<br/><br/>Adds 5 HP to a non-King piece (not capped by the piece's starting health).</div>`,
+    'Toggle Pawn': `<h3>Toggle Pawn: 2 mana cost</h3>
+<div>Click a Pawn.<br/><br/>Moves a Pawn in the front row to the middle row or moves a Pawn in the middle row to the front row. The destination square must be unoccupied.</div>`,
+    'Drain Mana': `<h3>Drain Mana: 2 mana cost</h3>
+<div>Click enemy King.<br/><br/>Subtract two mana from the enemy's current mana.</div>`,
 };
 
 

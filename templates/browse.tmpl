@@ -14,13 +14,13 @@
     <div id="match_list">
       {{if .Open}}
       <h3>Open matches:</h3>
-      <p id="join_instruction">(click white or black to join as that color)</p>
+      <p id="join_instruction">click white or black to join as that color (the play both sides option is for development purposes)</p>
       <ul>
           {{range .Open}}
               <li>{{.Name}} ({{.Elapsed}} ago) 
                 {{if .BlackOpen}}<a href="/match/{{.Name}}/black">black</a>{{end}} 
                 {{if .WhiteOpen}}<a href="/match/{{.Name}}/white">white</a>{{end}}
-                {{if and .WhiteOpen .BlackOpen}}<a href="/dev/{{.Name}}">both (dev)</a>{{end}}
+                {{if and .WhiteOpen .BlackOpen}}<a href="/dev/{{.Name}}">play both sides</a>{{end}}
               </li>
           {{end}}
       </ul>

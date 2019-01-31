@@ -58,6 +58,11 @@ const (
 	healCard           = "Heal"
 	healMana           = 2
 	healCardAmount     = 5
+	drainManaCard      = "Drain Mana"
+	drainManaMana      = 2
+	drainManaAmount    = 2
+	togglePawnCard     = "Toggle Pawn"
+	togglePawnMana     = 1
 )
 
 const reclaimHealRook = 5

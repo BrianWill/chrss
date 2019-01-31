@@ -56,6 +56,8 @@ func initMatch(m *Match) {
 		Card{forceCombatCard, forceCombatMana},
 		Card{mirrorCard, mirrorMana},
 		Card{healCard, healMana},
+		Card{drainManaCard, drainManaMana},
+		Card{togglePawnCard, togglePawnMana},
 	}
 
 	m.BlackPrivate = PrivateState{
@@ -568,6 +570,14 @@ func (m *Match) playableCards() {
 					private.PlayableCards[j] = true
 				case mirrorCard:
 					private.PlayableCards[j] = true
+				case drainManaCard:
+					if public.Other.ManaCurrent > 0 {
+						private.PlayableCards[j] = true
+					}
+				case togglePawnCard:
+					if len(m.toggleablePawns()) > 0 {
+						private.PlayableCards[j] = true
+					}
 				case healCard:
 					// todo: not playable if player has no pieces other than King on board
 					private.PlayableCards[j] = true
@@ -582,6 +592,34 @@ func (m *Match) playableCards() {
 		}
 		public, private = m.states(black)
 	}
+}
+
+func otherColor(color string) string {
+	if color == black {
+		return white
+	} else {
+		return black
+	}
+}
+
+// returns indexes of all pawns which can be toggled
+func (m *Match) toggleablePawns() []int {
+	indexes := []int{}
+	start := (nRows / 2) * nColumns // first look for black toggleable pawns
+	for i := 0; i < 2; i++ {
+		for j := start; j < start+nColumns; j++ {
+			k := j + nColumns
+			a, b := m.Board[j], m.Board[k]
+			if a != nil && a.Name == pawn && b == nil {
+				indexes = append(indexes, j)
+			} else if b != nil && b.Name == pawn && a == nil {
+				indexes = append(indexes, k)
+			}
+		}
+		start -= 2 * nColumns // repeat for white
+	}
+	// fmt.Println("indexes ", indexes)
+	return indexes
 }
 
 func (m *Match) clickCard(player string, public *PublicState, private *PrivateState, cardIdx int) {
@@ -618,6 +656,10 @@ func (m *Match) clickCard(player string, public *PublicState, private *PrivateSt
 						private.dimAllButType(king, player, board)
 					case mirrorCard:
 						private.dimAllButType(king, none, board)
+					case drainManaCard:
+						private.dimAllButType(king, otherColor(player), board)
+					case togglePawnCard:
+						private.dimAllBut(m.toggleablePawns())
 					case healCard:
 						private.dimAllButPieces(player, board)
 						private.dimType(king, player, board)
@@ -669,8 +711,16 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 			if !m.playMirror(p) {
 				return
 			}
+		case drainManaCard:
+			if !m.playDrainMana(p, public.Other) {
+				return
+			}
 		case healCard:
 			if !m.playHeal(p, player) {
+				return
+			}
+		case togglePawnCard:
+			if !m.playToggleablePawn(p) {
 				return
 			}
 		case bishop, knight, rook, queen:
@@ -756,7 +806,7 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 // return true if play is valid
 func (m *Match) playCastle(pos Pos, color string) bool {
 	piece := m.getPieceSafe(pos)
-	if piece == nil && piece.Name != king {
+	if piece == nil || piece.Name != king {
 		return false
 	}
 	// find rook of same color as clicked king
@@ -779,10 +829,7 @@ func (m *Match) playCastle(pos Pos, color string) bool {
 // return true if play is valid
 func (m *Match) playReclaimVassal(pos Pos, public *PublicState, color string) bool {
 	piece := m.getPieceSafe(pos)
-	if piece == nil {
-		return false
-	}
-	if piece.Color != color {
+	if piece == nil || piece.Color != color {
 		return false
 	}
 	switch piece.Name {
@@ -802,7 +849,7 @@ func (m *Match) playReclaimVassal(pos Pos, public *PublicState, color string) bo
 // return true if play is valid
 func (m *Match) playSwapFrontLines(pos Pos) bool {
 	piece := m.getPieceSafe(pos)
-	if piece == nil && piece.Name != king {
+	if piece == nil || piece.Name != king {
 		return false
 	}
 	frontIdx := (nRows/2 - 1) * nColumns
@@ -822,7 +869,7 @@ func (m *Match) playSwapFrontLines(pos Pos) bool {
 // return true if play is valid
 func (m *Match) playRemovePawn(pos Pos) bool {
 	piece := m.getPieceSafe(pos)
-	if piece == nil && piece.Name != pawn {
+	if piece == nil || piece.Name != pawn {
 		return false
 	}
 	public, _ := m.states(piece.Color)
@@ -834,7 +881,7 @@ func (m *Match) playRemovePawn(pos Pos) bool {
 // return true if play is valid
 func (m *Match) playForceCombat(pos Pos, player string) bool {
 	piece := m.getPieceSafe(pos)
-	if piece == nil && piece.Name != king && piece.Color == player {
+	if piece == nil || piece.Name != king || piece.Color != player {
 		return false
 	}
 	m.PassPrior = true
@@ -843,10 +890,23 @@ func (m *Match) playForceCombat(pos Pos, player string) bool {
 }
 
 // return true if play is valid
+func (m *Match) playDrainMana(pos Pos, otherPublic *PublicState) bool {
+	piece := m.getPieceSafe(pos)
+	if piece == nil || piece.Name != king || piece.Color != otherPublic.Color {
+		return false
+	}
+	otherPublic.ManaCurrent -= drainManaAmount
+	if otherPublic.ManaCurrent < 0 {
+		otherPublic.ManaCurrent = 0
+	}
+	return true
+}
+
+// return true if play is valid
 // (assumes board has even number of rows)
 func (m *Match) playMirror(pos Pos) bool {
 	piece := m.getPieceSafe(pos)
-	if piece == nil && piece.Name != king {
+	if piece == nil || piece.Name != king {
 		return false
 	}
 	row := 0
@@ -869,7 +929,7 @@ func (m *Match) playMirror(pos Pos) bool {
 // return true if play is valid
 func (m *Match) playHeal(pos Pos, player string) bool {
 	piece := m.getPieceSafe(pos)
-	if piece == nil && piece.Name == king {
+	if piece == nil || piece.Name == king {
 		return false
 	}
 	piece.HP += healCardAmount
@@ -883,6 +943,37 @@ func (m *Match) playHeal(pos Pos, player string) bool {
 		public.BishopHP += healCardAmount
 	}
 	return true
+}
+
+func (m *Match) playToggleablePawn(pos Pos) bool {
+	piece := m.getPieceSafe(pos)
+	if piece == nil || piece.Name != pawn {
+		return false
+	}
+	idx := pos.getBoardIdx()
+	for _, val := range m.toggleablePawns() {
+		if idx == val {
+			const whiteMid = nRows/2 - 2
+			const whiteFront = whiteMid + 1
+			const blackFront = whiteMid + 2
+			const blackMid = whiteMid + 3
+			newPos := pos
+			switch pos.Y {
+			case whiteMid:
+				newPos.Y = whiteFront
+			case whiteFront:
+				newPos.Y = whiteMid
+			case blackFront:
+				newPos.Y = blackMid
+			case blackMid:
+				newPos.Y = blackFront
+			}
+			newIdx := newPos.getBoardIdx()
+			m.swapBoardIndex(idx, newIdx)
+			return true
+		}
+	}
+	return false
 }
 
 // panics if i or j are out of bounds
@@ -1072,6 +1163,19 @@ func (p *PrivateState) dimAllButType(pieceType string, color string, board []*Pi
 		}
 	}
 	return n
+}
+
+// dims all squares but for specified indexes
+// (doesn't assume indexes are in ascending order)
+func (p *PrivateState) dimAllBut(indexes []int) {
+	for i := range p.Highlights {
+		p.Highlights[i] = highlightDim
+		for _, idx := range indexes {
+			if i == idx {
+				p.Highlights[i] = highlightOff
+			}
+		}
+	}
 }
 
 // dims all pieces of specified type and color (or both colors if 'none')
