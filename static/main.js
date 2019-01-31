@@ -102,6 +102,8 @@ var cardDescriptions = {
 <div>Click your King to confirm.<br/><br/>Immediately advances match to combat and the end of round.</div>`,
     'Mirror': `<h3>Mirror: 2 mana cost</h3>
 <div>Click either King.<br/><br/>Moves all pieces of clicked color to their horizontally-mirrored positions, <em>e.g.</em> all pieces in the leftmost column move to the rightmost column and <em>vice versa</em>.</div>`,
+    'Heal': `<h3>Heal: 2 mana cost</h3>
+<div>Click any of your pieces (except your King).<br/><br/>Adds 5 HP to a non-King piece (not capped by the piece's starting health).</div>`,
 };
 
 

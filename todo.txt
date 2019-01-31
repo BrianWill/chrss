@@ -1,8 +1,6 @@
 on some browsers, scrollbar for card list and log not showing up when overflow-y
 
 
-heal - increase unit HP by 5; can be cast on any piece except King
-
 stun vassal - vassal neither takes nor inflicts damage this round and cannot be reclaimed
 
 toggle pawn - move an allied or enemy pawn from first row to second or second to first 

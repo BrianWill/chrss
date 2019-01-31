@@ -55,6 +55,7 @@ func initMatch(m *Match) {
 		Card{removePawnCard, removePawnMana},
 		Card{forceCombatCard, forceCombatMana},
 		Card{mirrorCard, mirrorMana},
+		Card{healCard, healMana},
 	}
 
 	m.BlackPrivate = PrivateState{
@@ -567,6 +568,9 @@ func (m *Match) playableCards() {
 					private.PlayableCards[j] = true
 				case mirrorCard:
 					private.PlayableCards[j] = true
+				case healCard:
+					// todo: not playable if player has no pieces other than King on board
+					private.PlayableCards[j] = true
 				case removePawnCard:
 					if public.NumPawns > 0 || public.Other.NumPawns > 0 {
 						private.PlayableCards[j] = true
@@ -596,31 +600,35 @@ func (m *Match) clickCard(player string, public *PublicState, private *PrivateSt
 				card := private.Cards[cardIdx]
 				private.SelectedCard = cardIdx
 				if public.ManaCurrent >= card.ManaCost {
+					board := m.Board[:]
 					switch card.Name {
 					case castleCard:
 						if m.WhitePublic.RookPlayed && m.BlackPublic.RookPlayed {
-							private.dimAllButType(king, none, m.Board[:])
+							private.dimAllButType(king, none, board)
 						} else if m.WhitePublic.RookPlayed {
-							private.dimAllButType(king, white, m.Board[:])
+							private.dimAllButType(king, white, board)
 						} else if m.BlackPublic.RookPlayed {
-							private.dimAllButType(king, black, m.Board[:])
+							private.dimAllButType(king, black, board)
 						}
 					case removePawnCard:
 						if public.NumPawns > 0 || public.Other.NumPawns > 0 {
-							private.dimAllButType(pawn, none, m.Board[:])
+							private.dimAllButType(pawn, none, board)
 						}
 					case forceCombatCard:
-						private.dimAllButType(king, player, m.Board[:])
+						private.dimAllButType(king, player, board)
 					case mirrorCard:
-						private.dimAllButType(king, none, m.Board[:])
+						private.dimAllButType(king, none, board)
+					case healCard:
+						private.dimAllButPieces(player, board)
+						private.dimType(king, player, board)
 					case swapFrontLinesCard:
-						private.dimAllButType(king, none, m.Board[:])
+						private.dimAllButType(king, none, board)
 					case reclaimVassalCard:
 						if public.RookPlayed || public.KnightPlayed || public.BishopPlayed {
-							private.dimAllButTypes([]string{bishop, knight, rook}, player, m.Board[:])
+							private.dimAllButTypes([]string{bishop, knight, rook}, player, board)
 						}
 					default:
-						private.dimAllButFree(player, m.Board[:])
+						private.dimAllButFree(player, board)
 					}
 				}
 			}
@@ -659,6 +667,10 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 			}
 		case mirrorCard:
 			if !m.playMirror(p) {
+				return
+			}
+		case healCard:
+			if !m.playHeal(p, player) {
 				return
 			}
 		case bishop, knight, rook, queen:
@@ -854,6 +866,25 @@ func (m *Match) playMirror(pos Pos) bool {
 	return true
 }
 
+// return true if play is valid
+func (m *Match) playHeal(pos Pos, player string) bool {
+	piece := m.getPieceSafe(pos)
+	if piece == nil && piece.Name == king {
+		return false
+	}
+	piece.HP += healCardAmount
+	public, _ := m.states(player)
+	switch piece.Name {
+	case rook:
+		public.RookHP += healCardAmount
+	case knight:
+		public.KnightHP += healCardAmount
+	case bishop:
+		public.BishopHP += healCardAmount
+	}
+	return true
+}
+
 // panics if i or j are out of bounds
 func (m *Match) swapBoardIndex(i, j int) {
 	if i == j {
@@ -1028,7 +1059,7 @@ func (p *PrivateState) highlightPosOff(pos Pos) {
 	p.Highlights[idx] = highlightOff
 }
 
-// highlights units of a specified type and color (or both colors if 'none')
+// dims all squares but for specified type and color (or both colors if 'none')
 // returns count of pieces matching type and color
 func (p *PrivateState) dimAllButType(pieceType string, color string, board []*Piece) int {
 	n := 0
@@ -1038,6 +1069,19 @@ func (p *PrivateState) dimAllButType(pieceType string, color string, board []*Pi
 			n++
 		} else {
 			p.Highlights[i] = highlightDim
+		}
+	}
+	return n
+}
+
+// dims all pieces of specified type and color (or both colors if 'none')
+// returns count of pieces matching type and color
+func (p *PrivateState) dimType(pieceType string, color string, board []*Piece) int {
+	n := 0
+	for i, piece := range board {
+		if piece != nil && piece.Name == pieceType && (piece.Color == color || color == none) {
+			p.Highlights[i] = highlightDim
+			n++
 		}
 	}
 	return n

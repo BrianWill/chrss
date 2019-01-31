@@ -55,6 +55,9 @@ const (
 	forceCombatMana    = 3
 	mirrorCard         = "Mirror"
 	mirrorMana         = 2
+	healCard           = "Heal"
+	healMana           = 2
+	healCardAmount     = 5
 )
 
 const reclaimHealRook = 5
