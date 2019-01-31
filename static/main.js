@@ -98,6 +98,10 @@ var cardDescriptions = {
 <div>Select a King to swap the front and middle rows on the King's side.</div>`,
     'Remove Pawn': `<h3>Remove Pawn: 2 mana cost</h3>
 <div>Select a Pawn of either color to remove.</div>`,
+    'Force Combat': `<h3>Force Combat: 3 mana cost</h3>
+<div>Click your King to confirm. Immediately advances match to combat and the end of round.</div>`,
+    'Mirror': `<h3>Mirror: 2 mana cost</h3>
+<div>Select either King. Moves all pieces of selected color to their horizontally-mirrored positions, <em>e.g.</em> all pieces in the leftmost column move to the rightmost column and <em>vice versa</em>.</div>`,
 };
 
 

@@ -53,6 +53,8 @@ const (
 	removePawnMana     = 2
 	forceCombatCard    = "Force Combat"
 	forceCombatMana    = 3
+	mirrorCard         = "Mirror"
+	mirrorMana         = 2
 )
 
 const reclaimHealRook = 5
@@ -95,7 +97,6 @@ type Match struct {
 	pieces         [nColumns * nRows]Piece  // zero value for empty square
 	Board          [nColumns * nRows]*Piece // nil for empty square
 	CommunalCards  []Card                   // card in pool shared by both players
-	UUID           string
 	BlackPrivate   PrivateState
 	WhitePrivate   PrivateState
 	BlackPublic    PublicState

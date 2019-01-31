@@ -1,6 +1,5 @@
 
 
-mirror - flip left/right positions on board; can play on either King?
 
 heal - increase unit HP by 5; can be cast on any piece except King
 
@@ -9,7 +8,7 @@ stun vassal - vassal neither takes nor inflicts damage this round and cannot be 
 toggle pawn - move an allied or enemy pawn from first row to second or second to first 
         (cannot be cast on pawn that is blocked)
 
-court jester - distracts: nullifies attacks of any adjacent enemy; removed after combat
+court jester - (use jester icons) distracts: nullifies attacks of any adjacent enemy; removed after combat
 
 
 

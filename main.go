@@ -14,7 +14,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	_ "github.com/heroku/x/hmetrics/onload"
-	uuid "github.com/satori/go.uuid"
 )
 
 var positions [nColumns * nRows]Pos // convenience for getting Pos of board index
@@ -250,9 +249,9 @@ func (mm *MatchMap) Delete(key string) {
 	mm.Unlock()
 }
 
-func (mm *MatchMap) Store(key string, value *Match) {
+func (mm *MatchMap) Store(match *Match) {
 	mm.Lock()
-	mm.internal[key] = value
+	mm.internal[match.Name] = match
 	mm.Unlock()
 }
 
@@ -289,7 +288,6 @@ func main() {
 		now := time.Now()
 		type match struct {
 			Name      string
-			UUID      string
 			BlackOpen bool
 			WhiteOpen bool
 			StartTime int64
@@ -306,9 +304,9 @@ func main() {
 			black, white := m.IsBlackOpen(), m.IsWhiteOpen()
 			elapsed := fmtDuration(now.Sub(time.Unix(0, m.StartTime)))
 			if black || white {
-				matches.Open = append(matches.Open, match{m.Name, m.UUID, black, white, m.StartTime, elapsed})
+				matches.Open = append(matches.Open, match{m.Name, black, white, m.StartTime, elapsed})
 			} else {
-				matches.Full = append(matches.Full, match{m.Name, m.UUID, black, white, m.StartTime, elapsed})
+				matches.Full = append(matches.Full, match{m.Name, black, white, m.StartTime, elapsed})
 			}
 			i++
 		}
@@ -324,22 +322,16 @@ func main() {
 	})
 
 	router.GET("/createMatch", func(c *gin.Context) {
-		u4, err := uuid.NewV4()
-		if err != nil {
-			c.String(http.StatusInternalServerError, "Could not generate UUIDv4: %v", err)
-			return
-		}
-		u4Str := u4.String()
 		match := &Match{
-			UUID: u4Str,
+			Name: adjectives[rand.Intn(len(adjectives))] + "-" + animals[rand.Intn(len(animals))],
 		}
 		liveMatches.Lock()
 		// clean up any dead or timedout matches
-		for id, match := range liveMatches.internal {
+		for name, match := range liveMatches.internal {
 			exceededTimeout := time.Now().UnixNano() > match.LastMoveTime+matchTimeout
 			if match.Phase == gameoverPhase || exceededTimeout {
-				liveMatches.internal[id].Mutex.Lock()
-				delete(liveMatches.internal, id)
+				liveMatches.internal[name].Mutex.Lock()
+				delete(liveMatches.internal, name)
 			}
 		}
 		nMatches := len(liveMatches.internal)
@@ -352,43 +344,43 @@ func main() {
 
 		// new match
 		initMatch(match)
-		liveMatches.Store(u4Str, match)
+		liveMatches.Store(match)
 
 		c.Redirect(http.StatusSeeOther, "/")
 	})
 
-	router.GET("/dev/:id", func(c *gin.Context) {
-		id := c.Param("id")
-		c.HTML(http.StatusOK, "dev.tmpl", id)
+	router.GET("/dev/:name", func(c *gin.Context) {
+		name := c.Param("name")
+		c.HTML(http.StatusOK, "dev.tmpl", name)
 	})
 
 	// pass in UUID and optionally a password (from cookie? get param?)
-	router.GET("/match/:id/:color", func(c *gin.Context) {
-		id := c.Param("id")
+	router.GET("/match/:name/:color", func(c *gin.Context) {
+		name := c.Param("name")
 		color := c.Param("color")
 		if color != "black" && color != "white" {
 			c.String(http.StatusNotFound, "Must specify black or white. Invalid match color: '%s'.", color)
 			return
 		}
-		log.Printf("joining match: %v\n", id)
-		if _, ok := liveMatches.Load(id); !ok {
-			c.String(http.StatusNotFound, "No match with id '%s' exists.", id)
+		log.Printf("joining match: %v\n", name)
+		if _, ok := liveMatches.Load(name); !ok {
+			c.String(http.StatusNotFound, "No match with id '%s' exists.", name)
 			return
 		}
 		c.HTML(http.StatusOK, "index.tmpl", nil)
 	})
 
-	router.GET("/ws/:id/:color", func(c *gin.Context) {
-		id := c.Param("id")
+	router.GET("/ws/:name/:color", func(c *gin.Context) {
+		name := c.Param("name")
 		color := c.Param("color")
-		log.Printf("making match connection: " + id + " " + color)
+		log.Printf("making match connection: " + name + " " + color)
 		if color != "black" && color != "white" {
 			c.String(http.StatusNotFound, "Must specify black or white. Invalid match color: '%s'.", color)
 			return
 		}
-		match, ok := liveMatches.Load(id)
+		match, ok := liveMatches.Load(name)
 		if !ok {
-			c.String(http.StatusNotFound, "No match with id '%s' exists.", id)
+			c.String(http.StatusNotFound, "No match with id '%s' exists.", name)
 			return
 		}
 
@@ -437,7 +429,7 @@ func main() {
 		} else if color == white {
 			match.WhiteConn = nil
 		}
-		fmt.Printf("Closed connection '%s' in match %s %s", color, match.Name, match.UUID)
+		fmt.Printf("Closed connection '%s' in match %s ", color, match.Name)
 		match.Mutex.Unlock()
 	})
 

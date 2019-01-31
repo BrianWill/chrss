@@ -52,6 +52,7 @@ func initMatch(m *Match) {
 		Card{swapFrontLinesCard, swapFrontLinesMana},
 		Card{removePawnCard, removePawnMana},
 		Card{forceCombatCard, forceCombatMana},
+		Card{mirrorCard, mirrorMana},
 	}
 
 	m.BlackPrivate = PrivateState{
@@ -562,6 +563,8 @@ func (m *Match) playableCards() {
 					}
 				case forceCombatCard:
 					private.PlayableCards[j] = true
+				case mirrorCard:
+					private.PlayableCards[j] = true
 				case removePawnCard:
 					if public.NumPawns > 0 || public.Other.NumPawns > 0 {
 						private.PlayableCards[j] = true
@@ -606,6 +609,8 @@ func (m *Match) clickCard(player string, public *PublicState, private *PrivateSt
 						}
 					case forceCombatCard:
 						private.dimAllButType(king, player, m.Board[:])
+					case mirrorCard:
+						private.dimAllButType(king, none, m.Board[:])
 					case swapFrontLinesCard:
 						private.dimAllButType(king, none, m.Board[:])
 					case reclaimVassalCard:
@@ -648,6 +653,10 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 			}
 		case forceCombatCard:
 			if !m.playForceCombat(p, player) {
+				return
+			}
+		case mirrorCard:
+			if !m.playMirror(p) {
 				return
 			}
 		case bishop, knight, rook, queen:
@@ -816,6 +825,30 @@ func (m *Match) playForceCombat(pos Pos, player string) bool {
 	}
 	m.PassPrior = true
 	m.EndTurn(true, player)
+	return true
+}
+
+// return true if play is valid
+// (assumes board has even number of rows)
+func (m *Match) playMirror(pos Pos) bool {
+	piece := m.getPieceSafe(pos)
+	if piece == nil && piece.Name != king {
+		return false
+	}
+	row := 0
+	if piece.Color == black {
+		row = (nRows / 2)
+	}
+	for i := 0; i < (nRows / 2); i++ {
+		idx := row * nColumns
+		other := idx + nColumns - 1
+		for j := 0; j < (nColumns / 2); j++ {
+			m.swapBoardIndex(idx, other)
+			idx++
+			other--
+		}
+		row++
+	}
 	return true
 }
 
