@@ -110,6 +110,8 @@ var cardDescriptions = {
 <div>Click enemy King.<br/><br/>Subtract two mana from the enemy's current mana.</div>`,
     'Nuke': `<h3>Nuke: 2 mana cost</h3>
 <div>Click a King.<br/><br/>Immediately inflict 6 damage on all pieces within 1 square of the clicked King and 3 damage on all pieces withing 2 squares of the clicked King.</div>`,
+    'Shove': `<h3>Shove: 2 mana cost</h3>
+<div>Click a piece that can move back one square.<br/><br/>Move a piece on white side 1 square towards white back row; or move a piece on black side 1 square towards black back row.</div>`,
 };
 
 

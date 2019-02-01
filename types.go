@@ -67,6 +67,8 @@ const (
 	nukeMana           = 2
 	nukeDamageFull     = 6
 	nukeDamageLesser   = 3
+	shoveCard          = "Shove"
+	shoveMana          = 2
 )
 
 const reclaimHealRook = 5

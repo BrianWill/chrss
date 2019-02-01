@@ -59,6 +59,7 @@ func initMatch(m *Match) {
 		Card{drainManaCard, drainManaMana},
 		Card{togglePawnCard, togglePawnMana},
 		Card{nukeCard, nukeMana},
+		Card{shoveCard, shoveMana},
 	}
 
 	m.BlackPrivate = PrivateState{
@@ -577,6 +578,10 @@ func (m *Match) playableCards() {
 					}
 				case nukeCard:
 					private.PlayableCards[j] = true
+				case shoveCard:
+					if len(m.shoveablePieces()) > 0 {
+						private.PlayableCards[j] = true
+					}
 				case togglePawnCard:
 					if len(m.toggleablePawns()) > 0 {
 						private.PlayableCards[j] = true
@@ -621,7 +626,26 @@ func (m *Match) toggleablePawns() []int {
 		}
 		start -= 2 * nColumns // repeat for white
 	}
-	// fmt.Println("indexes ", indexes)
+	return indexes
+}
+
+// returns indexes of all pawns which can be toggled
+func (m *Match) shoveablePieces() []int {
+	indexes := []int{}
+	start := (nRows / 2) * nColumns // first look for black shoveable pieces
+	for j := start; j < start+(nColumns*2); j++ {
+		k := j + nColumns
+		if m.Board[j] != nil && m.Board[k] == nil {
+			indexes = append(indexes, j)
+		}
+	}
+	// for white
+	for j := 0; j < (nColumns * 2); j++ {
+		k := j + nColumns
+		if m.Board[j] == nil && m.Board[k] != nil {
+			indexes = append(indexes, k)
+		}
+	}
 	return indexes
 }
 
@@ -665,6 +689,8 @@ func (m *Match) clickCard(player string, public *PublicState, private *PrivateSt
 						private.dimAllBut(m.toggleablePawns())
 					case nukeCard:
 						private.dimAllButType(king, none, board)
+					case shoveCard:
+						private.dimAllBut(m.shoveablePieces())
 					case healCard:
 						private.dimAllButPieces(player, board)
 						private.dimType(king, player, board)
@@ -730,6 +756,10 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 			}
 		case nukeCard:
 			if !m.playNuke(p) {
+				return
+			}
+		case shoveCard:
+			if !m.playShove(p) {
 				return
 			}
 		case bishop, knight, rook, queen:
@@ -1085,7 +1115,27 @@ func (m *Match) playToggleablePawn(pos Pos) bool {
 			case blackMid:
 				newPos.Y = blackFront
 			}
-			newIdx := newPos.getBoardIdx()
+			m.swapBoardIndex(idx, newPos.getBoardIdx())
+			return true
+		}
+	}
+	return false
+}
+
+func (m *Match) playShove(pos Pos) bool {
+	piece := m.getPieceSafe(pos)
+	if piece == nil {
+		return false
+	}
+	idx := pos.getBoardIdx()
+	for _, val := range m.shoveablePieces() {
+		if idx == val {
+			var newIdx int
+			if idx < len(m.Board)/2 {
+				newIdx = idx - nColumns
+			} else {
+				newIdx = idx + nColumns
+			}
 			m.swapBoardIndex(idx, newIdx)
 			return true
 		}
