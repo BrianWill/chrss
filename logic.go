@@ -60,6 +60,7 @@ func initMatch(m *Match) {
 		Card{togglePawnCard, togglePawnMana},
 		Card{nukeCard, nukeMana},
 		Card{shoveCard, shoveMana},
+		Card{advanceCard, advanceMana},
 	}
 
 	m.BlackPrivate = PrivateState{
@@ -582,6 +583,10 @@ func (m *Match) playableCards() {
 					if len(m.shoveablePieces()) > 0 {
 						private.PlayableCards[j] = true
 					}
+				case advanceCard:
+					if len(m.advanceablePieces()) > 0 {
+						private.PlayableCards[j] = true
+					}
 				case togglePawnCard:
 					if len(m.toggleablePawns()) > 0 {
 						private.PlayableCards[j] = true
@@ -632,18 +637,40 @@ func (m *Match) toggleablePawns() []int {
 // returns indexes of all pawns which can be toggled
 func (m *Match) shoveablePieces() []int {
 	indexes := []int{}
-	start := (nRows / 2) * nColumns // first look for black shoveable pieces
-	for j := start; j < start+(nColumns*2); j++ {
-		k := j + nColumns
-		if m.Board[j] != nil && m.Board[k] == nil {
-			indexes = append(indexes, j)
+	for i, p := range m.Board {
+		if p != nil {
+			if p.Color == black {
+				j := i + nColumns
+				if j < len(m.Board) && m.Board[j] == nil {
+					indexes = append(indexes, i)
+				}
+			} else {
+				j := i - nColumns
+				if j >= 0 && m.Board[j] == nil {
+					indexes = append(indexes, i)
+				}
+			}
 		}
 	}
-	// for white
-	for j := 0; j < (nColumns * 2); j++ {
-		k := j + nColumns
-		if m.Board[j] == nil && m.Board[k] != nil {
-			indexes = append(indexes, k)
+	return indexes
+}
+
+// returns indexes of all pawns which can be toggled
+func (m *Match) advanceablePieces() []int {
+	indexes := []int{}
+	for i, p := range m.Board {
+		if p != nil {
+			if p.Color == white {
+				j := i + nColumns
+				if j < len(m.Board) && m.Board[j] == nil {
+					indexes = append(indexes, i)
+				}
+			} else {
+				j := i - nColumns
+				if j >= 0 && m.Board[j] == nil {
+					indexes = append(indexes, i)
+				}
+			}
 		}
 	}
 	return indexes
@@ -691,6 +718,8 @@ func (m *Match) clickCard(player string, public *PublicState, private *PrivateSt
 						private.dimAllButType(king, none, board)
 					case shoveCard:
 						private.dimAllBut(m.shoveablePieces())
+					case advanceCard:
+						private.dimAllBut(m.advanceablePieces())
 					case healCard:
 						private.dimAllButPieces(player, board)
 						private.dimType(king, player, board)
@@ -760,6 +789,10 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 			}
 		case shoveCard:
 			if !m.playShove(p) {
+				return
+			}
+		case advanceCard:
+			if !m.playAdvance(p) {
 				return
 			}
 		case bishop, knight, rook, queen:
@@ -1131,10 +1164,31 @@ func (m *Match) playShove(pos Pos) bool {
 	for _, val := range m.shoveablePieces() {
 		if idx == val {
 			var newIdx int
-			if idx < len(m.Board)/2 {
-				newIdx = idx - nColumns
-			} else {
+			if piece.Color == black {
 				newIdx = idx + nColumns
+			} else {
+				newIdx = idx - nColumns
+			}
+			m.swapBoardIndex(idx, newIdx)
+			return true
+		}
+	}
+	return false
+}
+
+func (m *Match) playAdvance(pos Pos) bool {
+	piece := m.getPieceSafe(pos)
+	if piece == nil {
+		return false
+	}
+	idx := pos.getBoardIdx()
+	for _, val := range m.advanceablePieces() {
+		if idx == val {
+			var newIdx int
+			if piece.Color == white {
+				newIdx = idx + nColumns
+			} else {
+				newIdx = idx - nColumns
 			}
 			m.swapBoardIndex(idx, newIdx)
 			return true
@@ -1413,6 +1467,8 @@ func (m *Match) EndTurn(pass bool, player string) {
 			m.BlackPrivate.dimAllButPieces(black, m.Board[:])
 			m.WhitePrivate.dimAllButPieces(white, m.Board[:])
 		}
+
+		m.CalculateDamage() // with some blocking pieces possibly removed, lines of attack change
 	} else {
 		if m.Turn == black {
 			m.Turn = white

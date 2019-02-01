@@ -111,7 +111,9 @@ var cardDescriptions = {
     'Nuke': `<h3>Nuke: 2 mana cost</h3>
 <div>Click a King.<br/><br/>Immediately inflict 6 damage on all pieces within 1 square of the clicked King and 3 damage on all pieces withing 2 squares of the clicked King.</div>`,
     'Shove': `<h3>Shove: 2 mana cost</h3>
-<div>Click a piece that can move back one square.<br/><br/>Move a piece on white side 1 square towards white back row; or move a piece on black side 1 square towards black back row.</div>`,
+<div>Click a piece.<br/><br/>Moves a white piece one square towards white's back row; moves a black piece one square towards black's back row.</div>`,
+    'Advance': `<h3>Advance: 2 mana cost</h3>
+<div>Click a piece.<br/><br/>Moves a white piece one square towards black's back row; moves a black piece one square towards white's back row.</div>`,
 };
 
 
