@@ -3,26 +3,15 @@ on some browsers, scrollbar for card list and log not showing up when overflow-y
 
 
 
-toggle pawn - move an allied or enemy pawn from first row to second or second to first 
-        (cannot be cast on pawn that is blocked)
-
-drain mana - decrease enemy current mana by 2
-
-Nuke: your own king does 6 damage to all pieces (friend/foe) in 2 space radius
-
-        (perhaps can choose to also use on enemy king such that enemy king damages all units in 2 space radius)
-
 
 amplify - cast on enemy - doubles all damage taken this round
 
 stun vassal - vassal neither takes nor inflicts damage this round and cannot be reclaimed
 
 
-court jester - (use jester icons) distracts: nullifies attacks of any adjacent enemy; removed after combat
-
-
-
-
+court jester - (use jester icons) distracts: nullifies attacks from any square immediately in front or to side of jester (affects allies as well as enemies)
+    (need to update square status affects if jester is moved)
+    (in square status, distinguish from square effects emanating from pieces and those effects directly affecting square itself)
 
     
 resurect vassal - how to select? resurect a dead vassal to half health; puts back in your hand immediately? or for next turn?

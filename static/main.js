@@ -108,6 +108,8 @@ var cardDescriptions = {
 <div>Click a Pawn.<br/><br/>Moves a Pawn in the front row to the middle row or moves a Pawn in the middle row to the front row. The destination square must be unoccupied.</div>`,
     'Drain Mana': `<h3>Drain Mana: 2 mana cost</h3>
 <div>Click enemy King.<br/><br/>Subtract two mana from the enemy's current mana.</div>`,
+    'Nuke': `<h3>Nuke: 2 mana cost</h3>
+<div>Click a King.<br/><br/>Immediately inflict 6 damage on all pieces within 1 square of the clicked King and 3 damage on all pieces withing 2 squares of the clicked King.</div>`,
 };
 
 

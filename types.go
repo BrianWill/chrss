@@ -63,6 +63,10 @@ const (
 	drainManaAmount    = 2
 	togglePawnCard     = "Toggle Pawn"
 	togglePawnMana     = 1
+	nukeCard           = "Nuke"
+	nukeMana           = 2
+	nukeDamageFull     = 6
+	nukeDamageLesser   = 3
 )
 
 const reclaimHealRook = 5

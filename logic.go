@@ -58,6 +58,7 @@ func initMatch(m *Match) {
 		Card{healCard, healMana},
 		Card{drainManaCard, drainManaMana},
 		Card{togglePawnCard, togglePawnMana},
+		Card{nukeCard, nukeMana},
 	}
 
 	m.BlackPrivate = PrivateState{
@@ -574,6 +575,8 @@ func (m *Match) playableCards() {
 					if public.Other.ManaCurrent > 0 {
 						private.PlayableCards[j] = true
 					}
+				case nukeCard:
+					private.PlayableCards[j] = true
 				case togglePawnCard:
 					if len(m.toggleablePawns()) > 0 {
 						private.PlayableCards[j] = true
@@ -660,6 +663,8 @@ func (m *Match) clickCard(player string, public *PublicState, private *PrivateSt
 						private.dimAllButType(king, otherColor(player), board)
 					case togglePawnCard:
 						private.dimAllBut(m.toggleablePawns())
+					case nukeCard:
+						private.dimAllButType(king, none, board)
 					case healCard:
 						private.dimAllButPieces(player, board)
 						private.dimType(king, player, board)
@@ -721,6 +726,10 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 			}
 		case togglePawnCard:
 			if !m.playToggleablePawn(p) {
+				return
+			}
+		case nukeCard:
+			if !m.playNuke(p) {
 				return
 			}
 		case bishop, knight, rook, queen:
@@ -943,6 +952,114 @@ func (m *Match) playHeal(pos Pos, player string) bool {
 		public.BishopHP += healCardAmount
 	}
 	return true
+}
+
+// return true if play is valid
+func (m *Match) playNuke(pos Pos) bool {
+	piece := m.getPieceSafe(pos)
+	if piece == nil || piece.Name != king {
+		return false
+	}
+	// inflict lesser damage on all within 2 squares
+	minX, maxX := pos.X-2, pos.X+2
+	minY, maxY := pos.Y-2, pos.Y+2
+	for x := minX; x <= maxX; x++ {
+		for y := minY; y <= maxY; y++ {
+			target := Pos{x, y}
+			if target == pos {
+				continue
+			}
+			m.inflictDamage(target.getBoardIdx(), nukeDamageLesser)
+		}
+	}
+	// inflict (full - lesser) on all within 1 square (so these squares hit a second time)
+	minX++
+	maxX--
+	minY++
+	maxY--
+	for x := minX; x <= maxX; x++ {
+		for y := minY; y <= maxY; y++ {
+			target := Pos{x, y}
+			if target == pos {
+				continue
+			}
+			m.inflictDamage(target.getBoardIdx(), nukeDamageFull-nukeDamageLesser)
+		}
+	}
+	return true
+}
+
+func (m *Match) getPublic(color string) *PublicState {
+	if color == black {
+		return &m.BlackPublic
+	} else {
+		return &m.WhitePublic
+	}
+}
+
+// inflict damage on piece at index
+// checks for win condition if piece is killed
+// does nothing if no piece at index
+// does nothing if index is out of bounds
+func (m *Match) inflictDamage(idx int, dmg int) {
+	if idx < 0 || idx >= (nColumns*nRows) {
+		return
+	}
+	p := m.Board[idx]
+	if p == nil {
+		return
+	}
+	p.HP -= dmg
+	var public *PublicState
+	switch p.Name {
+	case king:
+		public = m.getPublic(p.Color)
+		public.KingHP -= dmg
+	case rook:
+		public = m.getPublic(p.Color)
+		public.RookHP -= dmg
+	case bishop:
+		public = m.getPublic(p.Color)
+		public.BishopHP -= dmg
+	case knight:
+		public = m.getPublic(p.Color)
+		public.KnightHP -= dmg
+	}
+	if p.HP < 0 {
+		m.Board[idx] = nil
+		switch p.Name {
+		case king:
+			public.KingPlayed = false
+		case rook:
+			public.RookPlayed = false
+		case bishop:
+			public.BishopPlayed = false
+		case knight:
+			public.KnightPlayed = false
+		}
+		m.checkWinCondition()
+	}
+}
+
+// sets match state to gameover if winner or draw
+func (m *Match) checkWinCondition() bool {
+	b, w := m.BlackPublic, m.WhitePublic
+	whiteLose := w.KingHP <= 0 || (w.KnightHP <= 0 && w.BishopHP <= 0 && w.RookHP <= 0)
+	blackLose := b.KingHP <= 0 || (b.KnightHP <= 0 && b.BishopHP <= 0 && b.RookHP <= 0)
+	if whiteLose && blackLose {
+		m.Winner = draw
+		m.Phase = gameoverPhase
+		return true
+	} else if whiteLose {
+		m.Winner = white
+		m.Phase = gameoverPhase
+		return true
+	} else if blackLose {
+		m.Winner = black
+		m.Phase = gameoverPhase
+		return true
+	}
+	return false
 }
 
 func (m *Match) playToggleablePawn(pos Pos) bool {
@@ -1241,21 +1358,7 @@ func (m *Match) EndTurn(pass bool, player string) {
 	if pass && m.PassPrior { // if players both pass in succession, do combat
 		m.InflictDamage()
 
-		blackVassalsDead := m.BlackPublic.BishopHP <= 0 && m.BlackPublic.KnightHP <= 0 && m.BlackPublic.RookHP <= 0
-		whiteVassalsDead := m.WhitePublic.BishopHP <= 0 && m.WhitePublic.KnightHP <= 0 && m.WhitePublic.RookHP <= 0
-		blackKingDead := m.BlackPublic.KingHP <= 0
-		whiteKingDead := m.WhitePublic.KingHP <= 0
-
-		if (blackKingDead || blackVassalsDead) && (whiteKingDead || whiteVassalsDead) {
-			m.Winner = draw
-			m.Phase = gameoverPhase
-		} else if blackKingDead || blackVassalsDead {
-			m.Winner = white
-			m.Phase = gameoverPhase
-		} else if whiteKingDead || whiteVassalsDead {
-			m.Winner = black
-			m.Phase = gameoverPhase
-		} else {
+		if !m.checkWinCondition() {
 			m.Phase = reclaimPhase
 			m.BlackPrivate.dimAllButPieces(black, m.Board[:])
 			m.WhitePrivate.dimAllButPieces(white, m.Board[:])
