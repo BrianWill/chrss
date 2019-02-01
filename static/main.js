@@ -114,6 +114,10 @@ var cardDescriptions = {
 <div>Click a piece.<br/><br/>Moves a white piece one square towards white's back row; moves a black piece one square towards black's back row.</div>`,
     'Advance': `<h3>Advance: 2 mana cost</h3>
 <div>Click a piece.<br/><br/>Moves a white piece one square towards black's back row; moves a black piece one square towards white's back row.</div>`,
+    'Restore Mana': `<h3>Restore Mana: 2 mana cost</h3>
+<div>Click your King.<br/><br/>Restores your mana to max.</div>`,
+    'Summon Pawn': `<h3>Summon Pawn: 2 mana cost</h3>
+<div>Click your King.<br/><br/>Summons an additional pawn (subject to usual max of 5 pawns and restrictions on pawn placement).</div>`,
 };
 
 

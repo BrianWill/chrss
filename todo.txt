@@ -2,11 +2,9 @@ on some browsers, scrollbar for card list and log not showing up when overflow-y
 
 
 
-advance - move allied piece one space forward, even into enemy side of board
-
 restore mana - restore your mana to max
 
-summon pawn - summon an additional pawn (max count of pawns and position constraints apply)
+summon pawn - Click your King. Summons an additional pawn. (max count of pawns and position constraints apply)
 
 dodge - select vassal. Vassal is moved to random adjacent square. 
     can only be used on a vassal under threat and which has a free square adjacent 

@@ -71,8 +71,16 @@ const (
 	shoveMana          = 2
 	advanceCard        = "Advance"
 	advanceMana        = 2
+	restoreManaCard    = "Restore Mana"
+	restoreManaMana    = 2
+	summonPawnCard     = "Summon Pawn"
+	summonPawnMana     = 2
 )
 
+const (
+	maxPawns      = 5
+	startingPawns = 4
+)
 const reclaimHealRook = 5
 
 const defaultInstruction = "Pick a card to play or pass."

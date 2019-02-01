@@ -61,6 +61,8 @@ func initMatch(m *Match) {
 		Card{nukeCard, nukeMana},
 		Card{shoveCard, shoveMana},
 		Card{advanceCard, advanceMana},
+		Card{restoreManaCard, restoreManaMana},
+		Card{summonPawnCard, summonPawnMana},
 	}
 
 	m.BlackPrivate = PrivateState{
@@ -134,12 +136,7 @@ func (m *Match) InflictDamage() {
 		if p != nil {
 			p.HP -= p.Damage
 			p.Damage = 0
-			var public *PublicState
-			if p.Color == black {
-				public = &m.BlackPublic
-			} else {
-				public = &m.WhitePublic
-			}
+			public := m.getPublic(p.Color)
 			switch p.Name {
 			case king:
 				public.KingHP = p.HP
@@ -151,7 +148,14 @@ func (m *Match) InflictDamage() {
 				public.RookHP = p.HP
 			}
 			if p.HP <= 0 {
-				if p.Name == pawn {
+				switch p.Name {
+				case bishop:
+					public.BishopPlayed = false
+				case knight:
+					public.KnightPlayed = false
+				case rook:
+					public.RookPlayed = false
+				case pawn:
 					public.NumPawns--
 				}
 				m.pieces[i] = Piece{}
@@ -463,6 +467,45 @@ func (m *Match) CalculateDamage() {
 	}
 }
 
+func (m *Match) SpawnSinglePawn(color string, public *PublicState) bool {
+	if public.NumPawns == maxPawns {
+		return false
+	}
+	n := 1
+	offset := 1
+	if color == black {
+		offset = 3
+	}
+	columns := m.freePawnColumns(color)
+	columns = randSelect(n, columns)
+	n = len(columns)
+	if n < 1 {
+		return false
+	}
+	for _, v := range columns {
+		m.setPiece(Pos{v, rand.Intn(2) + offset}, Piece{pawn, public.Color, pawnHP, pawnAttack, 0})
+	}
+	public.NumPawns += n
+	return true
+}
+
+// returns indexes of the columns in which a new pawn can be placed
+func (m *Match) freePawnColumns(color string) []int {
+	var columns []int
+	front := 2
+	mid := 1
+	if color == black {
+		front = 3
+		mid = 4
+	}
+	for i := 0; i < nColumns; i++ {
+		if m.getPiece(Pos{i, front}) == nil && m.getPiece(Pos{i, mid}) == nil {
+			columns = append(columns, i)
+		}
+	}
+	return columns
+}
+
 // spawn n random pawns in free columns
 func (m *Match) SpawnPawns(init bool) {
 	public := &m.WhitePublic
@@ -470,27 +513,18 @@ func (m *Match) SpawnPawns(init bool) {
 	for i := 0; i < 2; i++ {
 		n := 1
 		if init {
-			n = 4
+			n = startingPawns
 		}
-		var columns []int
 		if !init && public.NumPawns == 0 {
 			n = 2
-		} else if public.NumPawns == 5 {
+		} else if public.NumPawns == maxPawns {
 			return // keep max pawns at 5
 		}
-		front := 2
-		mid := 1
 		offset := 1
-		if public == &m.BlackPublic {
-			front = 3
-			mid = 4
+		if public.Color == black {
 			offset = 3
 		}
-		for i := 0; i < nColumns; i++ {
-			if m.getPiece(Pos{i, front}) == nil && m.getPiece(Pos{i, mid}) == nil {
-				columns = append(columns, i)
-			}
-		}
+		columns := m.freePawnColumns(public.Color)
 		columns = randSelect(n, columns)
 		n = len(columns)
 		for _, v := range columns {
@@ -585,6 +619,14 @@ func (m *Match) playableCards() {
 					}
 				case advanceCard:
 					if len(m.advanceablePieces()) > 0 {
+						private.PlayableCards[j] = true
+					}
+				case restoreManaCard:
+					if public.ManaCurrent < public.ManaMax {
+						private.PlayableCards[j] = true
+					}
+				case summonPawnCard:
+					if public.NumPawns < maxPawns && len(m.freePawnColumns(public.Color)) > 0 {
 						private.PlayableCards[j] = true
 					}
 				case togglePawnCard:
@@ -720,6 +762,10 @@ func (m *Match) clickCard(player string, public *PublicState, private *PrivateSt
 						private.dimAllBut(m.shoveablePieces())
 					case advanceCard:
 						private.dimAllBut(m.advanceablePieces())
+					case restoreManaCard:
+						private.dimAllButType(king, player, board)
+					case summonPawnCard:
+						private.dimAllButType(king, player, board)
 					case healCard:
 						private.dimAllButPieces(player, board)
 						private.dimType(king, player, board)
@@ -793,6 +839,14 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 			}
 		case advanceCard:
 			if !m.playAdvance(p) {
+				return
+			}
+		case restoreManaCard:
+			if !m.playRestoreMana(p, public) {
+				return
+			}
+		case summonPawnCard:
+			if !m.playSummonPawn(p, public) {
 				return
 			}
 		case bishop, knight, rook, queen:
@@ -975,6 +1029,25 @@ func (m *Match) playDrainMana(pos Pos, otherPublic *PublicState) bool {
 }
 
 // return true if play is valid
+func (m *Match) playRestoreMana(pos Pos, public *PublicState) bool {
+	piece := m.getPieceSafe(pos)
+	if piece == nil || piece.Name != king || piece.Color != public.Color {
+		return false
+	}
+	public.ManaCurrent = public.ManaMax + restoreManaMana // add cost of card because it gets subtracted later
+	return true
+}
+
+// return true if play is valid
+func (m *Match) playSummonPawn(pos Pos, public *PublicState) bool {
+	piece := m.getPieceSafe(pos)
+	if piece == nil || piece.Name != king || piece.Color != public.Color {
+		return false
+	}
+	return m.SpawnSinglePawn(public.Color, public)
+}
+
+// return true if play is valid
 // (assumes board has even number of rows)
 func (m *Match) playMirror(pos Pos) bool {
 	piece := m.getPieceSafe(pos)
@@ -1073,19 +1146,15 @@ func (m *Match) inflictDamage(idx int, dmg int) {
 		return
 	}
 	p.HP -= dmg
-	var public *PublicState
+	public := m.getPublic(p.Color)
 	switch p.Name {
 	case king:
-		public = m.getPublic(p.Color)
 		public.KingHP -= dmg
 	case rook:
-		public = m.getPublic(p.Color)
 		public.RookHP -= dmg
 	case bishop:
-		public = m.getPublic(p.Color)
 		public.BishopHP -= dmg
 	case knight:
-		public = m.getPublic(p.Color)
 		public.KnightHP -= dmg
 	}
 	if p.HP < 0 {
@@ -1099,6 +1168,11 @@ func (m *Match) inflictDamage(idx int, dmg int) {
 			public.BishopPlayed = false
 		case knight:
 			public.KnightPlayed = false
+		case pawn:
+			public.NumPawns--
+			if public.NumPawns < 0 {
+				public.NumPawns = 0
+			}
 		}
 		m.checkWinCondition()
 	}
