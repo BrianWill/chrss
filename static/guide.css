@@ -25,3 +25,13 @@ p {
     font-size: 80%;
     color: #7ab;
 }
+
+#cards h3 {
+    color: rgb(90, 162, 66);
+} 
+
+#cards h3 .card_stats {
+    color: rgb(53, 101, 138);
+    font-size: 80%;
+    padding-left: 8px;
+} 
