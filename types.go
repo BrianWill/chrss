@@ -47,44 +47,49 @@ const (
 )
 
 const (
-	castleCard          = "Castle"
-	castleMana          = 2
-	reclaimVassalCard   = "Reclaim Vassal"
-	reclaimVassalMana   = 2
-	swapFrontLinesCard  = "Swap Front Lines"
-	swapFrontLinesMana  = 2
-	removePawnCard      = "Remove Pawn"
-	removePawnMana      = 2
-	forceCombatCard     = "Force Combat"
-	forceCombatMana     = 3
-	mirrorCard          = "Mirror"
-	mirrorMana          = 2
-	healCard            = "Heal"
-	healMana            = 2
-	healCardAmount      = 5
-	drainManaCard       = "Drain Mana"
-	drainManaMana       = 2
-	drainManaAmount     = 2
-	togglePawnCard      = "Toggle Pawn"
-	togglePawnMana      = 1
-	nukeCard            = "Nuke"
-	nukeMana            = 2
-	nukeDamageFull      = 6
-	nukeDamageLesser    = 3
-	shoveCard           = "Shove"
-	shoveMana           = 2
-	advanceCard         = "Advance"
-	advanceMana         = 2
-	restoreManaCard     = "Restore Mana"
-	restoreManaMana     = 2
-	summonPawnCard      = "Summon Pawn"
-	summonPawnMana      = 2
-	vulnerabilityCard   = "Vulnerability"
-	vulnerabilityMana   = 2
-	vulnerabilityFactor = 2
-	amplifyCard         = "Amplify"
-	amplifyMana         = 2
-	amplifyFactor       = 2
+	castleCard            = "Castle"
+	castleMana            = 2
+	reclaimVassalCard     = "Reclaim Vassal"
+	reclaimVassalMana     = 2
+	swapFrontLinesCard    = "Swap Front Lines"
+	swapFrontLinesMana    = 2
+	removePawnCard        = "Remove Pawn"
+	removePawnMana        = 2
+	forceCombatCard       = "Force Combat"
+	forceCombatMana       = 3
+	mirrorCard            = "Mirror"
+	mirrorMana            = 2
+	healCard              = "Heal"
+	healMana              = 2
+	healCardAmount        = 5
+	drainManaCard         = "Drain Mana"
+	drainManaMana         = 2
+	drainManaAmount       = 2
+	togglePawnCard        = "Toggle Pawn"
+	togglePawnMana        = 1
+	nukeCard              = "Nuke"
+	nukeMana              = 2
+	nukeDamageFull        = 6
+	nukeDamageLesser      = 3
+	shoveCard             = "Shove"
+	shoveMana             = 2
+	advanceCard           = "Advance"
+	advanceMana           = 2
+	restoreManaCard       = "Restore Mana"
+	restoreManaMana       = 2
+	summonPawnCard        = "Summon Pawn"
+	summonPawnMana        = 2
+	vulnerabilityCard     = "Vulnerability"
+	vulnerabilityMana     = 2
+	vulnerabilityFactor   = 2
+	vulnerabilityDuration = 1
+	amplifyCard           = "Amplify"
+	amplifyMana           = 2
+	amplifyFactor         = 2
+	amplifyDuration       = 1
+	enrageCard            = "Enrage"
+	enrageMana            = 2
+	enrageDuration        = 1
 )
 
 const (
@@ -219,12 +224,14 @@ type PieceStatus struct {
 	Positive *PiecePositiveStatus `json:"positive"`
 }
 
+// int fields last for some number of rounds
 type PieceNegativeStatus struct {
-	Vulnerability int `json:"vulnerability"` // increase damage this piece takes (for n rounds); 0 if not in effect
+	Vulnerability int `json:"vulnerability"` // increase damage this piece takes
+	Enraged       int `json:"enraged"`       // piece hits allies as well as enemies
 }
 
 type PiecePositiveStatus struct {
-	Amplify int `json:"amplify"` // increase damage this piece inflicts (for n rounds); 0 if not in effect
+	Amplify int `json:"amplify"` // increase damage this piece inflicts
 }
 
 type Pos struct {

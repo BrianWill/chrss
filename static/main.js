@@ -164,12 +164,13 @@ var cardDescriptions = {
 <div>Click your King.<br/><br/>Summons an additional pawn (subject to usual max of 5 pawns and restrictions on pawn placement).</div>`,
     'Jester': `<h3>Jester: 3 mana cost, 12 HP, 0 attack</h3>
 <div>Click free square on your side to place.<br/><br/>Does not attack. Puts 'distract' effect on all adjacent squares except those behind the jester. A piece in a square with distract does not attack.</div>`,
-    'Vulnerability': `<h3>Vulnerability: 2 mana cost</h3>
-<div>Click enemy piece.<br/><br/>Doubles damage the targeted piece takes this round.</div>`,
-    'Amplify': `<h3>Amplify: 2 mana cost</h3>
-<div>Click allied piece.<br/><br/>Doubles damage the targeted piece inflicts this round.</div>`,
+    'Vulnerability': `<h3>Vulnerability: 2 mana cost, 1 round duration</h3>
+<div>Click enemy piece.<br/><br/>Doubles damage the targeted piece takes.</div>`,
+    'Amplify': `<h3>Amplify: 2 mana cost, 1 round duration</h3>
+<div>Click allied piece.<br/><br/>Doubles damage the targeted piece inflicts.</div>`,
+    'Enrage': `<h3>Enrage: 2 mana cost, 1 round duration</h3>
+<div>Click enemy piece.<br/><br/>Enraged piece hits allies as well as enemeies.</div>`,
 };
-
 
 
 var matchId = window.location.pathname.substring(7);
@@ -683,17 +684,16 @@ function drawStatusInfo(square, piece) {
         let pos = piece.positive;
         if (pos) {
             if (pos.amplify > 0) {
-                let round = (pos.amplify === 1) ? 'round' : 'rounds';
-                s += '<div class="status_entry positive">Amplify: piece inflicts double damage for ' +
-                pos.amplify + ' ' + round + '</div>';
+                s += '<div class="status_entry positive">Amplify: piece inflicts double damage. Remaining rounds: ' + pos.amplify + '</div>';
             }
         }
         let neg = piece.negative;
         if (neg) {
             if (neg.vulnerability > 0) {
-                let round = (neg.vulnerability === 1) ? 'round' : 'rounds';
-                s += '<div class="status_entry negative">Vulnerability: piece takes double damage for ' +
-                     neg.vulnerability + ' ' + round + '</div>';
+                s += '<div class="status_entry negative">Vulnerability: piece takes double damage. Remaining rounds: ' + neg.vulnerability + '</div>';
+            }
+            if (neg.enraged > 0) {
+                s += '<div class="status_entry negative">Enraged: piece attacks allies as well as enemies. Remaining rounds: ' + neg.enraged + '</div>';
             }
         }
     }

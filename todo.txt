@@ -3,28 +3,15 @@ on some browsers, scrollbar for card list and log not showing up when overflow-y
 
 in status info, show sources of damage
 
+on state change, update and display status info if cursor is over square with status effect
 
 
-stun vassal - vassal neither takes nor inflicts damage this round and cannot be reclaimed
-
-
+stun vassal - for 1 round, targeted vassal (friend or foe) is Distracted, Unreclaimable, and Immune 
 
 dodge - select vassal. Vassal is moved to random adjacent square. 
     can only be used on a vassal under threat and which has a free square adjacent 
-
-
-friendly fire - enemy piece hits allies as well as enemies this rounds
-
-
-
-
-
-
-
-
-
     
-resurect vassal - how to select? resurect a dead vassal to half health; puts back in your hand immediately? or for next turn?
+Resurect Vassal - resurects your dead vassal with 5 hp; puts back in your hand immediately
 
 
 
@@ -42,7 +29,7 @@ in deck builds, players choose a few high cost cards to start in their hand
     (so player's can better plan around high impact end game cards)
     or perhaps card draw always gives players one card of their current max mana? or max mana minus 1 or 2?
 
-perhaps vassals should be tankiest so using them as shields is not so discouraged
+perhaps vassals should be tankier so using them as shields is not so discouraged
 
 
 
