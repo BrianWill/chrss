@@ -45,10 +45,11 @@ func initMatch(m *Match) {
 	m.Log = []string{"Round 1"}
 
 	m.SpawnPawns(true)
-	m.CalculateDamage()
+	m.UpdateStatusAndDamage()
 
 	startingHand := []Card{
 		Card{queen, queenMana},
+		Card{jester, jesterMana},
 		Card{castleCard, castleMana},
 		Card{reclaimVassalCard, reclaimVassalMana},
 		Card{swapFrontLinesCard, swapFrontLinesMana},
@@ -83,7 +84,7 @@ func initMatch(m *Match) {
 	m.BlackPrivate.dimAllButFree(black, m.Board[:])
 	m.WhitePrivate.dimAllButFree(white, m.Board[:])
 
-	m.playableCards()
+	m.PlayableCards()
 }
 
 // returns nil for empty square
@@ -93,7 +94,15 @@ func (m *Match) getPiece(p Pos) *Piece {
 
 // returns -1 if invalid
 func (p *Pos) getBoardIdx() int {
-	idx := nColumns*p.Y + p.X
+	idx := p.X + nColumns*p.Y
+	if idx < 0 || idx >= (nColumns*nRows) {
+		return -1
+	}
+	return idx
+}
+
+func getBoardIdx(x int, y int) int {
+	idx := x + nColumns*y
 	if idx < 0 || idx >= (nColumns*nRows) {
 		return -1
 	}
@@ -166,7 +175,6 @@ func (m *Match) InflictDamage() {
 }
 
 func (m *Match) CalculateDamage() {
-	// todo
 	rookAttack := func(p Pos, color string, attack int) {
 		x := p.X + 1
 		y := p.Y
@@ -428,6 +436,10 @@ func (m *Match) CalculateDamage() {
 		}
 	}
 
+	jesterAttack := func(p Pos, color string, attack int) {
+		// do nothing: jester does not attack
+	}
+
 	pawnAttack := func(p Pos, color string, attack int) {
 		yOffset := 1
 		if color == black {
@@ -457,10 +469,15 @@ func (m *Match) CalculateDamage() {
 		rook:   rookAttack,
 		pawn:   pawnAttack,
 		queen:  queenAttack,
+		jester: jesterAttack,
 	}
 
 	// visit each piece, adding the damage it inflicts on other pieces
 	for i, p := range m.Board {
+		squareStatus := m.Combined[i]
+		if squareStatus != nil && squareStatus.Negative != nil && squareStatus.Negative.Distracted {
+			continue
+		}
 		if p != nil {
 			attackMap[p.Name](positions[i], p.Color, p.Attack)
 		}
@@ -483,7 +500,7 @@ func (m *Match) SpawnSinglePawn(color string, public *PublicState) bool {
 		return false
 	}
 	for _, v := range columns {
-		m.setPiece(Pos{v, rand.Intn(2) + offset}, Piece{pawn, public.Color, pawnHP, pawnAttack, 0})
+		m.setPiece(Pos{v, rand.Intn(2) + offset}, Piece{pawn, public.Color, pawnHP, pawnAttack, 0, nil})
 	}
 	public.NumPawns += n
 	return true
@@ -528,7 +545,7 @@ func (m *Match) SpawnPawns(init bool) {
 		columns = randSelect(n, columns)
 		n = len(columns)
 		for _, v := range columns {
-			m.setPiece(Pos{v, rand.Intn(2) + offset}, Piece{pawn, public.Color, pawnHP, pawnAttack, 0})
+			m.setPiece(Pos{v, rand.Intn(2) + offset}, Piece{pawn, public.Color, pawnHP, pawnAttack, 0, nil})
 		}
 		public.NumPawns += n
 		switch n {
@@ -583,7 +600,7 @@ func (m *Match) states(color string) (*PublicState, *PrivateState) {
 	}
 }
 
-func (m *Match) playableCards() {
+func (m *Match) PlayableCards() {
 	// determine which cards are playable for each player given state of board
 	public, private := m.states(white)
 	for i := 0; i < 2; i++ {
@@ -592,7 +609,7 @@ func (m *Match) playableCards() {
 			private.PlayableCards[j] = false
 			if public.ManaCurrent >= c.ManaCost {
 				switch c.Name {
-				case bishop, knight, rook, queen:
+				case bishop, knight, rook, queen, jester:
 					// todo: check if a free square is available on player's side
 					private.PlayableCards[j] = true
 				case castleCard:
@@ -775,7 +792,7 @@ func (m *Match) clickCard(player string, public *PublicState, private *PrivateSt
 						if public.RookPlayed || public.KnightPlayed || public.BishopPlayed {
 							private.dimAllButTypes([]string{bishop, knight, rook}, player, board)
 						}
-					default:
+					case rook, bishop, knight, queen, jester:
 						private.dimAllButFree(player, board)
 					}
 				}
@@ -849,7 +866,7 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 			if !m.playSummonPawn(p, public) {
 				return
 			}
-		case bishop, knight, rook, queen:
+		case bishop, knight, rook, queen, jester:
 			// ignore clicks on occupied spaces
 			if m.getPieceSafe(p) != nil {
 				return
@@ -863,22 +880,24 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 			}
 			switch card.Name {
 			case bishop:
-				m.setPiece(p, Piece{bishop, player, public.BishopHP, public.BishopAttack, 0})
+				m.setPiece(p, Piece{bishop, player, public.BishopHP, public.BishopAttack, 0, public.BishopStatus})
 				public.BishopPlayed = true
 			case knight:
-				m.setPiece(p, Piece{knight, player, public.KnightHP, public.KnightAttack, 0})
+				m.setPiece(p, Piece{knight, player, public.KnightHP, public.KnightAttack, 0, public.KnightStatus})
 				public.KnightPlayed = true
 			case rook:
-				m.setPiece(p, Piece{rook, player, public.RookHP, public.RookAttack, 0})
+				m.setPiece(p, Piece{rook, player, public.RookHP, public.RookAttack, 0, public.RookStatus})
 				public.RookPlayed = true
 			case queen:
-				m.setPiece(p, Piece{queen, player, queenHP, queenAttack, 0})
+				m.setPiece(p, Piece{queen, player, queenHP, queenAttack, 0, nil})
+			case jester:
+				m.setPiece(p, Piece{jester, player, jesterHP, jesterAttack, 0, nil})
 			}
 		}
 		public.ManaCurrent -= card.ManaCost
 		m.Log = append(m.Log, player+" played "+card.Name)
 		private.RemoveCard(private.SelectedCard)
-		m.playableCards()
+		m.PlayableCards()
 		m.EndTurn(false, player)
 		newTurn = true
 		notifyOpponent = true
@@ -922,7 +941,7 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 		}
 		public.KingPlayed = true
 		m.Log = append(m.Log, player+" played King")
-		m.setPiece(p, Piece{king, player, public.KingHP, public.KingAttack, 0})
+		m.setPiece(p, Piece{king, player, public.KingHP, public.KingAttack, 0, public.KingStatus})
 		newTurn = m.EndKingPlacement()
 		notifyOpponent = true
 	}
@@ -1188,11 +1207,11 @@ func (m *Match) checkWinCondition() bool {
 		m.Phase = gameoverPhase
 		return true
 	} else if whiteLose {
-		m.Winner = white
+		m.Winner = black
 		m.Phase = gameoverPhase
 		return true
 	} else if blackLose {
-		m.Winner = black
+		m.Winner = white
 		m.Phase = gameoverPhase
 		return true
 	}
@@ -1315,9 +1334,7 @@ func (m *Match) ReclaimPieces() {
 						if public.RookHP > rookHP {
 							public.RookHP = rookHP
 						}
-					case queen:
-						m.removePieceAt(pos)
-					case pawn:
+					case queen, pawn, jester:
 						m.removePieceAt(pos)
 					default:
 
@@ -1357,7 +1374,7 @@ func (m *Match) EndRound() {
 	m.BlackPrivate.SelectedCard = -1
 
 	m.SpawnPawns(false)
-	m.CalculateDamage()
+	m.UpdateStatusAndDamage()
 
 	if m.WhitePublic.KingPlayed && m.BlackPublic.KingPlayed {
 		m.Phase = mainPhase
@@ -1376,7 +1393,7 @@ func (m *Match) EndRound() {
 			m.BlackPrivate.dimAllButFree(black, m.Board[:])
 		}
 	}
-	m.playableCards()
+	m.PlayableCards()
 }
 
 func (p *PrivateState) dimAllButFree(color string, board []*Piece) {
@@ -1515,14 +1532,73 @@ func (p *PrivateState) dimAllButTypes(pieceTypes []string, color string, board [
 	}
 }
 
+// these things are always done together and in this order, hence this method
+func (m *Match) UpdateStatusAndDamage() {
+	m.CalculateSquareStatus()
+	m.CalculateDamage()
+}
+
+// generate m.Combined from m.Direct + square status effects from the piece's
+func (m *Match) CalculateSquareStatus() {
+	m.Combined = m.Direct
+	// get status effects from pieces
+	for i, piece := range m.Board {
+		if piece != nil {
+			switch piece.Name {
+			case jester:
+				pos := positions[i]
+				y := pos.Y + 1
+				if piece.Color == black {
+					y = pos.Y - 1
+				}
+				indexes := [5]int{
+					getBoardIdx(pos.X-1, pos.Y), // left of jester
+					getBoardIdx(pos.X+1, pos.Y), // right
+					getBoardIdx(pos.X-1, y),     // front left
+					getBoardIdx(pos.X, y),       // front
+					getBoardIdx(pos.X+1, y),     // front right
+				}
+				for _, idx := range indexes {
+					if idx != -1 {
+						status := initSquareStatusNegative(&m.Combined[idx])
+						status.Negative.Distracted = true
+					}
+				}
+			}
+		}
+	}
+}
+
+// init SquareStatus at loc with non-nil Negative if not already present
+func initSquareStatusNegative(status **SquareStatus) *SquareStatus {
+	if *status == nil {
+		*status = &SquareStatus{}
+	}
+	if (*status).Negative == nil {
+		(*status).Negative = &SquareNegativeStatus{}
+	}
+	return *status
+}
+
+// init SquareStatus at loc with non-nil Positive if not already present
+func initSquareStatusPositive(status **SquareStatus) *SquareStatus {
+	if *status == nil {
+		*status = &SquareStatus{}
+	}
+	if (*status).Positive == nil {
+		(*status).Positive = &SquarePositiveStatus{}
+	}
+	return *status
+}
+
 func (m *Match) EndKingPlacement() bool {
 	if m.WhitePublic.KingPlayed && m.BlackPublic.KingPlayed {
-		m.CalculateDamage()
+		m.UpdateStatusAndDamage()
 		m.LastMoveTime = time.Now().UnixNano()
 		m.WhitePrivate.highlightsOff()
 		m.BlackPrivate.highlightsOff()
 		m.Phase = mainPhase
-		m.playableCards()
+		m.PlayableCards()
 		return true
 	}
 	return false
@@ -1531,7 +1607,7 @@ func (m *Match) EndKingPlacement() bool {
 // pass = if turn is ending by passing; player = color whose turn is ending
 func (m *Match) EndTurn(pass bool, player string) {
 	m.LastMoveTime = time.Now().UnixNano()
-	m.CalculateDamage()
+	m.UpdateStatusAndDamage()
 
 	if pass && m.PassPrior { // if players both pass in succession, do combat
 		m.InflictDamage()
@@ -1542,7 +1618,8 @@ func (m *Match) EndTurn(pass bool, player string) {
 			m.WhitePrivate.dimAllButPieces(white, m.Board[:])
 		}
 
-		m.CalculateDamage() // with some blocking pieces possibly removed, lines of attack change
+		// with some blocking pieces possibly removed, status and lines of attack may change
+		m.UpdateStatusAndDamage()
 	} else {
 		if m.Turn == black {
 			m.Turn = white

@@ -18,8 +18,8 @@
       <ul>
           {{range .Open}}
               <li>{{.Name}} ({{.Elapsed}} ago) 
-                {{if .BlackOpen}}<a href="/match/{{.Name}}/black">black</a>{{end}} 
                 {{if .WhiteOpen}}<a href="/match/{{.Name}}/white">white</a>{{end}}
+                {{if .BlackOpen}}<a href="/match/{{.Name}}/black">black</a>{{end}} 
                 {{if and .WhiteOpen .BlackOpen}}<a href="/dev/{{.Name}}">play both sides</a>{{end}}
               </li>
           {{end}}

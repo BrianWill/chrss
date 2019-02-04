@@ -21,6 +21,7 @@ const (
 	rook   = "Rook"
 	bishop = "Bishop"
 	knight = "Knight"
+	jester = "Jester"
 )
 
 const (
@@ -40,6 +41,9 @@ const (
 	queenHP      = 15
 	queenAttack  = 6
 	queenMana    = 3
+	jesterHP     = 12
+	jesterAttack = 0
+	jesterMana   = 3
 )
 
 const (
@@ -89,7 +93,8 @@ const kingInstruction = "Pick a square to place your king."
 const nColumns = 6
 const nRows = 6
 
-const turnTimer = 50 * int64(time.Second)
+//const turnTimer = 50 * int64(time.Second)
+const turnTimer = 50 * int64(time.Minute) // temp for dev purposes
 const maxConcurrentMatches = 100
 
 const (
@@ -117,10 +122,16 @@ type Match struct {
 	WhiteConn *websocket.Conn
 	Mutex     sync.RWMutex
 	// rows stored in order top-to-bottom, e.g. nColumns is index of leftmost square in second row
-	// (*Pierce better for empty square when JSONifying; Board[i] points to pieces[i]; the array is here simply for memory locality)
-	pieces         [nColumns * nRows]Piece  // zero value for empty square
-	Board          [nColumns * nRows]*Piece // nil for empty square
-	CommunalCards  []Card                   // card in pool shared by both players
+	// (*Pierce better for empty square when JSONifying; Board[i] points to pieces[i]
+	// the array is here simply for memory locality)
+	// white side is indexes 0 up to (nColumns*nRows)/2
+	pieces [nColumns * nRows]Piece         // zero value for empty square
+	Board  [nColumns * nRows]*Piece        // nil for empty square
+	Direct [nColumns * nRows]*SquareStatus // the status effects applied directly to squares
+	// the status effects on squares from pieces combined with the effects applied directly to the squares
+	// (should be recomputed any time pieces are placed/moved/killed)
+	Combined       [nColumns * nRows]*SquareStatus
+	CommunalCards  []Card // card in pool shared by both players
 	BlackPrivate   PrivateState
 	WhitePrivate   PrivateState
 	BlackPublic    PublicState
@@ -147,10 +158,15 @@ type PrivateState struct {
 	Other             *PrivateState         `json:"-"`
 }
 
+// individual player state that is visible to all
 type PublicState struct {
 	Ready                bool         `json:"ready"` // match does not start until both player's are ready
 	ReclaimSelectionMade bool         `json:"reclaimSelectionMade"`
 	KingPlayed           bool         `json:"kingPlayed"`
+	KingStatus           *PieceStatus `json:"kingStatus"`
+	BishopStatus         *PieceStatus `json:"bishopStatus"`
+	RookStatus           *PieceStatus `json:"rookStatus"`
+	KnightStatus         *PieceStatus `json:"knightStatus"`
 	BishopPlayed         bool         `json:"bishopPlayed"`
 	KnightPlayed         bool         `json:"knightPlayed"`
 	RookPlayed           bool         `json:"rookPlayed"`
@@ -170,11 +186,37 @@ type PublicState struct {
 }
 
 type Piece struct {
-	Name   string `json:"name"`
-	Color  string `json:"color"`
-	HP     int    `json:"hp"`
-	Attack int    `json:"attack"`
-	Damage int    `json:"damage"` // amount of damage unit will take in combat
+	Name   string       `json:"name"`
+	Color  string       `json:"color"`
+	HP     int          `json:"hp"`
+	Attack int          `json:"attack"`
+	Damage int          `json:"damage"` // amount of damage unit will take in combat
+	Status *PieceStatus `json:"status"`
+}
+
+// status effects applied to individual square
+type SquareStatus struct {
+	Negative *SquareNegativeStatus `json:"negative"`
+	Positive *SquarePositiveStatus `json:"positive"`
+}
+
+type SquareNegativeStatus struct {
+	Distracted bool `json:"distracted"`
+}
+
+type SquarePositiveStatus struct {
+}
+
+// status effects applied to individual pieces
+type PieceStatus struct {
+	Negative *PieceNegativeStatus `json:"negative"`
+	Positive *PiecePositiveStatus `json:"positive"`
+}
+
+type PieceNegativeStatus struct {
+}
+
+type PiecePositiveStatus struct {
 }
 
 type Pos struct {

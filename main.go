@@ -124,7 +124,7 @@ func processMessage(msg []byte, match *Match, player string) {
 						// randomly place king in free square
 						// because we must have reclaimed the King, there will always be a free square at this point
 						pos, _ := match.RandomFreeSquare(color)
-						match.setPiece(pos, Piece{king, color, public.KingHP, public.KingAttack, 0})
+						match.setPiece(pos, Piece{king, color, public.KingHP, public.KingAttack, 0, public.KingStatus})
 						public.KingPlayed = true
 						match.Log = append(match.Log, color+" played King")
 					}
@@ -176,6 +176,7 @@ func processMessage(msg []byte, match *Match, player string) {
 				"turnRemainingMilliseconds": remainingTurnTime,
 				"color":                     color,
 				"board":                     match.Board,
+				"boardStatus":               match.Combined,
 				"private":                   private,
 				"turn":                      match.Turn,
 				"newTurn":                   newTurn,

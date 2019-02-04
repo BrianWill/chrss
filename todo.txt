@@ -2,14 +2,14 @@ on some browsers, scrollbar for card list and log not showing up when overflow-y
 
 
 
-restore mana - restore your mana to max
 
-summon pawn - Click your King. Summons an additional pawn. (max count of pawns and position constraints apply)
+
+
 
 dodge - select vassal. Vassal is moved to random adjacent square. 
     can only be used on a vassal under threat and which has a free square adjacent 
 
-
+friendly fire - enemy piece hits allies as well as enemies this rounds
 
 
 
@@ -164,9 +164,9 @@ card ideas:
 
     
 
-    pawn - place a pawn in a free pawn position (get to choose precise square); cannot exceed the max of 5 pawns    
+    Place Pawn - place a pawn in any free square on your side (get to choose precise square); cannot be played if you already have 5 pawns    
+        counts towards your max pawn limit
 
-    friendly fire - enemy piece hits allies as well as enemies this rounds
 
     mimic bishop - knight or rook adopts bishop attack pattern for this and next 2 rounds
 

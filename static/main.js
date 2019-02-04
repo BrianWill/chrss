@@ -12,6 +12,7 @@ sword.volume = 0.5;
 
 var cardList = document.getElementById('card_list');
 var cardDescription = document.getElementById('card_description');
+var statusInfo = document.getElementById('status_info');
 var passButton = document.getElementById('pass_button');
 var waitOpponent = document.getElementById('wait_opponent');
 var timer = document.getElementById('timer');
@@ -79,6 +80,49 @@ skullImg.onload = function (evt) {
     }
 };
 
+var downArrowImg = new Image();
+downArrowImg.src = '/static/arrow_down_red.svg';
+downArrowImg.spriteWidth = 512;
+downArrowImg.spriteHeight = 512;
+downArrowImg.onload = function (evt) {
+    if (matchState) {
+        draw(matchState);
+    }
+};
+
+
+var upArrowImg = new Image();
+upArrowImg.src = '/static/arrow_up_green.svg';
+upArrowImg.spriteWidth = 512;
+upArrowImg.spriteHeight = 512;
+upArrowImg.onload = function (evt) {
+    if (matchState) {
+        draw(matchState);
+    }
+};
+
+
+var jesterBlack = new Image();
+jesterBlack.src = '/static/black_jester.svg';
+jesterBlack.spriteWidth = 512;
+jesterBlack.spriteHeight = 512;
+jesterBlack.onload = function (evt) {
+    if (matchState) {
+        draw(matchState);
+    }
+};
+
+var jesterWhite = new Image();
+jesterWhite.src = '/static/white_jester.svg';
+jesterWhite.spriteWidth = 512;
+jesterWhite.spriteHeight = 512;
+jesterWhite.onload = function (evt) {
+    if (matchState) {
+        draw(matchState);
+    }
+};
+
+
 var cardDescriptions = {
     'Rook': `<h3>Rook: 0 mana cost, 20 HP, 6 attack</h3>
 <div>Click free square on your side to place.</div><br/><div>Attacks up/down/left/right. You only get one Rook in the match. When reclaimed, its HP and status effects persist, and you get a Rook card back in your hand. When reclaimed, healed for 5 HP.</div>`,
@@ -118,6 +162,8 @@ var cardDescriptions = {
 <div>Click your King.<br/><br/>Restores your mana to max.</div>`,
     'Summon Pawn': `<h3>Summon Pawn: 2 mana cost</h3>
 <div>Click your King.<br/><br/>Summons an additional pawn (subject to usual max of 5 pawns and restrictions on pawn placement).</div>`,
+    'Jester': `<h3>Jester: 3 mana cost, 12 HP, 0 attack</h3>
+<div>Click free square on your side to place.<br/><br/>Does not attack. Puts 'distract' effect on all adjacent squares except those behind the jester. A piece in a square with distract does not attack.</div>`,
 };
 
 
@@ -158,17 +204,21 @@ conn.onmessage = function(msg){
     draw(matchState);
 
     // sounds
-    if (matchState.newRound) {
-        fanfare.play();
-    } else if (matchState.newTurn) {
-        switch (matchState.phase) {
-            case 'reclaim':
-                sword.play();
-                break;
-            case 'main':
-                campanas.play();
-                break;
+    try {
+        if (matchState.newRound) {
+            fanfare.play();
+        } else if (matchState.newTurn) {
+            switch (matchState.phase) {
+                case 'reclaim':
+                    sword.play();
+                    break;
+                case 'main':
+                    campanas.play();
+                    break;
+            }
         }
+    } catch (ex) {
+        console.log(ex);
     }
 
     waitingResponse = false;
@@ -194,6 +244,7 @@ conn.onopen = function(){
 function draw(matchState) {
     drawBoard(ctx);
     drawPieces(ctx, matchState);
+    drawStatusIcons(ctx, matchState);
     drawSquareHighlight(ctx, matchState);
     drawWait(ctx, matchState);
     drawWinner(ctx, matchState.winner);
@@ -388,10 +439,22 @@ function draw(matchState) {
             var piece = pieces[flipped ? pieces.length - 1 - i : i];
             
             if (piece) {
-                var coords = piecesImg.pieceImageCoords[piece.color + "_" + piece.name];
-                ctx.drawImage(piecesImg, coords.x, coords.y, piecesImg.pieceWidth, piecesImg.pieceHeight, 
-                    x, y, board.squareWidth, board.squareHeight
-                );
+                switch (piece.name) {
+                    case "Jester":
+                        var img = jesterBlack;
+                        if (piece.color === 'white') {
+                            img = jesterWhite;
+                        }
+                        ctx.drawImage(img, 0, 0, img.spriteWidth, img.spriteHeight,
+                            x, y, board.squareWidth, board.squareHeight
+                        );
+                        break;
+                    default:
+                        var coords = piecesImg.pieceImageCoords[piece.color + "_" + piece.name];
+                        ctx.drawImage(piecesImg, coords.x, coords.y, piecesImg.pieceWidth, piecesImg.pieceHeight, 
+                            x, y, board.squareWidth, board.squareHeight
+                        );
+                }
 
                 ctx.font = '13px Arial';
                 var rightX = x + board.squareWidth - hpOffsetX;
@@ -424,6 +487,73 @@ function draw(matchState) {
             }
         }
     }
+
+    function drawStatusIcons(ctx, match) {
+        var flipped = match.color === "white";
+        var boardStatus = match.boardStatus;
+        var pieces = matchState.board;
+        var x = 0;
+        var y = 0;
+        const squareUpOffsetX = 2;
+        const squareUpOffsetY = 80;
+        const squareDownOffsetX = 86;
+        const squareDownOffsetY = 80;
+
+        const squareArrowWidth = board.squareWidth / 5;
+        const squareArrowHeight = board.squareHeight / 5;
+
+        const pieceArrowWidth = board.squareWidth / 7;
+        const pieceArrowHeight = board.squareHeight / 7;
+
+        const upOffsetX = 30;
+        const upOffsetY = 5;
+        const downOffsetX = 60;
+        const downOffsetY = 5;
+
+
+        var column = 0;
+        for (var i = 0; i < boardStatus.length; i++) {
+            var squareStatus = boardStatus[flipped ? boardStatus.length - 1 - i : i];
+            var piece = pieces[flipped ? pieces.length - 1 - i : i];
+            
+            if (squareStatus) {
+                if (squareStatus.positive) {
+                    ctx.drawImage(upArrowImg, 0, 0, upArrowImg.spriteWidth, upArrowImg.spriteHeight, 
+                        x + squareUpOffsetX, y + squareUpOffsetY, squareArrowWidth, squareArrowHeight
+                    );    
+                }
+
+                if (squareStatus.negative) {
+                    ctx.drawImage(downArrowImg, 0, 0, downArrowImg.spriteWidth, downArrowImg.spriteHeight, 
+                        x + squareDownOffsetX, y + squareDownOffsetY, squareArrowWidth, squareArrowHeight
+                    );    
+                }
+            }
+
+            if (piece && piece.status) {
+                if (piece.status.positive) {
+                    ctx.drawImage(upArrowImg, 0, 0, upArrowImg.spriteWidth, upArrowImg.spriteHeight, 
+                        x + upOffsetX, y + upOffsetY, pieceArrowWidth, pieceArrowHeight
+                    );    
+                }
+
+                if (piece.status.negative) {
+                    ctx.drawImage(downArrowImg, 0, 0, downArrowImg.spriteWidth, downArrowImg.spriteHeight, 
+                        x + downOffsetX, y + downOffsetY, pieceArrowWidth, pieceArrowHeight
+                    );    
+                }
+            }
+
+            x += board.squareWidth;
+            column++;
+            if (column == board.nColumns) {
+                x = 0;
+                column = 0;
+                y += board.squareHeight;
+            }
+        }
+    }
+
 
 
     function drawSquareHighlight(ctx, match) {
@@ -519,6 +649,47 @@ function draw(matchState) {
     }
 }
 
+var lastSquare = null;
+var lastPiece = null;
+
+// square = square status, piece = piece status
+function drawStatusInfo(square, piece) {
+    console.log("draw status info", square, piece);
+    if (square === lastSquare && piece === lastPiece) {
+        return;
+    }
+    lastSquare = square;
+    lastPiece = piece;
+    var s = '';
+
+    if (square) {
+        s += '<h3>Square status effects:</h3>';
+        var pos = square.positive;
+        if (pos) {
+        }
+        var neg = square.negative;
+        if (neg) {
+            if (neg.distracted) {
+                s += '<div class="status_entry negative">Distracted (piece in this square will not attack)</div>';
+            }
+        }
+    }
+
+    if (piece) {
+        pos = piece.positive;
+        if (pos) {
+            s += '<h3>Positive piece status effects:</h3>';
+        }
+        neg = piece.negative;
+        if (neg) {
+            s += '<h3>Negative piece status effects:</h3>';
+        }
+    }
+    
+    statusInfo.innerHTML = s;
+}
+
+
 function drawTimer(match) {
     switch (matchState.phase) {
         case 'main':
@@ -605,6 +776,7 @@ cardList.addEventListener('mouseleave', function (evt) {
                 c.classList.remove('highlight_card');
             }
             cardDescription.style.display = 'none';
+            statusInfo.style.display = 'none';
             logBox.style.display = 'block';
             break;
     }
@@ -618,12 +790,14 @@ cardList.addEventListener('mouseover', function (evt) {
             var idx = evt.target.getAttribute('cardIdx');
             if (idx === '' || idx === null) {
                 cardDescription.style.display = 'none';
+                statusInfo.style.display = 'none';
                 logBox.style.display = 'block';
                 return;
             }
             cardDescription.innerHTML = cardDescriptions[matchState.private.cards[idx].name];
             cardDescription.style.display = 'block';
             logBox.style.display = 'none';
+            statusInfo.style.display = 'none';
             for (var c of cardList.children) {
                 if (c === evt.target) {
                     c.classList.add('highlight_card');
@@ -635,6 +809,62 @@ cardList.addEventListener('mouseover', function (evt) {
     }
 }, false);
 
+
+canvas.addEventListener('mousemove', function (evt) {
+    switch (matchState.phase) {
+        case 'main':
+        case 'reclaim':
+        case 'kingPlacement':
+            var rect = canvas.getBoundingClientRect();
+            var mouseX = evt.clientX - rect.left;
+            var mouseY = evt.clientY - rect.top;
+        
+            var squareX = Math.floor(mouseX / board.squareWidth);
+            var squareY = Math.floor(mouseY / board.squareHeight);
+
+            if (squareX < 0) {
+                squareX = 0;
+            } else if (squareX >= board.nColumns) {
+                squareX = board.nColumns - 1;
+            }
+            if (squareY < 0) {
+                squareY = 0;
+            } else if (squareY >= board.nRows) {
+                squareY = board.nRows - 1;
+            }
+        
+            // invert for white player
+            if (matchState.color === "white") {
+                squareX = board.nColumns - 1 - squareX;
+                squareY = board.nRows - 1 - squareY;
+            }
+
+            var idx = squareX + squareY * board.nColumns;
+            var squareStatus = matchState.boardStatus[idx];
+            var piece = matchState.board[idx];
+            var pieceStatus = null;
+            if (piece) {
+                pieceStatus = piece.status;
+            }
+            if (squareStatus || pieceStatus) {
+                drawStatusInfo(squareStatus, pieceStatus);
+                cardDescription.style.display = 'none';
+                logBox.style.display = 'none';
+                statusInfo.style.display = 'block';
+            } else {
+                cardDescription.style.display = 'none';
+                logBox.style.display = 'block';
+                statusInfo.style.display = 'none';
+            }
+            break;
+    }
+}, false);
+
+canvas.addEventListener('mouseleave', function (evt) {
+    cardDescription.style.display = 'none';
+    logBox.style.display = 'block';
+    statusInfo.style.display = 'none';
+}, false);
 
 canvas.addEventListener('mousedown', function (evt) {
     if (waitingResponse) {
