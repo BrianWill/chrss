@@ -47,38 +47,41 @@ const (
 )
 
 const (
-	castleCard         = "Castle"
-	castleMana         = 2
-	reclaimVassalCard  = "Reclaim Vassal"
-	reclaimVassalMana  = 2
-	swapFrontLinesCard = "Swap Front Lines"
-	swapFrontLinesMana = 2
-	removePawnCard     = "Remove Pawn"
-	removePawnMana     = 2
-	forceCombatCard    = "Force Combat"
-	forceCombatMana    = 3
-	mirrorCard         = "Mirror"
-	mirrorMana         = 2
-	healCard           = "Heal"
-	healMana           = 2
-	healCardAmount     = 5
-	drainManaCard      = "Drain Mana"
-	drainManaMana      = 2
-	drainManaAmount    = 2
-	togglePawnCard     = "Toggle Pawn"
-	togglePawnMana     = 1
-	nukeCard           = "Nuke"
-	nukeMana           = 2
-	nukeDamageFull     = 6
-	nukeDamageLesser   = 3
-	shoveCard          = "Shove"
-	shoveMana          = 2
-	advanceCard        = "Advance"
-	advanceMana        = 2
-	restoreManaCard    = "Restore Mana"
-	restoreManaMana    = 2
-	summonPawnCard     = "Summon Pawn"
-	summonPawnMana     = 2
+	castleCard          = "Castle"
+	castleMana          = 2
+	reclaimVassalCard   = "Reclaim Vassal"
+	reclaimVassalMana   = 2
+	swapFrontLinesCard  = "Swap Front Lines"
+	swapFrontLinesMana  = 2
+	removePawnCard      = "Remove Pawn"
+	removePawnMana      = 2
+	forceCombatCard     = "Force Combat"
+	forceCombatMana     = 3
+	mirrorCard          = "Mirror"
+	mirrorMana          = 2
+	healCard            = "Heal"
+	healMana            = 2
+	healCardAmount      = 5
+	drainManaCard       = "Drain Mana"
+	drainManaMana       = 2
+	drainManaAmount     = 2
+	togglePawnCard      = "Toggle Pawn"
+	togglePawnMana      = 1
+	nukeCard            = "Nuke"
+	nukeMana            = 2
+	nukeDamageFull      = 6
+	nukeDamageLesser    = 3
+	shoveCard           = "Shove"
+	shoveMana           = 2
+	advanceCard         = "Advance"
+	advanceMana         = 2
+	restoreManaCard     = "Restore Mana"
+	restoreManaMana     = 2
+	summonPawnCard      = "Summon Pawn"
+	summonPawnMana      = 2
+	vulnerabilityCard   = "Vulnerability"
+	vulnerabilityMana   = 2
+	vulnerabilityFactor = 2
 )
 
 const (
@@ -125,12 +128,12 @@ type Match struct {
 	// (*Pierce better for empty square when JSONifying; Board[i] points to pieces[i]
 	// the array is here simply for memory locality)
 	// white side is indexes 0 up to (nColumns*nRows)/2
-	pieces [nColumns * nRows]Piece         // zero value for empty square
-	Board  [nColumns * nRows]*Piece        // nil for empty square
-	Direct [nColumns * nRows]*SquareStatus // the status effects applied directly to squares
+	pieces [nColumns * nRows]Piece        // zero value for empty square
+	Board  [nColumns * nRows]*Piece       // nil for empty square
+	Direct [nColumns * nRows]SquareStatus // the status effects applied directly to squares
 	// the status effects on squares from pieces combined with the effects applied directly to the squares
 	// (should be recomputed any time pieces are placed/moved/killed)
-	Combined       [nColumns * nRows]*SquareStatus
+	Combined       [nColumns * nRows]SquareStatus
 	CommunalCards  []Card // card in pool shared by both players
 	BlackPrivate   PrivateState
 	WhitePrivate   PrivateState
@@ -214,9 +217,11 @@ type PieceStatus struct {
 }
 
 type PieceNegativeStatus struct {
+	Vulnerability int `json:"vulnerability"` // increase damage this piece takes (for n rounds); 0 if not in effect
 }
 
 type PiecePositiveStatus struct {
+	Amplify int `json:"amplify"` // increase damage this piece inflicts (for n rounds); 0 if not in effect
 }
 
 type Pos struct {

@@ -164,6 +164,8 @@ var cardDescriptions = {
 <div>Click your King.<br/><br/>Summons an additional pawn (subject to usual max of 5 pawns and restrictions on pawn placement).</div>`,
     'Jester': `<h3>Jester: 3 mana cost, 12 HP, 0 attack</h3>
 <div>Click free square on your side to place.<br/><br/>Does not attack. Puts 'distract' effect on all adjacent squares except those behind the jester. A piece in a square with distract does not attack.</div>`,
+    'Vulnerability': `<h3>Vulnerability: 2 mana cost</h3>
+<div>Click enemy piece.<br/><br/>Doubles damage the targeted piece takes this round.</div>`,
 };
 
 
@@ -661,13 +663,13 @@ function drawStatusInfo(square, piece) {
     lastSquare = square;
     lastPiece = piece;
     var s = '';
-
+    
     if (square) {
         s += '<h3>Square status effects:</h3>';
-        var pos = square.positive;
+        let pos = square.positive;
         if (pos) {
         }
-        var neg = square.negative;
+        let neg = square.negative;
         if (neg) {
             if (neg.distracted) {
                 s += '<div class="status_entry negative">Distracted (piece in this square will not attack)</div>';
@@ -676,13 +678,18 @@ function drawStatusInfo(square, piece) {
     }
 
     if (piece) {
-        pos = piece.positive;
+        let pos = piece.positive;
         if (pos) {
             s += '<h3>Positive piece status effects:</h3>';
         }
-        neg = piece.negative;
+        let neg = piece.negative;
         if (neg) {
             s += '<h3>Negative piece status effects:</h3>';
+            if (neg.vulnerability > 0) {
+                let round = (neg.vulnerability === 1) ? 'round' : 'rounds';
+                s += '<div class="status_entry negative">Vulnerability (piece takes double damage) for ' +
+                     neg.vulnerability + ' ' + round + '</div>';
+            }
         }
     }
     

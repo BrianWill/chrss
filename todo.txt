@@ -1,27 +1,29 @@
 on some browsers, scrollbar for card list and log not showing up when overflow-y
 
 
+simpler if square and piece always has status, but pos neg are nil when no effects
 
 
+
+stun vassal - vassal neither takes nor inflicts damage this round and cannot be reclaimed
+
+amplify - cast on enemy - doubles all damage taken this round
 
 
 
 dodge - select vassal. Vassal is moved to random adjacent square. 
     can only be used on a vassal under threat and which has a free square adjacent 
 
+
 friendly fire - enemy piece hits allies as well as enemies this rounds
 
 
 
 
-amplify - cast on enemy - doubles all damage taken this round
-
-stun vassal - vassal neither takes nor inflicts damage this round and cannot be reclaimed
 
 
-court jester - (use jester icons) distracts: nullifies attacks from any square immediately in front or to side of jester (affects allies as well as enemies)
-    (need to update square status affects if jester is moved)
-    (in square status, distinguish from square effects emanating from pieces and those effects directly affecting square itself)
+
+
 
     
 resurect vassal - how to select? resurect a dead vassal to half health; puts back in your hand immediately? or for next turn?

@@ -52,6 +52,7 @@ func initMatch(m *Match) {
 		Card{jester, jesterMana},
 		Card{castleCard, castleMana},
 		Card{reclaimVassalCard, reclaimVassalMana},
+		Card{vulnerabilityCard, vulnerabilityMana},
 		Card{swapFrontLinesCard, swapFrontLinesMana},
 		Card{removePawnCard, removePawnMana},
 		Card{forceCombatCard, forceCombatMana},
@@ -475,11 +476,25 @@ func (m *Match) CalculateDamage() {
 	// visit each piece, adding the damage it inflicts on other pieces
 	for i, p := range m.Board {
 		squareStatus := m.Combined[i]
-		if squareStatus != nil && squareStatus.Negative != nil && squareStatus.Negative.Distracted {
+		if squareStatus.Negative != nil && squareStatus.Negative.Distracted {
 			continue
 		}
 		if p != nil {
 			attackMap[p.Name](positions[i], p.Color, p.Attack)
+		}
+	}
+
+	for _, p := range m.Board {
+		if p != nil && p.Status != nil {
+			neg := p.Status.Negative
+			if neg != nil {
+				if neg.Vulnerability > 0 {
+					p.Damage *= vulnerabilityFactor
+				}
+			}
+			pos := p.Status.Positive
+			if pos != nil {
+			}
 		}
 	}
 }
@@ -612,6 +627,8 @@ func (m *Match) PlayableCards() {
 				case bishop, knight, rook, queen, jester:
 					// todo: check if a free square is available on player's side
 					private.PlayableCards[j] = true
+				case forceCombatCard, mirrorCard, nukeCard, vulnerabilityCard, swapFrontLinesCard:
+					private.PlayableCards[j] = true
 				case castleCard:
 					if public.RookPlayed || public.Other.RookPlayed {
 						private.PlayableCards[j] = true
@@ -620,16 +637,10 @@ func (m *Match) PlayableCards() {
 					if public.RookPlayed || public.KnightPlayed || public.BishopPlayed {
 						private.PlayableCards[j] = true
 					}
-				case forceCombatCard:
-					private.PlayableCards[j] = true
-				case mirrorCard:
-					private.PlayableCards[j] = true
 				case drainManaCard:
 					if public.Other.ManaCurrent > 0 {
 						private.PlayableCards[j] = true
 					}
-				case nukeCard:
-					private.PlayableCards[j] = true
 				case shoveCard:
 					if len(m.shoveablePieces()) > 0 {
 						private.PlayableCards[j] = true
@@ -657,8 +668,6 @@ func (m *Match) PlayableCards() {
 					if public.NumPawns > 0 || public.Other.NumPawns > 0 {
 						private.PlayableCards[j] = true
 					}
-				case swapFrontLinesCard:
-					private.PlayableCards[j] = true
 				}
 			}
 		}
@@ -775,6 +784,8 @@ func (m *Match) clickCard(player string, public *PublicState, private *PrivateSt
 						private.dimAllBut(m.toggleablePawns())
 					case nukeCard:
 						private.dimAllButType(king, none, board)
+					case vulnerabilityCard:
+						private.dimAllButPieces(otherColor(player), board)
 					case shoveCard:
 						private.dimAllBut(m.shoveablePieces())
 					case advanceCard:
@@ -848,6 +859,10 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 			}
 		case nukeCard:
 			if !m.playNuke(p) {
+				return
+			}
+		case vulnerabilityCard:
+			if !m.playVulnerability(p, player) {
 				return
 			}
 		case shoveCard:
@@ -1107,6 +1122,69 @@ func (m *Match) playHeal(pos Pos, player string) bool {
 		public.BishopHP += healCardAmount
 	}
 	return true
+}
+
+// return true if play is valid
+func (m *Match) playVulnerability(pos Pos, player string) bool {
+	piece := m.getPieceSafe(pos)
+	if piece == nil || piece.Color == player {
+		return false
+	}
+	neg := m.pieceNegativeStatus(piece)
+	neg.Vulnerability = 1
+	return true
+}
+
+func (m *Match) piecePositiveStatus(p *Piece) *PiecePositiveStatus {
+	status := p.Status
+	if status == nil {
+		status = &PieceStatus{}
+		p.Status = status
+	}
+	switch p.Name {
+	case king:
+		pub, _ := m.states(p.Color)
+		pub.KingStatus = status
+	case bishop:
+		pub, _ := m.states(p.Color)
+		pub.BishopStatus = status
+	case knight:
+		pub, _ := m.states(p.Color)
+		pub.KnightStatus = status
+	case rook:
+		pub, _ := m.states(p.Color)
+		pub.RookStatus = status
+	}
+	if status.Positive == nil {
+		status.Positive = &PiecePositiveStatus{}
+	}
+	return status.Positive
+}
+
+func (m *Match) pieceNegativeStatus(p *Piece) *PieceNegativeStatus {
+	status := p.Status
+	if status == nil {
+		status = &PieceStatus{}
+		p.Status = status
+	}
+	switch p.Name {
+	case king:
+		pub, _ := m.states(p.Color)
+		pub.KingStatus = status
+	case bishop:
+		pub, _ := m.states(p.Color)
+		pub.BishopStatus = status
+	case knight:
+		pub, _ := m.states(p.Color)
+		pub.KnightStatus = status
+	case rook:
+		pub, _ := m.states(p.Color)
+		pub.RookStatus = status
+	}
+	if status.Negative == nil {
+		status.Negative = &PieceNegativeStatus{}
+	}
+	return status.Negative
 }
 
 // return true if play is valid
@@ -1374,6 +1452,64 @@ func (m *Match) EndRound() {
 	m.BlackPrivate.SelectedCard = -1
 
 	m.SpawnPawns(false)
+
+	statusTickdown := func(status *PieceStatus) {
+		if status != nil {
+			if status.Negative != nil {
+				remove := true
+				neg := status.Negative
+				if neg.Vulnerability > 0 {
+					neg.Vulnerability--
+					if neg.Vulnerability > 0 {
+						remove = false
+					}
+				}
+				if remove {
+					status.Negative = nil
+				}
+			}
+			if status.Positive != nil {
+				remove := true
+				pos := status.Positive
+				if pos.Amplify > 0 {
+					remove = false
+					pos.Amplify--
+					if pos.Amplify > 0 {
+						remove = false
+					}
+				}
+				if remove {
+					status.Positive = nil
+				}
+			}
+		}
+	}
+
+	// tick down status effects for kings and vassals
+	kingVassalStatuses := []*PieceStatus{
+		m.BlackPublic.KingStatus,
+		m.BlackPublic.BishopStatus,
+		m.BlackPublic.KnightStatus,
+		m.BlackPublic.RookStatus,
+		m.WhitePublic.KingStatus,
+		m.WhitePublic.BishopStatus,
+		m.WhitePublic.KnightStatus,
+		m.WhitePublic.RookStatus,
+	}
+	for _, status := range kingVassalStatuses {
+		statusTickdown(status)
+	}
+	// tick down status effects for pieces on board (other than kings and vassals)
+	for _, p := range m.Board {
+		if p != nil {
+			switch p.Name {
+			case king, bishop, rook, knight:
+			default:
+				statusTickdown(p.Status)
+			}
+		}
+	}
+
 	m.UpdateStatusAndDamage()
 
 	if m.WhitePublic.KingPlayed && m.BlackPublic.KingPlayed {
@@ -1560,35 +1696,15 @@ func (m *Match) CalculateSquareStatus() {
 				}
 				for _, idx := range indexes {
 					if idx != -1 {
-						status := initSquareStatusNegative(&m.Combined[idx])
-						status.Negative.Distracted = true
+						status := &m.Combined[idx]
+						if status.Negative == nil {
+							status.Negative = &SquareNegativeStatus{Distracted: true}
+						}
 					}
 				}
 			}
 		}
 	}
-}
-
-// init SquareStatus at loc with non-nil Negative if not already present
-func initSquareStatusNegative(status **SquareStatus) *SquareStatus {
-	if *status == nil {
-		*status = &SquareStatus{}
-	}
-	if (*status).Negative == nil {
-		(*status).Negative = &SquareNegativeStatus{}
-	}
-	return *status
-}
-
-// init SquareStatus at loc with non-nil Positive if not already present
-func initSquareStatusPositive(status **SquareStatus) *SquareStatus {
-	if *status == nil {
-		*status = &SquareStatus{}
-	}
-	if (*status).Positive == nil {
-		(*status).Positive = &SquarePositiveStatus{}
-	}
-	return *status
 }
 
 func (m *Match) EndKingPlacement() bool {
