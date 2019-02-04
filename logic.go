@@ -53,6 +53,7 @@ func initMatch(m *Match) {
 		Card{castleCard, castleMana},
 		Card{reclaimVassalCard, reclaimVassalMana},
 		Card{vulnerabilityCard, vulnerabilityMana},
+		Card{amplifyCard, amplifyMana},
 		Card{swapFrontLinesCard, swapFrontLinesMana},
 		Card{removePawnCard, removePawnMana},
 		Card{forceCombatCard, forceCombatMana},
@@ -480,7 +481,13 @@ func (m *Match) CalculateDamage() {
 			continue
 		}
 		if p != nil {
-			attackMap[p.Name](positions[i], p.Color, p.Attack)
+			attack := p.Attack
+			if p.Status != nil && p.Status.Positive != nil {
+				if p.Status.Positive.Amplify > 0 {
+					attack *= amplifyFactor
+				}
+			}
+			attackMap[p.Name](positions[i], p.Color, attack)
 		}
 	}
 
@@ -627,7 +634,7 @@ func (m *Match) PlayableCards() {
 				case bishop, knight, rook, queen, jester:
 					// todo: check if a free square is available on player's side
 					private.PlayableCards[j] = true
-				case forceCombatCard, mirrorCard, nukeCard, vulnerabilityCard, swapFrontLinesCard:
+				case forceCombatCard, mirrorCard, nukeCard, vulnerabilityCard, amplifyCard, swapFrontLinesCard:
 					private.PlayableCards[j] = true
 				case castleCard:
 					if public.RookPlayed || public.Other.RookPlayed {
@@ -786,6 +793,8 @@ func (m *Match) clickCard(player string, public *PublicState, private *PrivateSt
 						private.dimAllButType(king, none, board)
 					case vulnerabilityCard:
 						private.dimAllButPieces(otherColor(player), board)
+					case amplifyCard:
+						private.dimAllButPieces(player, board)
 					case shoveCard:
 						private.dimAllBut(m.shoveablePieces())
 					case advanceCard:
@@ -863,6 +872,10 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 			}
 		case vulnerabilityCard:
 			if !m.playVulnerability(p, player) {
+				return
+			}
+		case amplifyCard:
+			if !m.playAmplify(p, player) {
 				return
 			}
 		case shoveCard:
@@ -1132,6 +1145,17 @@ func (m *Match) playVulnerability(pos Pos, player string) bool {
 	}
 	neg := m.pieceNegativeStatus(piece)
 	neg.Vulnerability = 1
+	return true
+}
+
+// return true if play is valid
+func (m *Match) playAmplify(pos Pos, player string) bool {
+	piece := m.getPieceSafe(pos)
+	if piece == nil || piece.Color != player {
+		return false
+	}
+	positive := m.piecePositiveStatus(piece)
+	positive.Amplify = 1
 	return true
 }
 
@@ -1453,6 +1477,29 @@ func (m *Match) EndRound() {
 
 	m.SpawnPawns(false)
 
+	m.UpdateStatusAndDamage()
+
+	if m.WhitePublic.KingPlayed && m.BlackPublic.KingPlayed {
+		m.Phase = mainPhase
+		m.WhitePrivate.highlightsOff()
+		m.BlackPrivate.highlightsOff()
+	} else {
+		m.Phase = kingPlacementPhase
+		if m.WhitePublic.KingPlayed {
+			m.WhitePrivate.highlightsOff()
+		} else {
+			m.WhitePrivate.dimAllButFree(white, m.Board[:])
+		}
+		if m.BlackPublic.KingPlayed {
+			m.BlackPrivate.highlightsOff()
+		} else {
+			m.BlackPrivate.dimAllButFree(black, m.Board[:])
+		}
+	}
+	m.PlayableCards()
+}
+
+func (m *Match) tickdownStatusEffects() {
 	statusTickdown := func(status *PieceStatus) {
 		if status != nil {
 			if status.Negative != nil {
@@ -1472,7 +1519,6 @@ func (m *Match) EndRound() {
 				remove := true
 				pos := status.Positive
 				if pos.Amplify > 0 {
-					remove = false
 					pos.Amplify--
 					if pos.Amplify > 0 {
 						remove = false
@@ -1509,27 +1555,6 @@ func (m *Match) EndRound() {
 			}
 		}
 	}
-
-	m.UpdateStatusAndDamage()
-
-	if m.WhitePublic.KingPlayed && m.BlackPublic.KingPlayed {
-		m.Phase = mainPhase
-		m.WhitePrivate.highlightsOff()
-		m.BlackPrivate.highlightsOff()
-	} else {
-		m.Phase = kingPlacementPhase
-		if m.WhitePublic.KingPlayed {
-			m.WhitePrivate.highlightsOff()
-		} else {
-			m.WhitePrivate.dimAllButFree(white, m.Board[:])
-		}
-		if m.BlackPublic.KingPlayed {
-			m.BlackPrivate.highlightsOff()
-		} else {
-			m.BlackPrivate.dimAllButFree(black, m.Board[:])
-		}
-	}
-	m.PlayableCards()
 }
 
 func (p *PrivateState) dimAllButFree(color string, board []*Piece) {
@@ -1730,6 +1755,7 @@ func (m *Match) EndTurn(pass bool, player string) {
 
 		if !m.checkWinCondition() {
 			m.Phase = reclaimPhase
+			m.tickdownStatusEffects()
 			m.BlackPrivate.dimAllButPieces(black, m.Board[:])
 			m.WhitePrivate.dimAllButPieces(white, m.Board[:])
 		}

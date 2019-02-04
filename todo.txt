@@ -1,13 +1,11 @@
 on some browsers, scrollbar for card list and log not showing up when overflow-y
 
 
-simpler if square and piece always has status, but pos neg are nil when no effects
+in status info, show sources of damage
 
 
 
 stun vassal - vassal neither takes nor inflicts damage this round and cannot be reclaimed
-
-amplify - cast on enemy - doubles all damage taken this round
 
 
 

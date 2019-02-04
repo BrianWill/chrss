@@ -166,6 +166,8 @@ var cardDescriptions = {
 <div>Click free square on your side to place.<br/><br/>Does not attack. Puts 'distract' effect on all adjacent squares except those behind the jester. A piece in a square with distract does not attack.</div>`,
     'Vulnerability': `<h3>Vulnerability: 2 mana cost</h3>
 <div>Click enemy piece.<br/><br/>Doubles damage the targeted piece takes this round.</div>`,
+    'Amplify': `<h3>Amplify: 2 mana cost</h3>
+<div>Click allied piece.<br/><br/>Doubles damage the targeted piece inflicts this round.</div>`,
 };
 
 
@@ -656,7 +658,6 @@ var lastPiece = null;
 
 // square = square status, piece = piece status
 function drawStatusInfo(square, piece) {
-    console.log("draw status info", square, piece);
     if (square === lastSquare && piece === lastPiece) {
         return;
     }
@@ -664,7 +665,7 @@ function drawStatusInfo(square, piece) {
     lastPiece = piece;
     var s = '';
     
-    if (square) {
+    if (square.negative || square.positive) {
         s += '<h3>Square status effects:</h3>';
         let pos = square.positive;
         if (pos) {
@@ -672,22 +673,26 @@ function drawStatusInfo(square, piece) {
         let neg = square.negative;
         if (neg) {
             if (neg.distracted) {
-                s += '<div class="status_entry negative">Distracted (piece in this square will not attack)</div>';
+                s += '<div class="status_entry negative">Distracted: piece in this square will not attack</div>';
             }
         }
     }
 
     if (piece) {
+        s += '<h3>Piece status effects:</h3>';
         let pos = piece.positive;
         if (pos) {
-            s += '<h3>Positive piece status effects:</h3>';
+            if (pos.amplify > 0) {
+                let round = (pos.amplify === 1) ? 'round' : 'rounds';
+                s += '<div class="status_entry positive">Amplify: piece inflicts double damage for ' +
+                pos.amplify + ' ' + round + '</div>';
+            }
         }
         let neg = piece.negative;
         if (neg) {
-            s += '<h3>Negative piece status effects:</h3>';
             if (neg.vulnerability > 0) {
                 let round = (neg.vulnerability === 1) ? 'round' : 'rounds';
-                s += '<div class="status_entry negative">Vulnerability (piece takes double damage) for ' +
+                s += '<div class="status_entry negative">Vulnerability: piece takes double damage for ' +
                      neg.vulnerability + ' ' + round + '</div>';
             }
         }
@@ -853,7 +858,7 @@ canvas.addEventListener('mousemove', function (evt) {
             if (piece) {
                 pieceStatus = piece.status;
             }
-            if (squareStatus || pieceStatus) {
+            if (squareStatus.positive || squareStatus.negative || pieceStatus) {
                 drawStatusInfo(squareStatus, pieceStatus);
                 cardDescription.style.display = 'none';
                 logBox.style.display = 'none';

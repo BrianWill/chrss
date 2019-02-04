@@ -82,6 +82,9 @@ const (
 	vulnerabilityCard   = "Vulnerability"
 	vulnerabilityMana   = 2
 	vulnerabilityFactor = 2
+	amplifyCard         = "Amplify"
+	amplifyMana         = 2
+	amplifyFactor       = 2
 )
 
 const (
