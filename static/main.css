@@ -127,7 +127,7 @@ a:visited {
 }
 
 .status_entry.negative {
-  color: darkred;
+  color: rgb(197, 43, 43);
 }
 
 .status_entry.positive {

@@ -1,9 +1,18 @@
 on some browsers, scrollbar for card list and log not showing up when overflow-y
 
 
+
+check pos to index uses (may in places falsely assumed it handles out of bounds X / Y values)
+
+
 in status info, show sources of damage
 
 on state change, update and display status info if cursor is over square with status effect
+
+
+
+dodge - select vassal. Vassal is moved to random adjacent square. 
+    can only be used on a vassal under threat and which has a free square adjacent 
 
 
 stun vassal - for 1 round, targeted vassal (friend or foe) is Distracted, Unreclaimable, and Immune 

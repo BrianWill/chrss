@@ -170,6 +170,8 @@ var cardDescriptions = {
 <div>Click allied piece.<br/><br/>Doubles damage the targeted piece inflicts.</div>`,
     'Enrage': `<h3>Enrage: 2 mana cost, 1 round duration</h3>
 <div>Click enemy piece.<br/><br/>Enraged piece hits allies as well as enemeies.</div>`,
+    'Dodge': `<h3>Dodge: 2 mana cost</h3>
+<div>Click ally piece that is under threat (going to be hit in combat) and has at least one free adjacent square.<br/><br/>Moves piece to random adjacent free square. (May move piece into enemy territory.)</div>`,
 };
 
 
@@ -895,6 +897,17 @@ canvas.addEventListener('mousedown', function (evt) {
         
             var squareX = Math.floor(mouseX / board.squareWidth);
             var squareY = Math.floor(mouseY / board.squareHeight);
+
+            if (squareX < 0) {
+                squareX = 0;
+            } else if (squareX >= board.nColumns) {
+                squareX = board.nColumns - 1;
+            }
+            if (squareY < 0) {
+                squareY = 0;
+            } else if (squareY >= board.nRows) {
+                squareY = board.nRows - 1;
+            }
         
             // invert for white player
             if (matchState.color === "white") {

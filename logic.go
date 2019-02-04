@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"math/rand"
 	"strconv"
 	"time"
@@ -55,6 +57,7 @@ func initMatch(m *Match) {
 		Card{vulnerabilityCard, vulnerabilityMana},
 		Card{amplifyCard, amplifyMana},
 		Card{enrageCard, enrageMana},
+		Card{dodgeCard, dodgeMana},
 		Card{swapFrontLinesCard, swapFrontLinesMana},
 		Card{removePawnCard, removePawnMana},
 		Card{forceCombatCard, forceCombatMana},
@@ -97,19 +100,23 @@ func (m *Match) getPiece(p Pos) *Piece {
 
 // returns -1 if invalid
 func (p *Pos) getBoardIdx() int {
-	idx := p.X + nColumns*p.Y
-	if idx < 0 || idx >= (nColumns*nRows) {
+	if p.X < 0 || p.X >= nColumns {
 		return -1
 	}
-	return idx
+	if p.Y < 0 || p.Y >= nRows {
+		return -1
+	}
+	return p.X + nColumns*p.Y
 }
 
 func getBoardIdx(x int, y int) int {
-	idx := x + nColumns*y
-	if idx < 0 || idx >= (nColumns*nRows) {
+	if x < 0 || x >= nColumns {
 		return -1
 	}
-	return idx
+	if y < 0 || y >= nRows {
+		return -1
+	}
+	return x + nColumns*y
 }
 
 // does not panic
@@ -647,6 +654,10 @@ func (m *Match) PlayableCards() {
 					private.PlayableCards[j] = true
 				case forceCombatCard, mirrorCard, nukeCard, vulnerabilityCard, amplifyCard, enrageCard, swapFrontLinesCard:
 					private.PlayableCards[j] = true
+				case dodgeCard:
+					if len(m.dodgeablePieces(public.Color)) > 0 {
+						private.PlayableCards[j] = true
+					}
 				case castleCard:
 					if public.RookPlayed || public.Other.RookPlayed {
 						private.PlayableCards[j] = true
@@ -741,6 +752,44 @@ func (m *Match) shoveablePieces() []int {
 	return indexes
 }
 
+func (m *Match) freeAdjacentSpaces(idx int) []int {
+	pos := positions[idx]
+	adjacentPos := [8]Pos{
+		Pos{pos.X - 1, pos.Y - 1},
+		Pos{pos.X - 1, pos.Y},
+		Pos{pos.X - 1, pos.Y + 1},
+		Pos{pos.X, pos.Y - 1},
+		Pos{pos.X, pos.Y + 1},
+		Pos{pos.X + 1, pos.Y - 1},
+		Pos{pos.X + 1, pos.Y},
+		Pos{pos.X + 1, pos.Y + 1},
+	}
+	free := []int{}
+	for _, pos := range adjacentPos {
+		idx := pos.getBoardIdx()
+		if idx != -1 {
+			if m.Board[idx] == nil {
+				free = append(free, idx)
+			}
+		}
+	}
+	return free
+}
+
+// returns indexes of all pieces which can dodge (under threat and has a free adjacent square)
+func (m *Match) dodgeablePieces(color string) []int {
+	indexes := []int{}
+	for i, p := range m.Board {
+		if p != nil && p.Color == color && p.Damage > 0 {
+			// find free space
+			if len(m.freeAdjacentSpaces(i)) > 0 {
+				indexes = append(indexes, i)
+			}
+		}
+	}
+	return indexes
+}
+
 // returns indexes of all pawns which can be toggled
 func (m *Match) advanceablePieces() []int {
 	indexes := []int{}
@@ -792,6 +841,8 @@ func (m *Match) clickCard(player string, public *PublicState, private *PrivateSt
 						if public.NumPawns > 0 || public.Other.NumPawns > 0 {
 							private.dimAllButType(pawn, none, board)
 						}
+					case dodgeCard:
+						private.dimAllBut(m.dodgeablePieces(player))
 					case forceCombatCard:
 						private.dimAllButType(king, player, board)
 					case mirrorCard:
@@ -861,6 +912,10 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 			}
 		case forceCombatCard:
 			if !m.playForceCombat(p, player) {
+				return
+			}
+		case dodgeCard:
+			if !m.playDodge(p, player) {
 				return
 			}
 		case mirrorCard:
@@ -1077,6 +1132,24 @@ func (m *Match) playForceCombat(pos Pos, player string) bool {
 	m.PassPrior = true
 	m.EndTurn(true, player)
 	return true
+}
+
+// return true if play is valid
+func (m *Match) playDodge(pos Pos, player string) bool {
+	piece := m.getPieceSafe(pos)
+	if piece == nil || piece.Color != player {
+		return false
+	}
+	idx := pos.getBoardIdx()
+	for _, val := range m.dodgeablePieces(player) {
+		if val == idx {
+			free := m.freeAdjacentSpaces(idx)
+			newIdx := free[rand.Intn(len(free))]
+			m.swapBoardIndex(idx, newIdx)
+			return true
+		}
+	}
+	return false
 }
 
 // return true if play is valid
@@ -1888,4 +1961,122 @@ func (m *Match) IsFinished() bool {
 // panics if outo f bounds
 func (p *PrivateState) RemoveCard(idx int) {
 	p.Cards = append(p.Cards[:idx], p.Cards[idx+1:]...)
+}
+
+func (m *Match) processEvent(event string, player string, msg []byte) (notifyOpponent bool, newTurn bool) {
+	if m.Phase != gameoverPhase {
+		public, private := m.states(player)
+		switch event {
+		case "get_state":
+			// doesn't change anything, just fetches current state
+		case "ready":
+			switch m.Phase {
+			case readyUpPhase:
+				public.Ready = true
+				if m.BlackPublic.Ready && m.WhitePublic.Ready {
+					m.Phase = kingPlacementPhase
+					m.Round = 1 // by incrementing from 0, will sound new round fanfare
+					m.LastMoveTime = time.Now().UnixNano()
+				}
+				notifyOpponent = true
+			}
+		case "reclaim_time_expired":
+			switch m.Phase {
+			case reclaimPhase:
+				turnElapsed := time.Now().UnixNano() - m.LastMoveTime
+				remainingTurnTime := turnTimer - turnElapsed
+				if remainingTurnTime > 0 {
+					break // ignore if time hasn't actually expired
+				}
+				m.ReclaimPieces()
+				m.EndRound()
+				notifyOpponent = true
+			}
+		case "reclaim_done":
+			switch m.Phase {
+			case reclaimPhase:
+				public.ReclaimSelectionMade = true
+				// if other player already has a reclaim selection, then we move on to next round
+				if (player == black && m.WhitePublic.ReclaimSelectionMade) ||
+					(player == white && m.BlackPublic.ReclaimSelectionMade) {
+					m.ReclaimPieces()
+					m.EndRound()
+					notifyOpponent = true
+				} else {
+					notifyOpponent = true
+				}
+			}
+		case "time_expired":
+			switch m.Phase {
+			case mainPhase:
+				turnElapsed := time.Now().UnixNano() - m.LastMoveTime
+				remainingTurnTime := turnTimer - turnElapsed
+				if remainingTurnTime > 0 {
+					break // ignore if time hasn't actually expired
+				}
+				// actual elapsed time is checked on server, but we rely upon clients to notify
+				// (not ideal because both clients might fail, but then we have bigger problem)
+				// Cheater could supress sending time_expired event from their client, but
+				// opponent also sends the event (and has interest to do so).
+				m.Log = append(m.Log, m.Turn+" passed")
+				m.EndTurn(true, m.Turn)
+				newTurn = true
+				notifyOpponent = true
+			case kingPlacementPhase:
+				turnElapsed := time.Now().UnixNano() - m.LastMoveTime
+				remainingTurnTime := turnTimer - turnElapsed
+				if remainingTurnTime > 0 {
+					break // ignore if time hasn't actually expired
+				}
+				for _, color := range []string{black, white} {
+					public, _ := m.states(color)
+					if !public.KingPlayed {
+						// randomly place king in free square
+						// because we must have reclaimed the King, there will always be a free square at this point
+						pos, _ := m.RandomFreeSquare(color)
+						m.setPiece(pos, Piece{king, color, public.KingHP, public.KingAttack, 0, public.KingStatus})
+						public.KingPlayed = true
+						m.Log = append(m.Log, color+" played King")
+					}
+				}
+				newTurn = m.EndKingPlacement()
+				notifyOpponent = true
+			}
+		case "click_card":
+			type ClickCardEvent struct {
+				SelectedCard int
+			}
+			var event ClickCardEvent
+			err := json.Unmarshal(msg, &event)
+			if err != nil {
+				fmt.Println("unmarshalling click_card error", err)
+				break // todo: send error response
+			}
+			m.clickCard(player, public, private, event.SelectedCard)
+		case "click_board":
+			var pos Pos
+			err := json.Unmarshal(msg, &pos)
+			if err != nil {
+				break // todo: send error response
+			}
+			newTurn, notifyOpponent = m.clickBoard(player, public, private, pos)
+		case "pass":
+			switch m.Phase {
+			case mainPhase:
+				if player != m.Turn {
+					break // ignore if not the player's turn
+				}
+				if !public.KingPlayed {
+					break // cannot pass when king has not been played
+				}
+				m.Log = append(m.Log, player+" passed")
+				m.EndTurn(true, player)
+				newTurn = true
+				notifyOpponent = true
+			}
+		default:
+			fmt.Println("bad event: ", event, msg) // todo: better error reporting
+		}
+	}
+	return
 }

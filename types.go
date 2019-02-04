@@ -90,6 +90,8 @@ const (
 	enrageCard            = "Enrage"
 	enrageMana            = 2
 	enrageDuration        = 1
+	dodgeCard             = "Dodge"
+	dodgeMana             = 2
 )
 
 const (

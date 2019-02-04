@@ -37,9 +37,7 @@ func randSelect(n int, candidates []int) []int {
 
 func processMessage(msg []byte, match *Match, player string) {
 	currentRound := match.Round
-	newTurn := false
 	var event string
-	var notifyOpponent bool // set to true for events where opponent should get state update
 	idx := 0
 	for ; idx < len(msg); idx++ {
 		if msg[idx] == ' ' {
@@ -47,127 +45,13 @@ func processMessage(msg []byte, match *Match, player string) {
 			msg = msg[idx+1:]
 		}
 	}
-	//fmt.Println("event ", event, string(msg))
-	match.Mutex.Lock()
-	if match.Phase != gameoverPhase {
-		public, private := match.states(player)
-		switch event {
-		case "ping":
-			// used for keep alive (heroku timesout connections with no activity for 55 seconds)
-			// needn't send response to keep connection alive
-			match.Mutex.Unlock()
-			return
-		case "get_state":
-			// doesn't change anything, just fetches current state
-		case "ready":
-			switch match.Phase {
-			case readyUpPhase:
-				public.Ready = true
-				if match.BlackPublic.Ready && match.WhitePublic.Ready {
-					match.Phase = kingPlacementPhase
-					match.Round = 1 // by incrementing from 0, will sound new round fanfare
-					match.LastMoveTime = time.Now().UnixNano()
-				}
-				notifyOpponent = true
-			}
-		case "reclaim_time_expired":
-			switch match.Phase {
-			case reclaimPhase:
-				turnElapsed := time.Now().UnixNano() - match.LastMoveTime
-				remainingTurnTime := turnTimer - turnElapsed
-				if remainingTurnTime > 0 {
-					break // ignore if time hasn't actually expired
-				}
-				match.ReclaimPieces()
-				match.EndRound()
-				notifyOpponent = true
-			}
-		case "reclaim_done":
-			switch match.Phase {
-			case reclaimPhase:
-				public.ReclaimSelectionMade = true
-				// if other player already has a reclaim selection, then we move on to next round
-				if (player == black && match.WhitePublic.ReclaimSelectionMade) ||
-					(player == white && match.BlackPublic.ReclaimSelectionMade) {
-					match.ReclaimPieces()
-					match.EndRound()
-					notifyOpponent = true
-				} else {
-					notifyOpponent = true
-				}
-			}
-		case "time_expired":
-			switch match.Phase {
-			case mainPhase:
-				turnElapsed := time.Now().UnixNano() - match.LastMoveTime
-				remainingTurnTime := turnTimer - turnElapsed
-				if remainingTurnTime > 0 {
-					break // ignore if time hasn't actually expired
-				}
-				// actual elapsed time is checked on server, but we rely upon clients to notify
-				// (not ideal because both clients might fail, but then we have bigger problem)
-				// Cheater could supress sending time_expired event from their client, but
-				// opponent also sends the event (and has interest to do so).
-				match.Log = append(match.Log, match.Turn+" passed")
-				match.EndTurn(true, match.Turn)
-				newTurn = true
-				notifyOpponent = true
-			case kingPlacementPhase:
-				turnElapsed := time.Now().UnixNano() - match.LastMoveTime
-				remainingTurnTime := turnTimer - turnElapsed
-				if remainingTurnTime > 0 {
-					break // ignore if time hasn't actually expired
-				}
-				for _, color := range []string{black, white} {
-					public, _ := match.states(color)
-					if !public.KingPlayed {
-						// randomly place king in free square
-						// because we must have reclaimed the King, there will always be a free square at this point
-						pos, _ := match.RandomFreeSquare(color)
-						match.setPiece(pos, Piece{king, color, public.KingHP, public.KingAttack, 0, public.KingStatus})
-						public.KingPlayed = true
-						match.Log = append(match.Log, color+" played King")
-					}
-				}
-				newTurn = match.EndKingPlacement()
-				notifyOpponent = true
-			}
-		case "click_card":
-			type ClickCardEvent struct {
-				SelectedCard int
-			}
-			var event ClickCardEvent
-			err := json.Unmarshal(msg, &event)
-			if err != nil {
-				fmt.Println("unmarshalling click_card error", err)
-				break // todo: send error response
-			}
-			match.clickCard(player, public, private, event.SelectedCard)
-		case "click_board":
-			var pos Pos
-			err := json.Unmarshal(msg, &pos)
-			if err != nil {
-				break // todo: send error response
-			}
-			newTurn, notifyOpponent = match.clickBoard(player, public, private, pos)
-		case "pass":
-			switch match.Phase {
-			case mainPhase:
-				if player != match.Turn {
-					break // ignore if not the player's turn
-				}
-				if !public.KingPlayed {
-					break // cannot pass when king has not been played
-				}
-				match.Log = append(match.Log, player+" passed")
-				match.EndTurn(true, player)
-				newTurn = true
-				notifyOpponent = true
-			}
-		default:
-			fmt.Println("bad event: ", event, msg) // todo: better error reporting
-		}
+	if event == "ping" {
+		// used for keep alive (heroku timesout connections with no activity for 55 seconds)
+		// needn't send response to keep connection alive
+		return
 	}
+	match.Mutex.Lock()
+	notifyOpponent, newTurn := match.processEvent(event, player, msg)
 	processConnection := func(conn *websocket.Conn, color string, private *PrivateState, newTurn bool) {
 		turnElapsed := time.Now().UnixNano() - match.LastMoveTime
 		remainingTurnTime := (turnTimer - turnElapsed) / 1000000
