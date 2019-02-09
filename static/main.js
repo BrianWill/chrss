@@ -176,9 +176,9 @@ var cardDescriptions = {
 
 
 var matchId = window.location.pathname.substring(7);
-var url = 'ws://chrss-game.herokuapp.com/ws/' + matchId;
+var url = 'wss://chrss-game.herokuapp.com/ws/' + matchId;   
 if (location.hostname == 'localhost') {
-    url = 'ws://localhost:5000/ws/' + matchId;
+    url = 'ws://localhost:5000/ws/' + matchId;  // can't do wss over localhost it seems?
 }
 var conn = new WebSocket(url);
 
