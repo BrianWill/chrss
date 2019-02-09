@@ -1,26 +1,18 @@
-on some browsers, scrollbar for card list and log not showing up when overflow-y
 
-
-
-check pos to index uses (may in places falsely assumed it handles out of bounds X / Y values)
-
+check uses of 'pos to index' methods (may in places falsely assumed it handles out of bounds X / Y values)
 
 in status info, show sources of damage
 
 on state change, update and display status info if cursor is over square with status effect
 
-
-
-dodge - select vassal. Vassal is moved to random adjacent square. 
-    can only be used on a vassal under threat and which has a free square adjacent 
+messages explaining why a card is unselectable (e.g. resurect vassal can't be played because no vassal is dead)
 
 
 stun vassal - for 1 round, targeted vassal (friend or foe) is Distracted, Unreclaimable, and Immune 
 
-dodge - select vassal. Vassal is moved to random adjacent square. 
-    can only be used on a vassal under threat and which has a free square adjacent 
-    
-Resurect Vassal - resurects your dead vassal with 5 hp; puts back in your hand immediately
+Resurect Vassal - resurects your dead vassal with 5 hp; puts card back in your hand immediately
+    Click ally King to confirm.
+    (because 2 dead vassals means game is over, don't have to select which vassal: either you have 1 dead vassal or none)
 
 
 
@@ -40,7 +32,8 @@ in deck builds, players choose a few high cost cards to start in their hand
 
 perhaps vassals should be tankier so using them as shields is not so discouraged
 
-
+maybe pawns should do more damage? or do bonus damage to non-pawns? or take half damage (or 0) from pawns?
+    pawns should be bigger deterent for placing pieces; too low damage makes it too easy to just eat the damage
 
 
 protection against bad behaving clients (flooding with messages)
@@ -180,3 +173,13 @@ cards that can only be cast on enemies in line of attack
     - in some cases, require line of attack from specific vassal, e.g. can only cast on enemy threatened by bishop
 
 cards that can be cast on an enemy but doesn't take effect unless it takes damage at end of round
+
+
+
+
+
+
+
+on some browsers, scrollbar for card list and log not showing up when overflow-y
+
+fix font rendering for high dps: https://gist.github.com/joubertnel/870190

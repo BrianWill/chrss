@@ -40,9 +40,6 @@ a:visited {
   grid-template-columns: 670px 550px;
 }
 
-#top-container > * {
-  display: inline-grid;
-}
 
 #turn_info {
   display: grid;
@@ -54,10 +51,6 @@ a:visited {
   -moz-user-select: none;
   user-select: none;
   display: inline-grid;
-}
-
-#scoreboard {
-  
 }
 
 #readyup {

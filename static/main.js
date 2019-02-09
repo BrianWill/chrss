@@ -245,6 +245,25 @@ conn.onopen = function(){
     conn.send("get_state ");
 }
 
+// account for pixel ratio (avoids blurry text on high dpi screens)
+if (window.devicePixelRatio) {
+    let width = scoreboard.getAttribute('width');
+    let height = scoreboard.getAttribute('height');
+    scoreboard.setAttribute('width', width * window.devicePixelRatio);
+    scoreboard.setAttribute('height', height * window.devicePixelRatio);
+    scoreboard.style.width = width + 'px';
+    scoreboard.style.height = height + 'px';
+    scoreboardCtx.scale(window.devicePixelRatio, window.devicePixelRatio);               
+
+    width = canvas.getAttribute('width');
+    height = canvas.getAttribute('height');
+    canvas.setAttribute('width', width * window.devicePixelRatio);
+    canvas.setAttribute('height', height * window.devicePixelRatio);
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+}
+
 
 //  *** draw ***
 

@@ -26,7 +26,7 @@ const (
 
 const (
 	pawnHP       = 5
-	pawnAttack   = 2
+	pawnAttack   = 4
 	kingHP       = 50
 	kingAttack   = 12
 	bishopHP     = 25
