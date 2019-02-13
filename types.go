@@ -130,10 +130,13 @@ const maxReclaim = 2 // max number of pieces to reclaim at end of round
 const matchTimeout = 20 * int64(time.Minute)
 
 type Match struct {
-	Name      string // used to identify the match in browser
-	BlackConn *websocket.Conn
-	WhiteConn *websocket.Conn
-	Mutex     sync.RWMutex
+	Name          string // used to identify the match in browser
+	BlackConn     *websocket.Conn
+	WhiteConn     *websocket.Conn
+	BlackPlayerID string
+	WhitePlayerID string
+	CreatorName   string
+	Mutex         sync.RWMutex
 	// rows stored in order top-to-bottom, e.g. nColumns is index of leftmost square in second row
 	// (*Pierce better for empty square when JSONifying; Board[i] points to pieces[i]
 	// the array is here simply for memory locality)
@@ -168,6 +171,8 @@ type PrivateState struct {
 	Highlights        [nColumns * nRows]int `json:"highlights"`
 	PlayerInstruction string                `json:"playerInstruction"`
 	ReclaimSelections []Pos                 `json:"reclaimSelections"`
+	KingPos           *Pos                  `json:"kingPos"`   // used in king placement (placed king is not revealed to opponent until main phase)
+	KingPiece         *Piece                `json:"kingPiece"` // necessary so as to correctly display king stats in king placement
 	Other             *PrivateState         `json:"-"`
 }
 
@@ -249,4 +254,9 @@ type Card struct {
 type MatchMap struct {
 	sync.RWMutex
 	internal map[string]*Match
+}
+
+type UserMap struct {
+	sync.RWMutex
+	internal map[string]bool
 }

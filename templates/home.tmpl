@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Chrss - browse open matches</title>
+    <link rel="stylesheet" type="text/css" href="/static/main.css">
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+  </head>
+<body>
+  
+<div id="browse">
+  <h1 id="banner">Let's Play Chrss!</h1>
+  <h2><a href="/guide">How to play</a><h2>
+  <h2>Your user ID: {{.ID}}</h2>
+  <h2>Your user name: {{.Name}}</h2>
+  <a href="/createMatch">Create match</a>
+
+  {{if .Matches}}
+  <h3>Open matches:</h3>
+  <ul>
+      {{range .Matches}}
+          <li> 
+            <a href="/match/{{.Name}}/black">join player {{.CreatorName}}'s match (created {{.Elapsed}} ago)</a>  
+          </li>
+      {{end}}
+  </ul>
+  {{end}}
+</div>
+</body>
+</html>

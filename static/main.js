@@ -204,6 +204,11 @@ conn.onmessage = function(msg){
     } else {
         matchState.public = matchState.whitePublic;
     }
+    let kingPos = matchState.private.kingPos;
+    if (kingPos) {
+        let idx = kingPos.x + kingPos.y * board.nColumns;
+        matchState.board[idx] = matchState.private.kingPiece;
+    }
     if (!matchState.log) {
         matchState.log = [];
     }

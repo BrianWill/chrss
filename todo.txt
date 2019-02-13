@@ -1,5 +1,17 @@
+for scaling across dynos, use redis to share match state? ideally we can get both players of a 
+    match to connect on same dyno, but not sure there's any mechanism for this
 
-check uses of 'pos to index' methods (may in places falsely assumed it handles out of bounds X / Y values)
+
+
+list the live matches the player has joined (with link sepcifying their color and link to reconnect)
+    (single player could be connected as both white and black)
+    linkes: rejoin white    rejoin blacks
+
+live update/refresh of open matches / player's matches on home page
+
+
+add dev page which creates matches and has links to join as either color or as both
+
 
 in status info, show sources of damage
 
@@ -16,10 +28,13 @@ Resurect Vassal - resurects your dead vassal with 5 hp; puts card back in your h
 
 
 
-king placement choice should not be shown to opponent until main phase
-    but if opponent did not reclaim king, then can see its placement during kingPlacement
 
 
+
+
+
+AI? random valid moves (can work in simple heuristics for some cards; wouldn't think 
+    ahead, but at least can make OK choices in the moment)
 
 
 

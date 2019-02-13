@@ -1041,7 +1041,8 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 		}
 		public.KingPlayed = true
 		m.Log = append(m.Log, player+" played King")
-		m.setPiece(p, Piece{king, player, public.KingHP, public.KingAttack, 0, public.KingStatus})
+		private.KingPos = &p
+		private.KingPiece = &Piece{king, player, public.KingHP, public.KingAttack, 0, public.KingStatus}
 		newTurn = m.EndKingPlacement()
 		notifyOpponent = true
 	}
@@ -1861,10 +1862,22 @@ func (m *Match) CalculateSquareStatus() {
 
 func (m *Match) EndKingPlacement() bool {
 	if m.WhitePublic.KingPlayed && m.BlackPublic.KingPlayed {
-		m.UpdateStatusAndDamage()
 		m.LastMoveTime = time.Now().UnixNano()
 		m.WhitePrivate.highlightsOff()
 		m.BlackPrivate.highlightsOff()
+		pos := m.WhitePrivate.KingPos
+		if pos != nil {
+			m.setPiece(*pos, *m.WhitePrivate.KingPiece)
+			m.WhitePrivate.KingPos = nil
+			m.WhitePrivate.KingPiece = nil
+		}
+		pos = m.BlackPrivate.KingPos
+		if pos != nil {
+			m.setPiece(*pos, *m.BlackPrivate.KingPiece)
+			m.BlackPrivate.KingPos = nil
+			m.BlackPrivate.KingPiece = nil
+		}
+		m.UpdateStatusAndDamage()
 		m.Phase = mainPhase
 		m.PlayableCards()
 		return true
@@ -1943,7 +1956,7 @@ func (m *Match) IsOpen() bool {
 }
 
 func (m *Match) IsBlackOpen() bool {
-	return m.BlackConn == nil && m.Winner == none
+	return m.BlackPlayerID == "" && m.Winner == none
 }
 
 func (m *Match) IsWhiteOpen() bool {

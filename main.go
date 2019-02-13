@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"time"
 
+	uuid "github.com/satori/go.uuid"
+
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	_ "github.com/heroku/x/hmetrics/onload"
@@ -120,7 +122,7 @@ func NewMatchMap() *MatchMap {
 	}
 }
 
-func (mm *MatchMap) Load(key string) (value *Match, ok bool) {
+func (mm *MatchMap) Load(key string) (*Match, bool) {
 	mm.RLock()
 	result, ok := mm.internal[key]
 	mm.RUnlock()
@@ -137,6 +139,31 @@ func (mm *MatchMap) Store(match *Match) {
 	mm.Lock()
 	mm.internal[match.Name] = match
 	mm.Unlock()
+}
+
+func NewUserMap() *UserMap {
+	return &UserMap{
+		internal: make(map[string]bool),
+	}
+}
+
+func (um *UserMap) Exists(key string) bool {
+	um.RLock()
+	_, ok := um.internal[key]
+	um.RUnlock()
+	return ok
+}
+
+func (um *UserMap) Delete(key string) {
+	um.Lock()
+	delete(um.internal, key)
+	um.Unlock()
+}
+
+func (um *UserMap) Store(userID string) {
+	um.Lock()
+	um.internal[userID] = true
+	um.Unlock()
 }
 
 func main() {
@@ -161,44 +188,72 @@ func main() {
 			}
 		}
 	}
+	users := NewUserMap()
 
 	router := gin.New()
 	router.Use(gin.Logger())
 	router.LoadHTMLGlob("templates/*.tmpl")
 	router.Static("/static", "static")
 
-	// list open matches
+	var userNumber = 1 // used for default user names
+
+	// returns userID (which may be new if argument does not exist
+	validateUser := func(c *gin.Context, userID string, userName string) (string, string, error) {
+		users.Lock()
+		if !users.internal[userID] {
+			u2, err := uuid.NewV4()
+			if err != nil {
+				users.Unlock()
+				return "", "", err
+			}
+			userID = u2.String()
+			const tenYears = 10 * 365 * 24 * 60 * 60
+			c.SetCookie("user_id", userID, tenYears, "/", "", false, false)
+			userName = strconv.Itoa(userNumber)
+			c.SetCookie("user_name", strconv.Itoa(userNumber), tenYears, "/", "", false, false)
+			userNumber++
+		}
+		users.internal[userID] = true
+		users.Unlock()
+		return userID, userName, nil
+	}
+
 	router.GET("/", func(c *gin.Context) {
+		userID, err := c.Cookie("user_id")
+		userName, _ := c.Cookie("user_name")
+		userID, userName, err = validateUser(c, userID, userName)
+		if err != nil {
+			fmt.Printf("Error generating UUIDv4: %s", err)
+			return
+		}
+
+		fmt.Printf("User id: %s User name: %s \n", userID, userName)
+
 		now := time.Now()
 		type match struct {
-			Name      string
-			BlackOpen bool
-			WhiteOpen bool
-			StartTime int64
-			Elapsed   string
-		}
-		type matchList struct {
-			Open []match
-			Full []match
+			Name        string
+			CreatorName string
+			StartTime   int64
+			Elapsed     string
 		}
 		liveMatches.Lock()
-		matches := matchList{}
+		matches := []match{}
 		i := 0
 		for _, m := range liveMatches.internal {
-			black, white := m.IsBlackOpen(), m.IsWhiteOpen()
 			elapsed := fmtDuration(now.Sub(time.Unix(0, m.StartTime)))
-			if black || white {
-				matches.Open = append(matches.Open, match{m.Name, black, white, m.StartTime, elapsed})
-			} else {
-				matches.Full = append(matches.Full, match{m.Name, black, white, m.StartTime, elapsed})
+			if m.IsBlackOpen() {
+				matches = append(matches, match{m.Name, m.CreatorName, m.StartTime, elapsed})
 			}
 			i++
 		}
-		sort.Slice(matches.Open, func(i, j int) bool { return matches.Open[i].StartTime > matches.Open[j].StartTime })
-		sort.Slice(matches.Full, func(i, j int) bool { return matches.Full[i].StartTime > matches.Full[j].StartTime })
+		sort.Slice(matches, func(i, j int) bool { return matches[i].StartTime > matches[j].StartTime })
 		liveMatches.Unlock()
 
-		c.HTML(http.StatusOK, "browse.tmpl", matches)
+		c.HTML(http.StatusOK, "home.tmpl", struct {
+			ID      string
+			Name    string
+			Matches []match
+		}{userID, userName, matches})
 	})
 
 	router.GET("/guide", func(c *gin.Context) {
@@ -206,7 +261,16 @@ func main() {
 	})
 
 	router.GET("/createMatch", func(c *gin.Context) {
+		userID, err := c.Cookie("user_id")
+		userName, _ := c.Cookie("user_name")
+		userID, userName, err = validateUser(c, userID, userName)
+		if err != nil {
+			fmt.Printf("Error generating UUIDv4: %s", err)
+			return
+		}
+
 		name := adjectives[rand.Intn(len(adjectives))] + "-" + animals[rand.Intn(len(animals))]
+
 		liveMatches.Lock()
 		// if name collision with existing match, randomly generate new names until finding one that's not in use
 		// (not ideal, but this is partly why we limit number of active matches)
@@ -214,7 +278,9 @@ func main() {
 			name = adjectives[rand.Intn(len(adjectives))] + "-" + animals[rand.Intn(len(animals))]
 		}
 		match := &Match{
-			Name: name,
+			Name:          name,
+			WhitePlayerID: userID,
+			CreatorName:   userName,
 		}
 		// clean up any dead or timedout matches
 		for name, match := range liveMatches.internal {
@@ -232,11 +298,10 @@ func main() {
 			return
 		}
 
-		// new match
 		initMatch(match)
 		liveMatches.Store(match)
 
-		c.Redirect(http.StatusSeeOther, "/")
+		c.Redirect(http.StatusSeeOther, "/match/"+match.Name+"/white")
 	})
 
 	router.GET("/dev/:name", func(c *gin.Context) {
@@ -244,8 +309,15 @@ func main() {
 		c.HTML(http.StatusOK, "dev.tmpl", name)
 	})
 
-	// pass in UUID and optionally a password (from cookie? get param?)
 	router.GET("/match/:name/:color", func(c *gin.Context) {
+		userID, err := c.Cookie("user_id")
+		userName, _ := c.Cookie("user_name")
+		userID, userName, err = validateUser(c, userID, userName)
+		if err != nil {
+			fmt.Printf("Error generating UUIDv4: %s", err)
+			return
+		}
+
 		name := c.Param("name")
 		color := c.Param("color")
 		if color != "black" && color != "white" {
@@ -253,54 +325,100 @@ func main() {
 			return
 		}
 		log.Printf("joining match: %v\n", name)
-		if _, ok := liveMatches.Load(name); !ok {
+
+		match, ok := liveMatches.Load(name)
+		match.Mutex.Lock()
+		if !ok {
 			c.String(http.StatusNotFound, "No match with id '%s' exists.", name)
+			match.Mutex.Unlock()
 			return
 		}
+		if color == "black" {
+			if match.BlackPlayerID == "" {
+				match.BlackPlayerID = userID
+			} else if match.BlackPlayerID != userID {
+				c.String(http.StatusBadRequest,
+					"Cannot join match '%s' as black. Another player is already playing that color.", name,
+				)
+				match.Mutex.Unlock()
+				return
+			}
+		} else {
+			if match.WhitePlayerID == "" {
+				match.WhitePlayerID = userID
+			} else if match.WhitePlayerID != userID {
+				c.String(http.StatusBadRequest,
+					"Cannot join match '%s' as white. Another player is already playing that color.", name,
+				)
+				match.Mutex.Unlock()
+				return
+			}
+		}
+		match.Mutex.Unlock()
 		c.HTML(http.StatusOK, "index.tmpl", nil)
 	})
 
 	router.GET("/ws/:name/:color", func(c *gin.Context) {
+		userID, err := c.Cookie("user_id")
+		userName, _ := c.Cookie("user_name")
+		userID, userName, err = validateUser(c, userID, userName)
+		if err != nil {
+			fmt.Printf("Error generating UUIDv4: %s", err)
+			return
+		}
+
 		name := c.Param("name")
 		color := c.Param("color")
-		log.Printf("making match connection: " + name + " " + color)
 		if color != "black" && color != "white" {
 			c.String(http.StatusNotFound, "Must specify black or white. Invalid match color: '%s'.", color)
 			return
 		}
+		log.Printf("joining match: %v\n", name)
+
 		match, ok := liveMatches.Load(name)
 		if !ok {
 			c.String(http.StatusNotFound, "No match with id '%s' exists.", name)
 			return
 		}
-
 		match.Mutex.Lock()
+		if color == "black" {
+			if match.BlackPlayerID != userID {
+				c.String(http.StatusBadRequest,
+					"Cannot join match '%s' as black. Another player is already playing that color.", name,
+				)
+				match.Mutex.Unlock()
+				return
+			}
+		} else {
+			if match.WhitePlayerID != userID {
+				c.String(http.StatusBadRequest,
+					"Cannot join match '%s' as white. Another player is already playing that color.", name,
+				)
+				match.Mutex.Unlock()
+				return
+			}
+		}
+
 		conn, err := wsupgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
 			fmt.Printf("Failed to set websocket upgrade: %+v", err)
+			match.Mutex.Unlock()
 			return
 		}
-
-		if (color == black && match.BlackConn != nil) || (color == white && match.WhiteConn != nil) {
-			response := gin.H{
-				"error": "This match already has a player for '" + color + "'.",
+		// if client is valid, we kill previous websocket to start new one
+		if color == black {
+			if match.BlackConn != nil {
+				match.BlackConn.Close()
+				fmt.Printf("Closed black connection in match '%s' ", match.Name)
 			}
-			bytes, err := json.Marshal(response)
-			if err != nil {
-				fmt.Printf("Error JSON encoding state: %+v", err)
-			}
-			err = conn.WriteMessage(websocket.TextMessage, bytes)
-			if err != nil {
-				fmt.Printf("Error sending 'match full' message: %+v", err)
-			}
-			match.Mutex.Unlock()
-			goto exit
-		} else if color == black {
 			match.BlackConn = conn
-		} else if color == white {
+		} else {
+			if match.WhiteConn != nil {
+				match.WhiteConn.Close()
+				fmt.Printf("Closed white connection in match '%s' ", match.Name)
+			}
 			match.WhiteConn = conn
 		}
-
 		match.Mutex.Unlock()
 
 		for {
@@ -311,13 +429,17 @@ func main() {
 			processMessage(msg, match, color)
 		}
 
-	exit:
-		conn.Close()
 		match.Mutex.Lock()
+		conn.Close()
 		if color == black {
-			match.BlackConn = nil
+			// a subsequent request may have replaced this conn, so we check
+			if match.BlackConn == conn {
+				match.BlackConn = nil
+			}
 		} else if color == white {
-			match.WhiteConn = nil
+			if match.WhiteConn == conn {
+				match.WhiteConn = nil
+			}
 		}
 		fmt.Printf("Closed connection '%s' in match %s ", color, match.Name)
 		match.Mutex.Unlock()

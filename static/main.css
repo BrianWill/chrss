@@ -43,7 +43,7 @@ a:visited {
 
 #turn_info {
   display: grid;
-  grid-template-columns: 125px 225px auto;
+  grid-template-columns: 125px 208px auto;
   margin-bottom: 10px;
 }
 
