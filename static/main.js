@@ -176,6 +176,8 @@ var cardDescriptions = {
 <div>Click ally king.<br/><br/>Resurrects your dead vassal (knight, king, or bishop) with 5 hp (and no status effects).</div>`,
     'Stun Vassal': `<h3>Stun Vassal: 2 mana cost</h3>
 <div>Click enemy vassal.<br/><br/>For 1 round, vassal is DamageImmune, Distracted (does not attack), and Unrelcaimable.</div>`,
+    'Transparency': `<h3>Transparency: 2 mana cost</h3>
+<div>Click enemy piece.<br/><br/>For 1 round, piece is Transparent (affected by attacks but does not block them).</div>`,
 };
 
 
@@ -734,6 +736,9 @@ function drawStatusInfo(square, piece) {
             }
             if (neg.enraged > 0) {
                 s += '<div class="status_entry negative">Enraged: piece attacks allies as well as enemies. Remaining rounds: ' + neg.enraged + '</div>';
+            }
+            if (neg.transparent > 0) {
+                s += '<div class="status_entry negative">Transparency: piece does not block attacks. Remaining rounds: ' + neg.transparent + '</div>';
             }
         }
     }

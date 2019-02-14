@@ -98,6 +98,9 @@ const (
 	stunVassalCard           = "Stun Vassal"
 	stunVassalMana           = 2
 	stunVassalDuration       = 1
+	transparencyCard         = "Transparency"
+	transparencyMana         = 2
+	transparencyDuration     = 1
 )
 
 const (
@@ -243,6 +246,7 @@ type PieceNegativeStatus struct {
 	Distracted    int `json:"distracted"`    // piece does not attack
 	Unreclaimable int `json:"unreclaimable"` // piece cannot be reclaimed
 	Enraged       int `json:"enraged"`       // piece hits allies as well as enemies
+	Transparent   int `json:"transparent"`   // piece does not block attacks
 }
 
 type PiecePositiveStatus struct {

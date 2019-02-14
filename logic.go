@@ -59,6 +59,7 @@ func initMatch(m *Match) {
 		Card{stunVassalCard, stunVassalMana},
 		Card{enrageCard, enrageMana},
 		Card{dodgeCard, dodgeMana},
+		Card{transparencyCard, transparencyMana},
 		Card{swapFrontLinesCard, swapFrontLinesMana},
 		Card{removePawnCard, removePawnMana},
 		Card{forceCombatCard, forceCombatMana},
@@ -196,7 +197,9 @@ func (m *Match) CalculateDamage() {
 				if !m.isDamageImmune(hit) && (hit.Color != color || enraged) {
 					hit.Damage += attack
 				}
-				break
+				if !m.isTransparent(hit) {
+					break
+				}
 			}
 			x++
 		}
@@ -209,7 +212,9 @@ func (m *Match) CalculateDamage() {
 				if !m.isDamageImmune(hit) && (hit.Color != color || enraged) {
 					hit.Damage += attack
 				}
-				break
+				if !m.isTransparent(hit) {
+					break
+				}
 			}
 			x--
 		}
@@ -222,7 +227,9 @@ func (m *Match) CalculateDamage() {
 				if !m.isDamageImmune(hit) && (hit.Color != color || enraged) {
 					hit.Damage += attack
 				}
-				break
+				if !m.isTransparent(hit) {
+					break
+				}
 			}
 			y++
 		}
@@ -235,7 +242,9 @@ func (m *Match) CalculateDamage() {
 				if !m.isDamageImmune(hit) && (hit.Color != color || enraged) {
 					hit.Damage += attack
 				}
-				break
+				if !m.isTransparent(hit) {
+					break
+				}
 			}
 			y--
 		}
@@ -250,7 +259,9 @@ func (m *Match) CalculateDamage() {
 				if !m.isDamageImmune(hit) && (hit.Color != color || enraged) {
 					hit.Damage += attack
 				}
-				break
+				if !m.isTransparent(hit) {
+					break
+				}
 			}
 			x++
 			y++
@@ -264,7 +275,9 @@ func (m *Match) CalculateDamage() {
 				if !m.isDamageImmune(hit) && (hit.Color != color || enraged) {
 					hit.Damage += attack
 				}
-				break
+				if !m.isTransparent(hit) {
+					break
+				}
 			}
 			x--
 			y++
@@ -278,7 +291,9 @@ func (m *Match) CalculateDamage() {
 				if !m.isDamageImmune(hit) && (hit.Color != color || enraged) {
 					hit.Damage += attack
 				}
-				break
+				if !m.isTransparent(hit) {
+					break
+				}
 			}
 			x++
 			y--
@@ -292,7 +307,9 @@ func (m *Match) CalculateDamage() {
 				if !m.isDamageImmune(hit) && (hit.Color != color || enraged) {
 					hit.Damage += attack
 				}
-				break
+				if !m.isTransparent(hit) {
+					break
+				}
 			}
 			x--
 			y--
@@ -300,114 +317,8 @@ func (m *Match) CalculateDamage() {
 	}
 
 	queenAttack := func(p Pos, color string, attack int, enraged bool) {
-		x := p.X + 1
-		y := p.Y + 1
-		for x < nColumns && y < nRows {
-			hit := m.getPiece(Pos{x, y})
-			if hit != nil {
-				if !m.isDamageImmune(hit) && (hit.Color != color || enraged) {
-					hit.Damage += attack
-				}
-				break
-			}
-			x++
-			y++
-		}
-
-		x = p.X - 1
-		y = p.Y + 1
-		for x >= 0 && y < nRows {
-			hit := m.getPiece(Pos{x, y})
-			if hit != nil {
-				if !m.isDamageImmune(hit) && (hit.Color != color || enraged) {
-					hit.Damage += attack
-				}
-				break
-			}
-			x--
-			y++
-		}
-
-		x = p.X + 1
-		y = p.Y - 1
-		for x < nColumns && y >= 0 {
-			hit := m.getPiece(Pos{x, y})
-			if hit != nil {
-				if !m.isDamageImmune(hit) && (hit.Color != color || enraged) {
-					hit.Damage += attack
-				}
-				break
-			}
-			x++
-			y--
-		}
-
-		x = p.X - 1
-		y = p.Y - 1
-		for x >= 0 && y >= 0 {
-			hit := m.getPiece(Pos{x, y})
-			if hit != nil {
-				if !m.isDamageImmune(hit) && (hit.Color != color || enraged) {
-					hit.Damage += attack
-				}
-				break
-			}
-			x--
-			y--
-		}
-
-		// cardinal directions
-		x = p.X + 1
-		y = p.Y
-		for x < nColumns {
-			hit := m.getPiece(Pos{x, y})
-			if hit != nil {
-				if !m.isDamageImmune(hit) && (hit.Color != color || enraged) {
-					hit.Damage += attack
-				}
-				break
-			}
-			x++
-		}
-
-		x = p.X - 1
-		y = p.Y
-		for x >= 0 {
-			hit := m.getPiece(Pos{x, y})
-			if hit != nil {
-				if !m.isDamageImmune(hit) && (hit.Color != color || enraged) {
-					hit.Damage += attack
-				}
-				break
-			}
-			x--
-		}
-
-		x = p.X
-		y = p.Y + 1
-		for y < nRows {
-			hit := m.getPiece(Pos{x, y})
-			if hit != nil {
-				if !m.isDamageImmune(hit) && (hit.Color != color || enraged) {
-					hit.Damage += attack
-				}
-				break
-			}
-			y++
-		}
-
-		x = p.X
-		y = p.Y - 1
-		for y >= 0 {
-			hit := m.getPiece(Pos{x, y})
-			if hit != nil {
-				if !m.isDamageImmune(hit) && (hit.Color != color || enraged) {
-					hit.Damage += attack
-				}
-				break
-			}
-			y--
-		}
+		rookAttack(p, color, attack, enraged)
+		bishopAttack(p, color, attack, enraged)
 	}
 
 	kingAttack := func(p Pos, color string, attack int, enraged bool) {
@@ -645,7 +556,7 @@ func (m *Match) PlayableCards() {
 				case bishop, knight, rook, queen, jester:
 					// todo: check if a free square is available on player's side
 					private.PlayableCards[j] = true
-				case forceCombatCard, mirrorCard, nukeCard, vulnerabilityCard, amplifyCard, enrageCard, swapFrontLinesCard:
+				case forceCombatCard, mirrorCard, nukeCard, vulnerabilityCard, transparencyCard, amplifyCard, enrageCard, swapFrontLinesCard:
 					private.PlayableCards[j] = true
 				case stunVassalCard:
 					if public.Other.KnightPlayed || public.Other.RookPlayed || public.Other.BishopPlayed {
@@ -858,6 +769,8 @@ func (m *Match) clickCard(player string, public *PublicState, private *PrivateSt
 						private.dimAllButPieces(otherColor(player), board)
 					case amplifyCard:
 						private.dimAllButPieces(player, board)
+					case transparencyCard:
+						private.dimAllButPieces(otherColor(player), board)
 					case stunVassalCard:
 						private.dimAllButTypes([]string{bishop, knight, rook}, otherColor(player), board)
 					case enrageCard:
@@ -947,6 +860,10 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 			}
 		case amplifyCard:
 			if !m.playAmplify(p, player) {
+				return
+			}
+		case transparencyCard:
+			if !m.playTransparency(p, player) {
 				return
 			}
 		case stunVassalCard:
@@ -1266,7 +1183,7 @@ func (m *Match) playVulnerability(pos Pos, player string) bool {
 		return false
 	}
 	neg := m.pieceNegativeStatus(piece)
-	neg.Vulnerability = vulnerabilityDuration
+	neg.Vulnerability += vulnerabilityDuration
 	return true
 }
 
@@ -1277,7 +1194,18 @@ func (m *Match) playAmplify(pos Pos, player string) bool {
 		return false
 	}
 	positive := m.piecePositiveStatus(piece)
-	positive.Amplify = amplifyDuration
+	positive.Amplify += amplifyDuration
+	return true
+}
+
+// return true if play is valid
+func (m *Match) playTransparency(pos Pos, player string) bool {
+	piece := m.getPieceSafe(pos)
+	if piece == nil || piece.Color == player {
+		return false
+	}
+	neg := m.pieceNegativeStatus(piece)
+	neg.Transparent += transparencyDuration
 	return true
 }
 
@@ -1290,9 +1218,9 @@ func (m *Match) playStunVassal(pos Pos, player string) bool {
 	}
 	positive := m.piecePositiveStatus(piece)
 	negative := m.pieceNegativeStatus(piece)
-	positive.DamageImmune = stunVassalDuration
-	negative.Distracted = stunVassalDuration
-	negative.Unreclaimable = stunVassalDuration
+	positive.DamageImmune += stunVassalDuration
+	negative.Distracted += stunVassalDuration
+	negative.Unreclaimable += stunVassalDuration
 	return true
 }
 
@@ -1303,7 +1231,7 @@ func (m *Match) playEnrage(pos Pos, player string) bool {
 		return false
 	}
 	neg := m.pieceNegativeStatus(piece)
-	neg.Enraged = enrageDuration
+	neg.Enraged += enrageDuration
 	return true
 }
 
@@ -1694,6 +1622,9 @@ func (m *Match) tickdownStatusEffects(postReclaim bool) {
 						if neg.Distracted > 0 {
 							neg.Distracted--
 						}
+						if neg.Transparent > 0 {
+							neg.Transparent--
+						}
 						if *neg == (PieceNegativeStatus{}) {
 							status.Negative = nil
 						}
@@ -2024,6 +1955,13 @@ func (m *Match) isDamageImmune(p *Piece) bool {
 		return false
 	}
 	return p.Status.Positive.DamageImmune > 0
+}
+
+func (m *Match) isTransparent(p *Piece) bool {
+	if p.Status == nil || p.Status.Negative == nil {
+		return false
+	}
+	return p.Status.Negative.Transparent > 0
 }
 
 func (m *Match) getAmplifiedDamage(p *Piece) int {

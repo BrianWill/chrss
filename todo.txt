@@ -3,22 +3,8 @@ add /dev path that creates new match and redirects to /dev/:match
 
 in status info, show sources of damage
 
-on state change, then update and display the status info if cursor is over square with status effect
 
 messages explaining why a card is unselectable (e.g. resurect vassal can't be played because no vassal is dead)
-
-
-
-Distracted (piece)
-unreclaimable
-//damage immune
-
-
-stun vassal - for 1 round, targeted vassal (friend or foe) is Distracted, Unreclaimable, and DamageImmune
-
-
-transparency - cast on enemy or allied unit: this round, all attacks will penetrate 
-        one square beyond this unit (hitting the enemy unit as well?)
 
 
 
