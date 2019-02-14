@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math/rand"
@@ -166,6 +167,71 @@ func (um *UserMap) Store(userID string) {
 	um.Unlock()
 }
 
+var userNumber = 1 // used for default user names
+// returns userID (which may be new if argument does not exist
+func validateUser(c *gin.Context, userID string, userName string, users *UserMap) (string, string, error) {
+	users.Lock()
+	if !users.internal[userID] {
+		u2, err := uuid.NewV4()
+		if err != nil {
+			users.Unlock()
+			return "", "", err
+		}
+		userID = u2.String()
+		const tenYears = 10 * 365 * 24 * 60 * 60
+		c.SetCookie("user_id", userID, tenYears, "/", "", false, false)
+		userName = strconv.Itoa(userNumber)
+		c.SetCookie("user_name", strconv.Itoa(userNumber), tenYears, "/", "", false, false)
+		userNumber++
+	}
+	users.internal[userID] = true
+	users.Unlock()
+	return userID, userName, nil
+}
+
+func createMatch(c *gin.Context, liveMatches *MatchMap, users *UserMap) (string, error) {
+	userID, err := c.Cookie("user_id")
+	userName, _ := c.Cookie("user_name")
+	userID, userName, err = validateUser(c, userID, userName, users)
+	if err != nil {
+		return "", err
+	}
+
+	name := adjectives[rand.Intn(len(adjectives))] + "-" + animals[rand.Intn(len(animals))]
+
+	liveMatches.Lock()
+	// if name collision with existing match, randomly generate new names until finding one that's not in use
+	// (not ideal, but this is partly why we limit number of active matches)
+	for _, ok := liveMatches.internal[name]; ok; {
+		name = adjectives[rand.Intn(len(adjectives))] + "-" + animals[rand.Intn(len(animals))]
+	}
+	match := &Match{
+		Name:          name,
+		WhitePlayerID: userID,
+		BlackPlayerID: userID,
+		CreatorName:   userName,
+	}
+	// clean up any dead or timedout matches
+	for name, match := range liveMatches.internal {
+		exceededTimeout := time.Now().UnixNano() > match.LastMoveTime+matchTimeout
+		if match.Phase == gameoverPhase || exceededTimeout {
+			liveMatches.internal[name].Mutex.Lock()
+			delete(liveMatches.internal, name)
+		}
+	}
+	nMatches := len(liveMatches.internal)
+	liveMatches.Unlock()
+
+	if nMatches >= maxConcurrentMatches {
+		c.String(http.StatusInternalServerError, "Cannot create match. Server currently at max number of matches.")
+		return "", errors.New("At max matches. Cannot create an additional match.")
+	}
+
+	initMatch(match)
+	liveMatches.Store(match)
+	return match.Name, nil
+}
+
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
@@ -195,33 +261,10 @@ func main() {
 	router.LoadHTMLGlob("templates/*.tmpl")
 	router.Static("/static", "static")
 
-	var userNumber = 1 // used for default user names
-
-	// returns userID (which may be new if argument does not exist
-	validateUser := func(c *gin.Context, userID string, userName string) (string, string, error) {
-		users.Lock()
-		if !users.internal[userID] {
-			u2, err := uuid.NewV4()
-			if err != nil {
-				users.Unlock()
-				return "", "", err
-			}
-			userID = u2.String()
-			const tenYears = 10 * 365 * 24 * 60 * 60
-			c.SetCookie("user_id", userID, tenYears, "/", "", false, false)
-			userName = strconv.Itoa(userNumber)
-			c.SetCookie("user_name", strconv.Itoa(userNumber), tenYears, "/", "", false, false)
-			userNumber++
-		}
-		users.internal[userID] = true
-		users.Unlock()
-		return userID, userName, nil
-	}
-
 	router.GET("/", func(c *gin.Context) {
 		userID, err := c.Cookie("user_id")
 		userName, _ := c.Cookie("user_name")
-		userID, userName, err = validateUser(c, userID, userName)
+		userID, userName, err = validateUser(c, userID, userName, users)
 		if err != nil {
 			fmt.Printf("Error generating UUIDv4: %s", err)
 			return
@@ -267,47 +310,21 @@ func main() {
 	})
 
 	router.GET("/createMatch", func(c *gin.Context) {
-		userID, err := c.Cookie("user_id")
-		userName, _ := c.Cookie("user_name")
-		userID, userName, err = validateUser(c, userID, userName)
+		name, err := createMatch(c, liveMatches, users)
 		if err != nil {
-			fmt.Printf("Error generating UUIDv4: %s", err)
+			fmt.Printf(err.Error())
 			return
 		}
+		c.Redirect(http.StatusSeeOther, "/match/"+name+"/white")
+	})
 
-		name := adjectives[rand.Intn(len(adjectives))] + "-" + animals[rand.Intn(len(animals))]
-
-		liveMatches.Lock()
-		// if name collision with existing match, randomly generate new names until finding one that's not in use
-		// (not ideal, but this is partly why we limit number of active matches)
-		for _, ok := liveMatches.internal[name]; ok; {
-			name = adjectives[rand.Intn(len(adjectives))] + "-" + animals[rand.Intn(len(animals))]
-		}
-		match := &Match{
-			Name:          name,
-			WhitePlayerID: userID,
-			CreatorName:   userName,
-		}
-		// clean up any dead or timedout matches
-		for name, match := range liveMatches.internal {
-			exceededTimeout := time.Now().UnixNano() > match.LastMoveTime+matchTimeout
-			if match.Phase == gameoverPhase || exceededTimeout {
-				liveMatches.internal[name].Mutex.Lock()
-				delete(liveMatches.internal, name)
-			}
-		}
-		nMatches := len(liveMatches.internal)
-		liveMatches.Unlock()
-
-		if nMatches >= maxConcurrentMatches {
-			c.String(http.StatusInternalServerError, "Cannot create match. Server currently at max number of matches.")
+	router.GET("/dev", func(c *gin.Context) {
+		name, err := createMatch(c, liveMatches, users)
+		if err != nil {
+			fmt.Printf(err.Error())
 			return
 		}
-
-		initMatch(match)
-		liveMatches.Store(match)
-
-		c.Redirect(http.StatusSeeOther, "/match/"+match.Name+"/white")
+		c.Redirect(http.StatusSeeOther, "/dev/"+name)
 	})
 
 	router.GET("/dev/:name", func(c *gin.Context) {
@@ -318,7 +335,7 @@ func main() {
 	router.GET("/match/:name/:color", func(c *gin.Context) {
 		userID, err := c.Cookie("user_id")
 		userName, _ := c.Cookie("user_name")
-		userID, userName, err = validateUser(c, userID, userName)
+		userID, userName, err = validateUser(c, userID, userName, users)
 		if err != nil {
 			fmt.Printf("Error generating UUIDv4: %s", err)
 			return
@@ -367,7 +384,7 @@ func main() {
 	router.GET("/ws/:name/:color", func(c *gin.Context) {
 		userID, err := c.Cookie("user_id")
 		userName, _ := c.Cookie("user_name")
-		userID, userName, err = validateUser(c, userID, userName)
+		userID, userName, err = validateUser(c, userID, userName, users)
 		if err != nil {
 			fmt.Printf("Error generating UUIDv4: %s", err)
 			return
