@@ -62,7 +62,7 @@ func processMessage(msg []byte, match *Match, player string) {
 				"turnRemainingMilliseconds": remainingTurnTime,
 				"color":                     color,
 				"board":                     match.Board,
-				"boardStatus":               match.Combined,
+				"boardStatus":               match.SquareStatuses,
 				"private":                   private,
 				"turn":                      match.Turn,
 				"newTurn":                   newTurn,

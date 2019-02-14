@@ -174,6 +174,8 @@ var cardDescriptions = {
 <div>Click ally piece that is under threat (going to be hit in combat) and has at least one free adjacent square.<br/><br/>Moves piece to random adjacent free square. (May move piece into enemy territory.)</div>`,
     'Resurrect Vassal': `<h3>Resurrect Vassal: 2 mana cost</h3>
 <div>Click ally king.<br/><br/>Resurrects your dead vassal (knight, king, or bishop) with 5 hp (and no status effects).</div>`,
+    'Stun Vassal': `<h3>Stun Vassal: 2 mana cost</h3>
+<div>Click enemy vassal.<br/><br/>For 1 round, vassal is DamageImmune, Distracted (does not attack), and Unrelcaimable.</div>`,
 };
 
 
@@ -215,6 +217,8 @@ conn.onmessage = function(msg){
     }
     setTimers(matchState);
     draw(matchState);
+
+    updateSquareInfoBox(boardClientX, boardClientY);
 
     // sounds
     try {
@@ -562,7 +566,6 @@ function draw(matchState) {
                     );    
                 }
             }
-
             if (piece && piece.status) {
                 if (piece.status.positive) {
                     ctx.drawImage(upArrowImg, 0, 0, upArrowImg.spriteWidth, upArrowImg.spriteHeight, 
@@ -714,11 +717,20 @@ function drawStatusInfo(square, piece) {
             if (pos.amplify > 0) {
                 s += '<div class="status_entry positive">Amplify: piece inflicts double damage. Remaining rounds: ' + pos.amplify + '</div>';
             }
+            if (pos.damageImmune > 0) {
+                s += '<div class="status_entry positive">Damage Immune: piece cannot take damage. Remaining rounds: ' + pos.damageImmune + '</div>';
+            }
         }
         let neg = piece.negative;
         if (neg) {
             if (neg.vulnerability > 0) {
                 s += '<div class="status_entry negative">Vulnerability: piece takes double damage. Remaining rounds: ' + neg.vulnerability + '</div>';
+            }
+            if (neg.unreclaimable > 0) { 
+                s += '<div class="status_entry negative">Unreclaimable: piece cannot be reclaimed. Remaining rounds: ' + neg.unreclaimable + '</div>';
+            }
+            if (neg.distracted > 0) {
+                s += '<div class="status_entry negative">Distracted: piece will not inflict damage. Remaining rounds: ' + neg.distracted + '</div>';
             }
             if (neg.enraged > 0) {
                 s += '<div class="status_entry negative">Enraged: piece attacks allies as well as enemies. Remaining rounds: ' + neg.enraged + '</div>';
@@ -850,14 +862,17 @@ cardList.addEventListener('mouseover', function (evt) {
 }, false);
 
 
-canvas.addEventListener('mousemove', function (evt) {
+function updateSquareInfoBox(clientX, clientY) {
     switch (matchState.phase) {
         case 'main':
         case 'reclaim':
         case 'kingPlacement':
+            if (clientX === null) {
+                return;
+            }
             var rect = canvas.getBoundingClientRect();
-            var mouseX = evt.clientX - rect.left;
-            var mouseY = evt.clientY - rect.top;
+            var mouseX = clientX - rect.left;
+            var mouseY = clientY - rect.top;
         
             var squareX = Math.floor(mouseX / board.squareWidth);
             var squareY = Math.floor(mouseY / board.squareHeight);
@@ -898,9 +913,21 @@ canvas.addEventListener('mousemove', function (evt) {
             }
             break;
     }
+}
+
+var boardClientX = null;
+var boardClientY = null;
+
+canvas.addEventListener('mousemove', function (evt) {
+    boardClientX = evt.clientX;
+    boardClientY = evt.clientY;
+    updateSquareInfoBox(boardClientX, boardClientY);
+    
 }, false);
 
 canvas.addEventListener('mouseleave', function (evt) {
+    boardClientX = null;
+    boardClientY = null;
     cardDescription.style.display = 'none';
     logBox.style.display = 'block';
     statusInfo.style.display = 'none';

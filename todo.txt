@@ -9,7 +9,13 @@ messages explaining why a card is unselectable (e.g. resurect vassal can't be pl
 
 
 
+Distracted (piece)
+unreclaimable
+//damage immune
+
+
 stun vassal - for 1 round, targeted vassal (friend or foe) is Distracted, Unreclaimable, and DamageImmune
+
 
 transparency - cast on enemy or allied unit: this round, all attacks will penetrate 
         one square beyond this unit (hitting the enemy unit as well?)
@@ -17,10 +23,6 @@ transparency - cast on enemy or allied unit: this round, all attacks will penetr
 
 
 
-
-
-AI? random valid moves (can work in simple heuristics for some cards; wouldn't think 
-    ahead, but at least can make OK choices in the moment)
 
 
 
@@ -33,22 +35,9 @@ in deck builds, players choose a few high cost cards to start in their hand
 
 perhaps vassals should be tankier so using them as shields is not so discouraged
 
-maybe pawns should do more damage? or do bonus damage to non-pawns? or take half damage (or 0) from pawns?
-    pawns should be bigger deterent for placing pieces; too low damage makes it too easy to just eat the damage
-
-
-protection against bad behaving clients (flooding with messages)
-    rate limit, cut off client if it exceeds threshold
 
 
 
-pawns buff up between rounds (increase HP by 5?)
-
-
-
-
-
-total time clock that forfeits if it expires?
 
 
 
@@ -183,3 +172,14 @@ for scaling across dynos, use redis to share match state? ideally we can get bot
     match to connect on same dyno, but not sure there's any mechanism for this
 
 heroku: .play() is triggering exceptions? is it failing to play?
+
+protection against bad behaving clients (flooding with messages)
+    rate limit, cut off client if it exceeds threshold
+
+pawns buff up between rounds? (increase HP by 5?)
+
+total time clock that forfeits if it expires?
+
+
+AI? random valid moves (can work in simple heuristics for some cards; wouldn't think 
+    ahead, but at least can make OK choices in the moment)
