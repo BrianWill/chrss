@@ -14,6 +14,18 @@
   <h2>Your user name: {{.Name}}</h2>
   <a href="/createMatch">Create match</a>
 
+  {{if .PlayerMatches}}
+  <h3>Your ongoing matches:</h3>
+  <ul>
+      {{range .PlayerMatches}}
+          <li> 
+            <a href="/match/{{.Name}}/{{.Color}}">Rejoin player {{.CreatorName}}'s match (created {{.Elapsed}} ago)</a>  
+          </li>
+      {{end}}
+  </ul>
+  {{end}}
+
+
   {{if .Matches}}
   <h3>Open matches:</h3>
   <ul>

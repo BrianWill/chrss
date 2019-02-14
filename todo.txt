@@ -1,32 +1,18 @@
-for scaling across dynos, use redis to share match state? ideally we can get both players of a 
-    match to connect on same dyno, but not sure there's any mechanism for this
 
-
-
-list the live matches the player has joined (with link sepcifying their color and link to reconnect)
-    (single player could be connected as both white and black)
-    linkes: rejoin white    rejoin blacks
-
-live update/refresh of open matches / player's matches on home page
-
-
-add dev page which creates matches and has links to join as either color or as both
-
+add /dev path that creates new match and redirects to /dev/:match 
 
 in status info, show sources of damage
 
-on state change, update and display status info if cursor is over square with status effect
+on state change, then update and display the status info if cursor is over square with status effect
 
 messages explaining why a card is unselectable (e.g. resurect vassal can't be played because no vassal is dead)
 
 
-stun vassal - for 1 round, targeted vassal (friend or foe) is Distracted, Unreclaimable, and Immune 
 
-Resurect Vassal - resurects your dead vassal with 5 hp; puts card back in your hand immediately
-    Click ally King to confirm.
-    (because 2 dead vassals means game is over, don't have to select which vassal: either you have 1 dead vassal or none)
+stun vassal - for 1 round, targeted vassal (friend or foe) is Distracted, Unreclaimable, and DamageImmune
 
-
+transparency - cast on enemy or allied unit: this round, all attacks will penetrate 
+        one square beyond this unit (hitting the enemy unit as well?)
 
 
 
@@ -38,7 +24,7 @@ AI? random valid moves (can work in simple heuristics for some cards; wouldn't t
 
 
 
-heroku: .play() is triggering exceptions? is it failing to play?
+
 
 communal cards? deck building?
 in deck builds, players choose a few high cost cards to start in their hand 
@@ -58,9 +44,9 @@ protection against bad behaving clients (flooding with messages)
 
 pawns buff up between rounds (increase HP by 5?)
 
-what to do about your own pawns in the way? include 'pawn sacrafice' card in stock hand to kill own pawn?
-    -- give enemy incentive to attack? discourage stalling strategies?
-    -- in round 5 and after, if 3 rounds pass without any hits on either king; side with lowest hp king loses
+
+
+
 
 total time clock that forfeits if it expires?
 
@@ -78,8 +64,7 @@ escalation:
     (maybe even choose your own square, which could be useful if cursed squares block attacks)
 
 
-    pawns should have more hp, do a bit more damage? pawns should be harder to kill (otherwise 
-    the board has too little continuity from round to round)
+  
 
 
     some cards might be too powerful if cast after vassal placement, some too powerful if cast before?
@@ -92,18 +77,15 @@ escalation:
 card ideas:
 
 
-    
-    
 
     wrapped targeting - a piece modified such that attacks wrap around board like pacman 
         (but also becomes vulnerable to wrapped attacks?)
 
-    poison square - in next round, a square will damage occupied unit (lasts multiple rounds?)
+    poison square - in next round, a square will damage occupied unit (effect lasts multiple rounds?)
 
     poison row - in next round, all squares in a row will damage occupied unit
 
-    transparency - cast on enemy unit: this round, all rook and bishop attacks will penetrate 
-        one square beyond this unit (hitting the enemy unit as well?)
+
 
 
     block square/row - temporarily or permanently block square from occupation (does it block attacks or do theyy go through?)    
@@ -197,4 +179,7 @@ cards that can be cast on an enemy but doesn't take effect unless it takes damag
 
 on some browsers, scrollbar for card list and log not showing up when overflow-y
 
-fix font rendering for high dps: https://gist.github.com/joubertnel/870190
+for scaling across dynos, use redis to share match state? ideally we can get both players of a 
+    match to connect on same dyno, but not sure there's any mechanism for this
+
+heroku: .play() is triggering exceptions? is it failing to play?

@@ -235,25 +235,31 @@ func main() {
 			CreatorName string
 			StartTime   int64
 			Elapsed     string
+			Color       string
 		}
 		liveMatches.Lock()
 		matches := []match{}
-		i := 0
+		playerMatches := []match{}
 		for _, m := range liveMatches.internal {
 			elapsed := fmtDuration(now.Sub(time.Unix(0, m.StartTime)))
 			if m.IsBlackOpen() {
-				matches = append(matches, match{m.Name, m.CreatorName, m.StartTime, elapsed})
+				matches = append(matches, match{m.Name, m.CreatorName, m.StartTime, elapsed, none})
 			}
-			i++
+			if m.BlackPlayerID == userID {
+				playerMatches = append(playerMatches, match{m.Name, m.CreatorName, m.StartTime, elapsed, black})
+			} else if m.WhitePlayerID == userID {
+				playerMatches = append(playerMatches, match{m.Name, m.CreatorName, m.StartTime, elapsed, white})
+			}
 		}
 		sort.Slice(matches, func(i, j int) bool { return matches[i].StartTime > matches[j].StartTime })
 		liveMatches.Unlock()
 
 		c.HTML(http.StatusOK, "home.tmpl", struct {
-			ID      string
-			Name    string
-			Matches []match
-		}{userID, userName, matches})
+			ID            string
+			Name          string
+			Matches       []match
+			PlayerMatches []match
+		}{userID, userName, matches, playerMatches})
 	})
 
 	router.GET("/guide", func(c *gin.Context) {

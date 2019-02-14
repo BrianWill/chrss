@@ -172,6 +172,8 @@ var cardDescriptions = {
 <div>Click enemy piece.<br/><br/>Enraged piece hits allies as well as enemeies.</div>`,
     'Dodge': `<h3>Dodge: 2 mana cost</h3>
 <div>Click ally piece that is under threat (going to be hit in combat) and has at least one free adjacent square.<br/><br/>Moves piece to random adjacent free square. (May move piece into enemy territory.)</div>`,
+    'Resurrect Vassal': `<h3>Resurrect Vassal: 2 mana cost</h3>
+<div>Click ally king.<br/><br/>Resurrects your dead vassal (knight, king, or bishop) with 5 hp (and no status effects).</div>`,
 };
 
 
@@ -184,7 +186,6 @@ var conn = new WebSocket(url);
 
 
 var waitingResponse = false;
-
 
 conn.onmessage = function(msg){
     console.log(" <== " + new Date() + " <== \n");
@@ -242,8 +243,9 @@ conn.onerror = function(err) {
 }
 
 conn.onclose = function(err) {
-    console.log("Connection close " + new Date() + err);
-    console.log(err);
+    console.log("Connection close " + new Date(), err);
+    readyup.style.display = 'block';
+    readyup.innerHTML = '<div>CONNECTION LOST.<br/>DID YOU JOIN THIS MATCH IN ANOTHER BROWSER TAB?<br/>REFRESH TO RECONNECT</div>';
 }
 
 conn.onopen = function(){

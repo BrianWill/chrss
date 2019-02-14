@@ -70,6 +70,7 @@ func initMatch(m *Match) {
 		Card{advanceCard, advanceMana},
 		Card{restoreManaCard, restoreManaMana},
 		Card{summonPawnCard, summonPawnMana},
+		Card{resurrectVassalCard, resurrectVassalMana},
 	}
 
 	m.BlackPrivate = PrivateState{
@@ -686,6 +687,10 @@ func (m *Match) PlayableCards() {
 					if public.NumPawns < maxPawns && len(m.freePawnColumns(public.Color)) > 0 {
 						private.PlayableCards[j] = true
 					}
+				case resurrectVassalCard:
+					if public.BishopHP <= 0 || public.RookHP <= 0 || public.KnightHP <= 0 {
+						private.PlayableCards[j] = true
+					}
 				case togglePawnCard:
 					if len(m.toggleablePawns()) > 0 {
 						private.PlayableCards[j] = true
@@ -867,6 +872,8 @@ func (m *Match) clickCard(player string, public *PublicState, private *PrivateSt
 						private.dimAllButType(king, player, board)
 					case summonPawnCard:
 						private.dimAllButType(king, player, board)
+					case resurrectVassalCard:
+						private.dimAllButType(king, player, board)
 					case healCard:
 						private.dimAllButPieces(player, board)
 						private.dimType(king, player, board)
@@ -964,6 +971,10 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 			}
 		case summonPawnCard:
 			if !m.playSummonPawn(p, public) {
+				return
+			}
+		case resurrectVassalCard:
+			if !m.playResurrectVassal(p, public) {
 				return
 			}
 		case bishop, knight, rook, queen, jester:
@@ -1183,6 +1194,26 @@ func (m *Match) playSummonPawn(pos Pos, public *PublicState) bool {
 		return false
 	}
 	return m.SpawnSinglePawn(public.Color, public)
+}
+
+// return true if play is valid
+func (m *Match) playResurrectVassal(pos Pos, public *PublicState) bool {
+	piece := m.getPieceSafe(pos)
+	if piece == nil || piece.Name != king || piece.Color != public.Color {
+		return false
+	}
+	// should be the case that only one vassal is dead (because otherwise the game would be over already)
+	if public.BishopHP <= 0 {
+		public.BishopHP = resurrectVassalRestoreHP
+		public.BishopPlayed = false
+	} else if public.KnightHP <= 0 {
+		public.KnightHP = resurrectVassalRestoreHP
+		public.KnightPlayed = false
+	} else if public.RookHP <= 0 {
+		public.RookHP = resurrectVassalRestoreHP
+		public.RookPlayed = false
+	}
+	return true
 }
 
 // return true if play is valid

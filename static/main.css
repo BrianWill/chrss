@@ -59,7 +59,6 @@ a:visited {
   background-color: rgb(20, 20, 20, 0.9);
   height: 200px;
   width: 100%;
-  margin: 0px 0px;
 }
 
 #readyup > button {
@@ -75,9 +74,14 @@ a:visited {
 
 #readyup > div {
   color: white;
-  margin: 80px auto;
   font-size: 140%;
   text-align: center;
+
+  margin: 0;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 .highlight_card {
