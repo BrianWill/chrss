@@ -1,15 +1,16 @@
 
-add /dev path that creates new match and redirects to /dev/:match 
-
 in status info, show sources of damage
 
 
-messages explaining why a card is unselectable (e.g. resurect vassal can't be played because no vassal is dead)
 
 
 
 
+fog of war - mist covers a column, making all attacks on and from that row have a 50% chance of missing
+    random chance only applied in last damage calculation when combat is resolved
+        (otherwise the dmg values would randomly fluctuate with every recalculation)
 
+plague - inflict damage on all enemy pieces if enemy has 10 or more pieces on the board
 
 
 
@@ -69,11 +70,12 @@ card ideas:
 
     shift pawn - move pawn (ally or enemy) to random other column without a pawn
 
-    armour - apply to unit to protect it this round from damage
+    
 
     block pawn spawn in column - prevents auto spawn of pawn in column for next two rounds
 
-    poison unit - takes damage every 
+
+    
 
 
 
@@ -81,14 +83,13 @@ card ideas:
 
     invade - open the enemy's front row for placing your pieces in this round
 
-    attack buff - temp or permanent increase a piece's attack
-    hp buff - temp or permanent increase a piece's hp (potentially above their starting max)
 
     draw cards - draw two cards
 
     heal all pawns - restoration applied after combat?
 
-    ricochet - select your vassal - attack on target is transmitted from teh target in same pattern, e.g. bishop hits   enemy and so bishop's diagonal attack emanates in all 4 diagonals from that enemy
+    ricochet - select your vassal - attack on target is transmitted from teh target in same pattern, e.g. bishop hits   
+        enemy and so bishop's diagonal attack emanates in all 4 diagonals from that enemy
 
     nullify - selected unit remains on board but takes no damage and inflicts no damage this round
 
@@ -98,7 +99,8 @@ card ideas:
 
     
 
-    chain attack - buff on ally or curse on enemy? attack on unit spreads recursively through all cardinally            contiguous pieces (maybe transmits through diagonals too?)
+    chain attack - buff on ally or curse on enemy? attack on unit spreads recursively through all cardinally            
+        contiguous pieces (maybe transmits through diagonals too?)
 
     swap rows - swap ally/enemy back row with middle row
 
@@ -121,7 +123,7 @@ card ideas:
 
     
 
-    fog of war - mist covers a row, making all attacks on and from that row have a 50% chance of missing
+    
 
     
 
@@ -131,10 +133,10 @@ card ideas:
 
     mimic bishop - knight or rook adopts bishop attack pattern for this and next 2 rounds
 
-    force reclaim - reclaim the piece you played in last turn, or force enemy to reclaim the piece they played in     
+    force reclaim vassal - reclaim the piece you played in last turn, or force enemy to reclaim the piece they played in     
         last turn; the reclaimed piece cannot be used again this round
 
-    hp aura - after combat, all adjacent pieces (including enemies?)
+    hp aura - heals after combat, all adjacent pieces (including enemies?)
     attack aura - buff attack " " " " "
 
     time bomb - convert an allied pawn into a bomb: the bomb has 20hp and no attack, after 3 rounds, it   

@@ -227,7 +227,7 @@ func createMatch(c *gin.Context, liveMatches *MatchMap, users *UserMap) (string,
 		return "", errors.New("At max matches. Cannot create an additional match.")
 	}
 
-	initMatch(match)
+	initMatch(match, false)
 	liveMatches.Store(match)
 	return match.Name, nil
 }

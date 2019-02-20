@@ -101,6 +101,14 @@ const (
 	transparencyCard         = "Transparency"
 	transparencyMana         = 2
 	transparencyDuration     = 1
+	armorCard                = "Armor"
+	armorMana                = 2
+	armorAmount              = 2
+	dispellCard              = "Dispell"
+	dispellMana              = 2
+	poisonCard               = "Poison"
+	poisonMana               = 2
+	poisonAmount             = 2
 )
 
 const (
@@ -247,11 +255,13 @@ type PieceNegativeStatus struct {
 	Unreclaimable int `json:"unreclaimable"` // piece cannot be reclaimed
 	Enraged       int `json:"enraged"`       // piece hits allies as well as enemies
 	Transparent   int `json:"transparent"`   // piece does not block attacks
+	Poison        int `json:"poison"`        // number of HP to remove in every combat phase
 }
 
 type PiecePositiveStatus struct {
 	Amplify      int `json:"amplify"`      // increase damage this piece inflicts
 	DamageImmune int `json:"damageImmune"` // does not take damage
+	Armor        int `json:"armor"`        // number of armor points (not the duration: armor is permanent)
 }
 
 type Pos struct {

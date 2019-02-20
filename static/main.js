@@ -173,11 +173,17 @@ var cardDescriptions = {
     'Dodge': `<h3>Dodge: 2 mana cost</h3>
 <div>Click ally piece that is under threat (going to be hit in combat) and has at least one free adjacent square.<br/><br/>Moves piece to random adjacent free square. (May move piece into enemy territory.)</div>`,
     'Resurrect Vassal': `<h3>Resurrect Vassal: 2 mana cost</h3>
-<div>Click ally king.<br/><br/>Resurrects your dead vassal (knight, king, or bishop) with 5 hp (and no status effects).</div>`,
+<div>Click ally king.<br/><br/>Resurrects your dead vassal (knight, king, or bishop) with 5 hp and no status effects.</div>`,
     'Stun Vassal': `<h3>Stun Vassal: 2 mana cost</h3>
 <div>Click enemy vassal.<br/><br/>For 1 round, vassal is DamageImmune, Distracted (does not attack), and Unrelcaimable.</div>`,
     'Transparency': `<h3>Transparency: 2 mana cost</h3>
 <div>Click enemy piece.<br/><br/>For 1 round, piece is Transparent (affected by attacks but does not block them).</div>`,
+    'Armor': `<h3>Armor: 2 mana cost</h3>
+<div>Click ally piece other than king.<br/><br/>Adds two points of armor to the piece. Each point of armor negates a point of incoming damage from each attacking piece. Can be stacked and can be removed by Dispell.</div>`,
+    'Dispell': `<h3>Dispell: 2 mana cost</h3>
+<div>Click piece.<br/><br/>Removes all status effects (positive and negative) from the piece.</div>`,
+    'Poison': `<h3>Poison: 2 mana cost</h3>
+<div>Click enemy piece other than King.<br/><br/>Damages piece every combat phase for 2 HP (unless piece is Damage Immune). Can be stacked and can be removed by Dispell. Vulnerability affects the poison damage. Reclaimed vassals are not damaged by poison while off the board.</div>`,
 };
 
 
@@ -719,6 +725,9 @@ function drawStatusInfo(square, piece) {
             if (pos.amplify > 0) {
                 s += '<div class="status_entry positive">Amplify: piece inflicts double damage. Remaining rounds: ' + pos.amplify + '</div>';
             }
+            if (pos.armor > 0) {
+                s += '<div class="status_entry positive">Armor: reduces incoming damage. Strength: ' + pos.armor + '</div>';
+            }
             if (pos.damageImmune > 0) {
                 s += '<div class="status_entry positive">Damage Immune: piece cannot take damage. Remaining rounds: ' + pos.damageImmune + '</div>';
             }
@@ -727,6 +736,9 @@ function drawStatusInfo(square, piece) {
         if (neg) {
             if (neg.vulnerability > 0) {
                 s += '<div class="status_entry negative">Vulnerability: piece takes double damage. Remaining rounds: ' + neg.vulnerability + '</div>';
+            }
+            if (neg.poison > 0) {
+                s += '<div class="status_entry negative">Poison: piece takes damage every round in combat. HP removed: ' + neg.poison + '</div>';
             }
             if (neg.unreclaimable > 0) { 
                 s += '<div class="status_entry negative">Unreclaimable: piece cannot be reclaimed. Remaining rounds: ' + neg.unreclaimable + '</div>';
