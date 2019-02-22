@@ -2,11 +2,10 @@
 in status info, show sources of damage
 
 
-King and Vassals should persist as same piece rather than creating a new piece when they are placed
-
 
 AI vs human
-    king placement after first round
+    piece reclaim
+        prioritize pieces under threat and in unguarded positions
 
 AI vs AI
     create a separate game loop that doesn't wait for user interactions (abstract out common logic with main game loop?)

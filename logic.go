@@ -1625,19 +1625,19 @@ func (m *Match) ReclaimPieces() {
 					// if reclaiming a rook, heal the rook
 					switch p.Name {
 					case king:
-						public.King = m.Board[pos.getBoardIdx()]
+						*public.King = *m.Board[pos.getBoardIdx()]
 						m.removePieceAt(pos)
 						public.KingPlayed = false
 					case bishop:
-						public.Bishop = m.Board[pos.getBoardIdx()]
+						*public.Bishop = *m.Board[pos.getBoardIdx()]
 						m.removePieceAt(pos)
 						public.BishopPlayed = false
 					case knight:
-						public.Knight = m.Board[pos.getBoardIdx()]
+						*public.Knight = *m.Board[pos.getBoardIdx()]
 						m.removePieceAt(pos)
 						public.KnightPlayed = false
 					case rook:
-						public.Rook = m.Board[pos.getBoardIdx()]
+						*public.Rook = *m.Board[pos.getBoardIdx()]
 						m.removePieceAt(pos)
 						public.RookPlayed = false
 						public.RookHP += reclaimHealRook
@@ -1702,8 +1702,11 @@ func (m *Match) EndRound() {
 				private.KingPos = &pos
 				public.KingPlayed = true
 				m.Log = append(m.Log, "white played King")
+				m.WhitePrivate.highlightsOff()
+				m.EndKingPlacement()
+			} else {
+				m.WhitePrivate.dimAllButFree(white, m.Board[:])
 			}
-			m.WhitePrivate.dimAllButFree(white, m.Board[:])
 		}
 		if m.BlackPublic.KingPlayed {
 			m.BlackPrivate.highlightsOff()
@@ -1714,11 +1717,11 @@ func (m *Match) EndRound() {
 				private.KingPos = &pos
 				public.KingPlayed = true
 				m.Log = append(m.Log, "black played King")
+				m.BlackPrivate.highlightsOff()
+				m.EndKingPlacement()
+			} else {
+				m.BlackPrivate.dimAllButFree(black, m.Board[:])
 			}
-			m.BlackPrivate.dimAllButFree(black, m.Board[:])
-		}
-		if m.BlackAI && m.WhiteAI {
-			// todo: move on to turn phase
 		}
 	}
 	m.PlayableCards()
@@ -2205,7 +2208,7 @@ func (m *Match) processEvent(event string, player string, msg []byte) (notifyOpp
 					public, _ := m.states(color)
 					if !public.KingPlayed {
 						// randomly place king in free square
-						// because we must have reclaimed the King, there will always be a free square at this point
+						// Because we must have reclaimed the King, there will always be a free square at this point
 						pos, _ := m.RandomFreeSquare(color)
 						m.setPiece(pos, *public.King)
 						public.KingPlayed = true

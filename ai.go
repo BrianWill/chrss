@@ -76,3 +76,15 @@ func freeSpaces(color string, board []*Piece) []int {
 	}
 	return free
 }
+
+// return score of a board position's exposure to attack
+// based on current threats and potential (open lines of sight)
+func exposureScore(color string, idx int, board []*Piece) int {
+	return 0
+}
+
+// return score of a board position's suitability for attack
+// based on current targets and potential (open lines of sight)
+func offenseScore(color string, pieceType string, idx int, board []*Piece) int {
+	return 0
+}
