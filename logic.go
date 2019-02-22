@@ -18,31 +18,43 @@ func initMatch(m *Match, dev bool) {
 	m.Round = 0 // will get incremented to 1 once both players ready up
 	m.Phase = readyUpPhase
 
-	m.WhitePublic.Color = white
-	m.WhitePublic.Other = &m.BlackPublic
-	m.WhitePublic.ManaCurrent = 3
-	m.WhitePublic.ManaMax = 3
-	m.WhitePublic.KingHP = kingHP
-	m.WhitePublic.KingAttack = kingAttack
-	m.WhitePublic.BishopHP = bishopHP
-	m.WhitePublic.BishopAttack = bishopAttack
-	m.WhitePublic.KnightHP = knightHP
-	m.WhitePublic.KnightAttack = knightAttack
-	m.WhitePublic.RookHP = rookHP
-	m.WhitePublic.RookAttack = rookAttack
+	m.BlackAI = true // todo
 
-	m.BlackPublic.Color = black
-	m.BlackPublic.Other = &m.WhitePublic
-	m.BlackPublic.ManaCurrent = 3
-	m.BlackPublic.ManaMax = 3
-	m.BlackPublic.KingHP = kingHP
-	m.BlackPublic.KingAttack = kingAttack
-	m.BlackPublic.BishopHP = bishopHP
-	m.BlackPublic.BishopAttack = bishopAttack
-	m.BlackPublic.KnightHP = knightHP
-	m.BlackPublic.KnightAttack = knightAttack
-	m.BlackPublic.RookHP = rookHP
-	m.BlackPublic.RookAttack = rookAttack
+	public := &m.WhitePublic
+	public.Color = white
+	public.Other = &m.BlackPublic
+	public.ManaCurrent = 3
+	public.ManaMax = 3
+	public.KingHP = kingHP
+	public.KingAttack = kingAttack
+	public.BishopHP = bishopHP
+	public.BishopAttack = bishopAttack
+	public.KnightHP = knightHP
+	public.KnightAttack = knightAttack
+	public.RookHP = rookHP
+	public.RookAttack = rookAttack
+	public.King = &Piece{king, white, public.KingHP, public.KingAttack, 0, nil}
+	public.Bishop = &Piece{bishop, white, public.BishopHP, public.BishopAttack, 0, nil}
+	public.Knight = &Piece{knight, white, public.KnightHP, public.KnightAttack, 0, nil}
+	public.Rook = &Piece{rook, white, public.RookHP, public.RookAttack, 0, nil}
+
+	public = &m.BlackPublic
+	public.Color = black
+	public.Other = &m.WhitePublic
+	public.ManaCurrent = 3
+	public.ManaMax = 3
+	public.KingHP = kingHP
+	public.KingAttack = kingAttack
+	public.BishopHP = bishopHP
+	public.BishopAttack = bishopAttack
+	public.KnightHP = knightHP
+	public.KnightAttack = knightAttack
+	public.RookHP = rookHP
+	public.RookAttack = rookAttack
+	public.King = &Piece{king, black, public.KingHP, public.KingAttack, 0, nil}
+	public.Bishop = &Piece{bishop, black, public.BishopHP, public.BishopAttack, 0, nil}
+	public.Knight = &Piece{knight, black, public.KnightHP, public.KnightAttack, 0, nil}
+	public.Rook = &Piece{rook, black, public.RookHP, public.RookAttack, 0, nil}
 
 	m.Log = []string{"Round 1"}
 
@@ -97,6 +109,21 @@ func initMatch(m *Match, dev bool) {
 	m.WhitePrivate.dimAllButFree(white, m.Board[:])
 
 	m.PlayableCards()
+
+	if m.BlackAI {
+		public, private := m.states(black)
+		pos := kingPlacement(black, m.Board[:])
+		private.KingPos = &pos
+		public.KingPlayed = true
+		m.Log = append(m.Log, "black played King")
+	}
+	if m.WhiteAI {
+		public, private := m.states(white)
+		pos := kingPlacement(white, m.Board[:])
+		private.KingPos = &pos
+		public.KingPlayed = true
+		m.Log = append(m.Log, "white played King")
+	}
 }
 
 // returns nil for empty square
@@ -561,7 +588,7 @@ func (m *Match) PlayableCards() {
 			if public.ManaCurrent >= c.ManaCost {
 				switch c.Name {
 				case bishop, knight, rook, queen, jester:
-					if m.hasFreeSpace(public.Color) {
+					if hasFreeSpace(public.Color, m.Board[:]) {
 						private.PlayableCards[j] = true
 					}
 				case forceCombatCard, mirrorCard, nukeCard, vulnerabilityCard, transparencyCard, amplifyCard, enrageCard, swapFrontLinesCard:
@@ -732,13 +759,13 @@ func (m *Match) statusEffectedPieces(color string) []int {
 	return indexes
 }
 
-func (m *Match) hasFreeSpace(color string) bool {
+func hasFreeSpace(color string, board []*Piece) bool {
 	var side []*Piece
 	half := nColumns * nRows / 2
 	if color == black {
-		side = m.Board[half:]
+		side = board[half:]
 	} else {
-		side = m.Board[:half]
+		side = board[:half]
 	}
 	for _, p := range side {
 		if p == nil {
@@ -985,13 +1012,13 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 			}
 			switch card.Name {
 			case bishop:
-				m.setPiece(p, Piece{bishop, player, public.BishopHP, public.BishopAttack, 0, public.BishopStatus})
+				m.setPiece(p, *public.Bishop)
 				public.BishopPlayed = true
 			case knight:
-				m.setPiece(p, Piece{knight, player, public.KnightHP, public.KnightAttack, 0, public.KnightStatus})
+				m.setPiece(p, *public.Knight)
 				public.KnightPlayed = true
 			case rook:
-				m.setPiece(p, Piece{rook, player, public.RookHP, public.RookAttack, 0, public.RookStatus})
+				m.setPiece(p, *public.Rook)
 				public.RookPlayed = true
 			case queen:
 				m.setPiece(p, Piece{queen, player, queenHP, queenAttack, 0, nil})
@@ -1047,7 +1074,6 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 		public.KingPlayed = true
 		m.Log = append(m.Log, player+" played King")
 		private.KingPos = &p
-		private.KingPiece = &Piece{king, player, public.KingHP, public.KingAttack, 0, public.KingStatus}
 		newTurn = m.EndKingPlacement()
 		notifyOpponent = true
 	}
@@ -1350,20 +1376,6 @@ func (m *Match) piecePositiveStatus(p *Piece) *PiecePositiveStatus {
 		status = &PieceStatus{}
 		p.Status = status
 	}
-	switch p.Name {
-	case king:
-		pub, _ := m.states(p.Color)
-		pub.KingStatus = status
-	case bishop:
-		pub, _ := m.states(p.Color)
-		pub.BishopStatus = status
-	case knight:
-		pub, _ := m.states(p.Color)
-		pub.KnightStatus = status
-	case rook:
-		pub, _ := m.states(p.Color)
-		pub.RookStatus = status
-	}
 	if status.Positive == nil {
 		status.Positive = &PiecePositiveStatus{}
 	}
@@ -1376,20 +1388,7 @@ func (m *Match) pieceNegativeStatus(p *Piece) *PieceNegativeStatus {
 		status = &PieceStatus{}
 		p.Status = status
 	}
-	switch p.Name {
-	case king:
-		pub, _ := m.states(p.Color)
-		pub.KingStatus = status
-	case bishop:
-		pub, _ := m.states(p.Color)
-		pub.BishopStatus = status
-	case knight:
-		pub, _ := m.states(p.Color)
-		pub.KnightStatus = status
-	case rook:
-		pub, _ := m.states(p.Color)
-		pub.RookStatus = status
-	}
+
 	if status.Negative == nil {
 		status.Negative = &PieceNegativeStatus{}
 	}
@@ -1626,15 +1625,19 @@ func (m *Match) ReclaimPieces() {
 					// if reclaiming a rook, heal the rook
 					switch p.Name {
 					case king:
+						public.King = m.Board[pos.getBoardIdx()]
 						m.removePieceAt(pos)
 						public.KingPlayed = false
 					case bishop:
+						public.Bishop = m.Board[pos.getBoardIdx()]
 						m.removePieceAt(pos)
 						public.BishopPlayed = false
 					case knight:
+						public.Knight = m.Board[pos.getBoardIdx()]
 						m.removePieceAt(pos)
 						public.KnightPlayed = false
 					case rook:
+						public.Rook = m.Board[pos.getBoardIdx()]
 						m.removePieceAt(pos)
 						public.RookPlayed = false
 						public.RookHP += reclaimHealRook
@@ -1693,12 +1696,29 @@ func (m *Match) EndRound() {
 		if m.WhitePublic.KingPlayed {
 			m.WhitePrivate.highlightsOff()
 		} else {
+			if m.WhiteAI {
+				public, private := m.states(white)
+				pos := kingPlacement(white, m.Board[:])
+				private.KingPos = &pos
+				public.KingPlayed = true
+				m.Log = append(m.Log, "white played King")
+			}
 			m.WhitePrivate.dimAllButFree(white, m.Board[:])
 		}
 		if m.BlackPublic.KingPlayed {
 			m.BlackPrivate.highlightsOff()
 		} else {
+			if m.BlackAI {
+				public, private := m.states(black)
+				pos := kingPlacement(black, m.Board[:])
+				private.KingPos = &pos
+				public.KingPlayed = true
+				m.Log = append(m.Log, "black played King")
+			}
 			m.BlackPrivate.dimAllButFree(black, m.Board[:])
+		}
+		if m.BlackAI && m.WhiteAI {
+			// todo: move on to turn phase
 		}
 	}
 	m.PlayableCards()
@@ -1901,7 +1921,7 @@ func (m *Match) UpdateStatusAndDamage() {
 	m.CalculateDamage()
 }
 
-// generate m.Combined from m.Direct + square status effects from the piece's
+// generate m.Combined from (m.Direct + square status effects from the pieces)
 func (m *Match) CalculateSquareStatus() {
 	m.SquareStatuses = m.SquareStatusesDirect
 	// get status effects from pieces
@@ -1941,15 +1961,13 @@ func (m *Match) EndKingPlacement() bool {
 		m.BlackPrivate.highlightsOff()
 		pos := m.WhitePrivate.KingPos
 		if pos != nil {
-			m.setPiece(*pos, *m.WhitePrivate.KingPiece)
+			m.setPiece(*pos, *m.WhitePublic.King)
 			m.WhitePrivate.KingPos = nil
-			m.WhitePrivate.KingPiece = nil
 		}
 		pos = m.BlackPrivate.KingPos
 		if pos != nil {
-			m.setPiece(*pos, *m.BlackPrivate.KingPiece)
+			m.setPiece(*pos, *m.BlackPublic.King)
 			m.BlackPrivate.KingPos = nil
-			m.BlackPrivate.KingPiece = nil
 		}
 		m.UpdateStatusAndDamage()
 		m.Phase = mainPhase
@@ -2189,7 +2207,7 @@ func (m *Match) processEvent(event string, player string, msg []byte) (notifyOpp
 						// randomly place king in free square
 						// because we must have reclaimed the King, there will always be a free square at this point
 						pos, _ := m.RandomFreeSquare(color)
-						m.setPiece(pos, Piece{king, color, public.KingHP, public.KingAttack, 0, public.KingStatus})
+						m.setPiece(pos, *public.King)
 						public.KingPlayed = true
 						m.Log = append(m.Log, color+" played King")
 					}

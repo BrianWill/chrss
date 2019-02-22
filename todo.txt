@@ -2,6 +2,18 @@
 in status info, show sources of damage
 
 
+King and Vassals should persist as same piece rather than creating a new piece when they are placed
+
+
+AI vs human
+    king placement after first round
+
+AI vs AI
+    create a separate game loop that doesn't wait for user interactions (abstract out common logic with main game loop?)
+    we don't want to watch these AI games, only record the moves and the winner
+
+game playback (step through the moves of a recorded game)
+
 
 
 
@@ -25,7 +37,7 @@ perhaps vassals should be tankier so using them as shields is not so discouraged
 
 
 
-
+rally - boosts attack of all units within one space (a piece effect that creates square effect on adjacent squares)
 
 
 

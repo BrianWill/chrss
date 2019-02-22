@@ -169,6 +169,8 @@ type Match struct {
 	WhitePrivate   PrivateState
 	BlackPublic    PublicState
 	WhitePublic    PublicState
+	BlackAI        bool
+	WhiteAI        bool
 	Turn           string // white, black
 	PassPrior      bool   // true if prior move was a pass
 	FirstTurnColor string // color of player who had first turn this round
@@ -188,20 +190,19 @@ type PrivateState struct {
 	Highlights        [nColumns * nRows]int `json:"highlights"`
 	PlayerInstruction string                `json:"playerInstruction"`
 	ReclaimSelections []Pos                 `json:"reclaimSelections"`
-	KingPos           *Pos                  `json:"kingPos"`   // used in king placement (placed king is not revealed to opponent until main phase)
-	KingPiece         *Piece                `json:"kingPiece"` // necessary so as to correctly display king stats in king placement
+	KingPos           *Pos                  `json:"kingPos"` // used in king placement (placed king is not revealed to opponent until main phase)
 	Other             *PrivateState         `json:"-"`
 }
 
 // individual player state that is visible to all
 type PublicState struct {
-	Ready                bool         `json:"ready"` // match does not start until both player's are ready
-	ReclaimSelectionMade bool         `json:"reclaimSelectionMade"`
+	Ready                bool   `json:"ready"` // match does not start until both player's are ready
+	ReclaimSelectionMade bool   `json:"reclaimSelectionMade"`
+	King                 *Piece `json:"kingPiece"` // exposed to JSON so as to correctly display king stats in king placement
+	Rook                 *Piece
+	Knight               *Piece
+	Bishop               *Piece
 	KingPlayed           bool         `json:"kingPlayed"`
-	KingStatus           *PieceStatus `json:"kingStatus"`
-	BishopStatus         *PieceStatus `json:"bishopStatus"`
-	RookStatus           *PieceStatus `json:"rookStatus"`
-	KnightStatus         *PieceStatus `json:"knightStatus"`
 	BishopPlayed         bool         `json:"bishopPlayed"`
 	KnightPlayed         bool         `json:"knightPlayed"`
 	RookPlayed           bool         `json:"rookPlayed"`

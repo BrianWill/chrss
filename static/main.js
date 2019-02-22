@@ -218,7 +218,7 @@ conn.onmessage = function(msg){
     let kingPos = matchState.private.kingPos;
     if (kingPos) {
         let idx = kingPos.x + kingPos.y * board.nColumns;
-        matchState.board[idx] = matchState.private.kingPiece;
+        matchState.board[idx] = matchState.public.kingPiece;
     }
     if (!matchState.log) {
         matchState.log = [];
@@ -597,8 +597,6 @@ function draw(matchState) {
             }
         }
     }
-
-
 
     function drawSquareHighlight(ctx, match) {
         switch (match.phase) {
