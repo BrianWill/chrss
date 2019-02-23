@@ -2,6 +2,7 @@ package main
 
 import (
 	"math/rand"
+	"sort"
 )
 
 func kingPlacement(color string, board []*Piece) Pos {
@@ -75,6 +76,76 @@ func freeSpaces(color string, board []*Piece) []int {
 		}
 	}
 	return free
+}
+
+// return indexes of up to two pieces to reclaim
+func pickReclaim(color string, board []*Piece) []Pos {
+	type PieceScore struct {
+		Idx   int
+		Score int
+	}
+	pickTopTwoScorers := func(scores []PieceScore) []PieceScore {
+		// pick top two scorers
+		// if tie for first place, pick randomly among the top scorers
+		// (or if highest score is not tie, score greater than others, randomly choose second selection among those tied for second place)
+		if len(scores) > 2 {
+			sort.Slice(scores, func(i, j int) bool {
+				return scores[i].Score > scores[j].Score
+			})
+			if scores[0].Score > scores[1].Score {
+				// pick one randomly among second place scorers
+				lastSecondPlaceIdx := 1
+				for i := 2; i < len(scores); i++ {
+					if scores[1].Score == scores[i].Score {
+						lastSecondPlaceIdx++
+					}
+				}
+				// add one for offset
+				scores[1] = scores[rand.Intn(lastSecondPlaceIdx)+1]
+				// first place now in slot 0 and random second place is now in slot 1
+			} else {
+				// pick two randomly among first place scorers
+				lastFirstPlaceIdx := 1
+				for i := 2; i < len(scores); i++ {
+					if scores[1].Score == scores[i].Score {
+						lastFirstPlaceIdx++
+					}
+				}
+				rand.Shuffle(lastFirstPlaceIdx+1, func(i, j int) {
+					scores[i], scores[j] = scores[j], scores[i]
+				})
+				// random first place scorers now in slots 0 and 1
+			}
+			scores = scores[:2]
+		}
+		return scores
+	}
+	const kingRemovalBonus = 2
+	scores := []PieceScore{}
+	for i, p := range board {
+		if p != nil && p.Color == color && !p.isUnreclaimable() {
+			score := 0
+			switch p.Name {
+			case king:
+				score += kingRemovalBonus
+			case bishop:
+			case knight:
+			case rook:
+			case pawn:
+				if p.HP < pawnHP {
+					score += 2
+				}
+			default:
+			}
+			scores = append(scores, PieceScore{i, score})
+		}
+	}
+	scores = pickTopTwoScorers(scores)
+	selections := make([]Pos, len(scores))
+	for i, val := range scores {
+		selections[i] = positions[val.Idx]
+	}
+	return selections
 }
 
 // return score of a board position's exposure to attack

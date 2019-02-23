@@ -2,6 +2,8 @@
 in status info, show sources of damage
 
 
+in dev mode, automatically readies up both players
+
 
 AI vs human
     piece reclaim

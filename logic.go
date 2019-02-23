@@ -1644,8 +1644,11 @@ func (m *Match) ReclaimPieces() {
 						if public.RookHP > rookHP {
 							public.RookHP = rookHP
 						}
-					case queen, pawn, jester:
+					case queen, jester:
 						m.removePieceAt(pos)
+					case pawn:
+						m.removePieceAt(pos)
+						public.NumPawns--
 					default:
 
 					}
@@ -2001,10 +2004,20 @@ func (m *Match) EndTurn(pass bool, player string) {
 		if !m.checkWinCondition() {
 			m.Phase = reclaimPhase
 			m.tickdownStatusEffects(false)
-			m.BlackPrivate.dimAllButPieces(black, m.Board[:])
-			m.WhitePrivate.dimAllButPieces(white, m.Board[:])
-			m.BlackPrivate.dimUnreclaimable(m, m.Board[:])
-			m.WhitePrivate.dimUnreclaimable(m, m.Board[:])
+			board := m.Board[:]
+			m.BlackPrivate.dimAllButPieces(black, board)
+			m.WhitePrivate.dimAllButPieces(white, board)
+			m.BlackPrivate.dimUnreclaimable(m, board)
+			m.WhitePrivate.dimUnreclaimable(m, board)
+
+			if m.BlackAI {
+				m.BlackPrivate.ReclaimSelections = pickReclaim(black, board)
+				m.BlackPublic.ReclaimSelectionMade = true
+			}
+			if m.WhiteAI {
+				m.WhitePrivate.ReclaimSelections = pickReclaim(white, board)
+				m.WhitePublic.ReclaimSelectionMade = true
+			}
 		}
 
 		// with some blocking pieces possibly removed, status and lines of attack may change
