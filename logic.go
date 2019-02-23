@@ -18,7 +18,7 @@ func initMatch(m *Match, dev bool) {
 	m.Round = 0 // will get incremented to 1 once both players ready up
 	m.Phase = readyUpPhase
 
-	m.BlackAI = true // todo
+	m.BlackAI = false // todo
 
 	public := &m.WhitePublic
 	public.Color = white
@@ -112,14 +112,14 @@ func initMatch(m *Match, dev bool) {
 
 	if m.BlackAI {
 		public, private := m.states(black)
-		pos := kingPlacement(black, m.Board[:])
+		pos := kingPlacementAI(black, m.Board[:])
 		private.KingPos = &pos
 		public.KingPlayed = true
 		m.Log = append(m.Log, "black played King")
 	}
 	if m.WhiteAI {
 		public, private := m.states(white)
-		pos := kingPlacement(white, m.Board[:])
+		pos := kingPlacementAI(white, m.Board[:])
 		private.KingPos = &pos
 		public.KingPlayed = true
 		m.Log = append(m.Log, "white played King")
@@ -462,7 +462,7 @@ func (m *Match) CalculateDamage() {
 	}
 }
 
-func (m *Match) SpawnSinglePawn(color string, public *PublicState) bool {
+func (m *Match) SpawnSinglePawn(color string, public *PublicState, test bool) bool {
 	if public.NumPawns == maxPawns {
 		return false
 	}
@@ -476,6 +476,9 @@ func (m *Match) SpawnSinglePawn(color string, public *PublicState) bool {
 	n = len(columns)
 	if n < 1 {
 		return false
+	}
+	if test {
+		return true
 	}
 	for _, v := range columns {
 		m.setPiece(Pos{v, rand.Intn(2) + offset}, Piece{pawn, public.Color, pawnHP, pawnAttack, 0, nil})
@@ -893,6 +896,397 @@ func (m *Match) clickCard(player string, public *PublicState, private *PrivateSt
 	}
 }
 
+// assumes we have already checked that the move is playable
+func playCard(m *Match, card string, player string, public *PublicState, p Pos) {
+	piece := m.getPieceSafe(p)
+	switch card {
+	case castleCard:
+		// find rook of same color as clicked king
+		var rookPiece *Piece
+		for _, p := range m.Board {
+			if p != nil && p.Name == rook && p.Color == piece.Color {
+				rookPiece = p
+				break
+			}
+		}
+		swap := *rookPiece
+		*rookPiece = *piece
+		*piece = swap
+	case reclaimVassalCard:
+		switch piece.Name {
+		case bishop:
+			public.BishopPlayed = false
+		case knight:
+			public.KnightPlayed = false
+		case rook:
+			public.RookPlayed = false
+		}
+		m.removePieceAt(p)
+	case swapFrontLinesCard:
+		frontIdx := (nRows/2 - 1) * nColumns
+		midIdx := (nRows/2 - 2) * nColumns
+		if piece.Color == black {
+			frontIdx = (nRows / 2) * nColumns
+			midIdx = (nRows/2 + 1) * nColumns
+		}
+		for i := 0; i < nColumns; i++ {
+			m.swapBoardIndex(frontIdx, midIdx)
+			frontIdx++
+			midIdx++
+		}
+	case removePawnCard:
+		public, _ := m.states(piece.Color)
+		m.removePieceAt(p)
+		public.NumPawns--
+	case forceCombatCard:
+		m.PassPrior = true
+		m.EndTurn(true, player)
+	case dispellCard:
+		piece.Status = nil
+	case dodgeCard:
+		idx := p.getBoardIdx()
+		for _, val := range m.dodgeablePieces(player) {
+			if val == idx {
+				free := m.freeAdjacentSpaces(idx)
+				newIdx := free[rand.Intn(len(free))]
+				m.swapBoardIndex(idx, newIdx)
+				break
+			}
+		}
+	case mirrorCard:
+		// (assumes board has even number of rows)
+		row := 0
+		if piece.Color == black {
+			row = (nRows / 2)
+		}
+		for i := 0; i < (nRows / 2); i++ {
+			idx := row * nColumns
+			other := idx + nColumns - 1
+			for j := 0; j < (nColumns / 2); j++ {
+				m.swapBoardIndex(idx, other)
+				idx++
+				other--
+			}
+			row++
+		}
+	case drainManaCard:
+		otherPublic := public.Other
+		otherPublic.ManaCurrent -= drainManaAmount
+		if otherPublic.ManaCurrent < 0 {
+			otherPublic.ManaCurrent = 0
+		}
+	case healCard:
+		piece.HP += healCardAmount
+		switch piece.Name {
+		case rook:
+			public.RookHP += healCardAmount
+		case knight:
+			public.KnightHP += healCardAmount
+		case bishop:
+			public.BishopHP += healCardAmount
+		}
+	case poisonCard:
+		neg := m.pieceNegativeStatus(piece)
+		neg.Poison += poisonAmount
+	case togglePawnCard:
+		idx := p.getBoardIdx()
+		for _, val := range m.toggleablePawns() {
+			if idx == val {
+				const whiteMid = nRows/2 - 2
+				const whiteFront = whiteMid + 1
+				const blackFront = whiteMid + 2
+				const blackMid = whiteMid + 3
+				newPos := p
+				switch p.Y {
+				case whiteMid:
+					newPos.Y = whiteFront
+				case whiteFront:
+					newPos.Y = whiteMid
+				case blackFront:
+					newPos.Y = blackMid
+				case blackMid:
+					newPos.Y = blackFront
+				}
+				m.swapBoardIndex(idx, newPos.getBoardIdx())
+				break
+			}
+		}
+	case nukeCard:
+		// inflict lesser damage on all within 2 squares
+		minX, maxX := p.X-2, p.X+2
+		minY, maxY := p.Y-2, p.Y+2
+		for x := minX; x <= maxX; x++ {
+			for y := minY; y <= maxY; y++ {
+				target := Pos{x, y}
+				if target == p {
+					continue
+				}
+				m.inflictDamage(target.getBoardIdx(), nukeDamageLesser)
+			}
+		}
+		// inflict (full - lesser) on all within 1 square (so these squares hit a second time)
+		minX++
+		maxX--
+		minY++
+		maxY--
+		for x := minX; x <= maxX; x++ {
+			for y := minY; y <= maxY; y++ {
+				target := Pos{x, y}
+				if target == p {
+					continue
+				}
+				m.inflictDamage(target.getBoardIdx(), nukeDamageFull-nukeDamageLesser)
+			}
+		}
+	case vulnerabilityCard:
+		neg := m.pieceNegativeStatus(piece)
+		neg.Vulnerability += vulnerabilityDuration
+	case amplifyCard:
+		positive := m.piecePositiveStatus(piece)
+		positive.Amplify += amplifyDuration
+	case transparencyCard:
+		neg := m.pieceNegativeStatus(piece)
+		neg.Transparent += transparencyDuration
+	case stunVassalCard:
+		positive := m.piecePositiveStatus(piece)
+		negative := m.pieceNegativeStatus(piece)
+		positive.DamageImmune += stunVassalDuration
+		negative.Distracted += stunVassalDuration
+		negative.Unreclaimable += stunVassalDuration
+	case enrageCard:
+		neg := m.pieceNegativeStatus(piece)
+		neg.Enraged += enrageDuration
+	case armorCard:
+		positive := m.piecePositiveStatus(piece)
+		positive.Armor += armorAmount
+	case shoveCard:
+		idx := p.getBoardIdx()
+		for _, val := range m.shoveablePieces() {
+			if idx == val {
+				var newIdx int
+				if piece.Color == black {
+					newIdx = idx + nColumns
+				} else {
+					newIdx = idx - nColumns
+				}
+				m.swapBoardIndex(idx, newIdx)
+				break
+			}
+		}
+	case advanceCard:
+		idx := p.getBoardIdx()
+		for _, val := range m.advanceablePieces() {
+			if idx == val {
+				var newIdx int
+				if piece.Color == white {
+					newIdx = idx + nColumns
+				} else {
+					newIdx = idx - nColumns
+				}
+				m.swapBoardIndex(idx, newIdx)
+				break
+			}
+		}
+	case restoreManaCard:
+		public.ManaCurrent = public.ManaMax + restoreManaMana // add cost of card because it gets subtracted later
+	case summonPawnCard:
+		m.SpawnSinglePawn(player, public, false)
+	case resurrectVassalCard:
+		// should be the case that only one vassal is dead (because otherwise the game would be over already)
+		if public.BishopHP <= 0 {
+			public.BishopHP = resurrectVassalRestoreHP
+			public.BishopPlayed = false
+		} else if public.KnightHP <= 0 {
+			public.KnightHP = resurrectVassalRestoreHP
+			public.KnightPlayed = false
+		} else if public.RookHP <= 0 {
+			public.RookHP = resurrectVassalRestoreHP
+			public.RookPlayed = false
+		}
+	case bishop, knight, rook, queen, jester:
+		switch card {
+		case bishop:
+			m.setPiece(p, *public.Bishop)
+			public.BishopPlayed = true
+		case knight:
+			m.setPiece(p, *public.Knight)
+			public.KnightPlayed = true
+		case rook:
+			m.setPiece(p, *public.Rook)
+			public.RookPlayed = true
+		case queen:
+			m.setPiece(p, Piece{queen, player, queenHP, queenAttack, 0, nil})
+		case jester:
+			m.setPiece(p, Piece{jester, player, jesterHP, jesterAttack, 0, nil})
+		}
+	}
+}
+
+func canPlayCard(m *Match, card string, player string, public *PublicState, p Pos) bool {
+	piece := m.getPieceSafe(p)
+	switch card {
+	case castleCard:
+		if piece == nil || piece.Name != king {
+			return false
+		}
+		// find rook of same color as clicked king
+		var rookPiece *Piece
+		for _, p := range m.Board {
+			if p != nil && p.Name == rook && p.Color == piece.Color {
+				rookPiece = p
+				break
+			}
+		}
+		if rookPiece == nil {
+			return false // no rook of matching color found
+		}
+	case reclaimVassalCard:
+		if piece == nil || piece.Color != player {
+			return false
+		}
+		switch piece.Name {
+		case bishop:
+		case knight:
+		case rook:
+		default:
+			return false
+		}
+	case swapFrontLinesCard:
+		if piece == nil || piece.Name != king {
+			return false
+		}
+	case removePawnCard:
+		if piece == nil || piece.Name != pawn {
+			return false
+		}
+	case forceCombatCard:
+		if piece == nil || piece.Name != king || piece.Color != player {
+			return false
+		}
+	case dispellCard:
+		if piece == nil || piece.Status == nil {
+			return false
+		}
+	case dodgeCard:
+		if piece == nil || piece.Color != player {
+			return false
+		}
+		idx := p.getBoardIdx()
+		for _, val := range m.dodgeablePieces(player) {
+			if val == idx {
+				return true
+			}
+		}
+		return false
+	case mirrorCard:
+		// (assumes board has even number of rows)
+		if piece == nil || piece.Name != king {
+			return false
+		}
+	case drainManaCard:
+		otherPublic := public.Other
+		if piece == nil || piece.Name != king || piece.Color != otherPublic.Color {
+			return false
+		}
+	case healCard:
+		if piece == nil || piece.Name == king || piece.Color != player {
+			return false
+		}
+	case poisonCard:
+		if piece == nil || piece.Color == player || piece.Name == king {
+			return false
+		}
+	case togglePawnCard:
+		if piece == nil || piece.Name != pawn {
+			return false
+		}
+		idx := p.getBoardIdx()
+		for _, val := range m.toggleablePawns() {
+			if idx == val {
+				return true
+			}
+		}
+		return false
+	case nukeCard:
+		if piece == nil || piece.Name != king {
+			return false
+		}
+	case vulnerabilityCard:
+		if piece == nil || piece.Color == player {
+			return false
+		}
+	case amplifyCard:
+		if piece == nil || piece.Color != player {
+			return false
+		}
+	case transparencyCard:
+		if piece == nil || piece.Color == player {
+			return false
+		}
+	case stunVassalCard:
+		if piece == nil || piece.Color == player ||
+			(piece.Name != knight && piece.Name != bishop && piece.Name != rook) {
+			return false
+		}
+	case enrageCard:
+		if piece == nil || piece.Color == player {
+			return false
+		}
+	case armorCard:
+		if piece == nil || piece.Color != player || piece.Name == king {
+			return false
+		}
+	case shoveCard:
+		if piece == nil {
+			return false
+		}
+		idx := p.getBoardIdx()
+		for _, val := range m.shoveablePieces() {
+			if idx == val {
+				return true
+			}
+		}
+		return false
+	case advanceCard:
+		if piece == nil {
+			return false
+		}
+		idx := p.getBoardIdx()
+		for _, val := range m.advanceablePieces() {
+			if idx == val {
+				return true
+			}
+		}
+		return false
+	case restoreManaCard:
+		if piece == nil || piece.Name != king || piece.Color != player {
+			return false
+		}
+	case summonPawnCard:
+		if piece == nil || piece.Name != king || piece.Color != player {
+			return false
+		}
+		return m.SpawnSinglePawn(player, public, true)
+	case resurrectVassalCard:
+		if piece == nil || piece.Name != king || piece.Color != public.Color {
+			return false
+		}
+	case bishop, knight, rook, queen, jester:
+		// ignore clicks on occupied spaces
+		if m.getPieceSafe(p) != nil {
+			return false
+		}
+		// square must be on player's side of board
+		if player == white && p.Y >= nColumns/2 {
+			return false
+		}
+		if player == black && p.Y < nColumns/2 {
+			return false
+		}
+	}
+	return true
+}
+
 func (m *Match) clickBoard(player string, public *PublicState, private *PrivateState, p Pos) (newTurn bool, notifyOpponent bool) {
 	switch m.Phase {
 	case mainPhase:
@@ -901,131 +1295,10 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 			return
 		}
 		card := private.Cards[private.SelectedCard]
-		switch card.Name {
-		case castleCard:
-			if !m.playCastle(p, player) {
-				return
-			}
-		case reclaimVassalCard:
-			if !m.playReclaimVassal(p, public, player) {
-				return
-			}
-		case swapFrontLinesCard:
-			if !m.playSwapFrontLines(p) {
-				return
-			}
-		case removePawnCard:
-			if !m.playRemovePawn(p) {
-				return
-			}
-		case forceCombatCard:
-			if !m.playForceCombat(p, player) {
-				return
-			}
-		case dispellCard:
-			if !m.playDispell(p, player) {
-				return
-			}
-		case dodgeCard:
-			if !m.playDodge(p, player) {
-				return
-			}
-		case mirrorCard:
-			if !m.playMirror(p) {
-				return
-			}
-		case drainManaCard:
-			if !m.playDrainMana(p, public.Other) {
-				return
-			}
-		case healCard:
-			if !m.playHeal(p, player) {
-				return
-			}
-		case poisonCard:
-			if !m.playPoison(p, player) {
-				return
-			}
-		case togglePawnCard:
-			if !m.playToggleablePawn(p) {
-				return
-			}
-		case nukeCard:
-			if !m.playNuke(p) {
-				return
-			}
-		case vulnerabilityCard:
-			if !m.playVulnerability(p, player) {
-				return
-			}
-		case amplifyCard:
-			if !m.playAmplify(p, player) {
-				return
-			}
-		case transparencyCard:
-			if !m.playTransparency(p, player) {
-				return
-			}
-		case stunVassalCard:
-			if !m.playStunVassal(p, player) {
-				return
-			}
-		case enrageCard:
-			if !m.playEnrage(p, player) {
-				return
-			}
-		case armorCard:
-			if !m.playArmor(p, player) {
-				return
-			}
-		case shoveCard:
-			if !m.playShove(p) {
-				return
-			}
-		case advanceCard:
-			if !m.playAdvance(p) {
-				return
-			}
-		case restoreManaCard:
-			if !m.playRestoreMana(p, public) {
-				return
-			}
-		case summonPawnCard:
-			if !m.playSummonPawn(p, public) {
-				return
-			}
-		case resurrectVassalCard:
-			if !m.playResurrectVassal(p, public) {
-				return
-			}
-		case bishop, knight, rook, queen, jester:
-			// ignore clicks on occupied spaces
-			if m.getPieceSafe(p) != nil {
-				return
-			}
-			// square must be on player's side of board
-			if player == white && p.Y >= nColumns/2 {
-				return
-			}
-			if player == black && p.Y < nColumns/2 {
-				return
-			}
-			switch card.Name {
-			case bishop:
-				m.setPiece(p, *public.Bishop)
-				public.BishopPlayed = true
-			case knight:
-				m.setPiece(p, *public.Knight)
-				public.KnightPlayed = true
-			case rook:
-				m.setPiece(p, *public.Rook)
-				public.RookPlayed = true
-			case queen:
-				m.setPiece(p, Piece{queen, player, queenHP, queenAttack, 0, nil})
-			case jester:
-				m.setPiece(p, Piece{jester, player, jesterHP, jesterAttack, 0, nil})
-			}
+		if !canPlayCard(m, card.Name, player, public, p) {
+			return
 		}
+		playCard(m, card.Name, player, public, p)
 		public.ManaCurrent -= card.ManaCost
 		m.Log = append(m.Log, player+" played "+card.Name)
 		private.RemoveCard(private.SelectedCard)
@@ -1080,296 +1353,6 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 	return
 }
 
-// return true if play is valid
-func (m *Match) playCastle(pos Pos, color string) bool {
-	piece := m.getPieceSafe(pos)
-	if piece == nil || piece.Name != king {
-		return false
-	}
-	// find rook of same color as clicked king
-	var rookPiece *Piece
-	for _, p := range m.Board {
-		if p != nil && p.Name == rook && p.Color == piece.Color {
-			rookPiece = p
-			break
-		}
-	}
-	if rookPiece == nil {
-		return false // no rook of matching color found
-	}
-	swap := *rookPiece
-	*rookPiece = *piece
-	*piece = swap
-	return true
-}
-
-// return true if play is valid
-func (m *Match) playReclaimVassal(pos Pos, public *PublicState, color string) bool {
-	piece := m.getPieceSafe(pos)
-	if piece == nil || piece.Color != color {
-		return false
-	}
-	switch piece.Name {
-	case bishop:
-		public.BishopPlayed = false
-	case knight:
-		public.KnightPlayed = false
-	case rook:
-		public.RookPlayed = false
-	default:
-		return false
-	}
-	m.removePieceAt(pos)
-	return true
-}
-
-// return true if play is valid
-func (m *Match) playSwapFrontLines(pos Pos) bool {
-	piece := m.getPieceSafe(pos)
-	if piece == nil || piece.Name != king {
-		return false
-	}
-	frontIdx := (nRows/2 - 1) * nColumns
-	midIdx := (nRows/2 - 2) * nColumns
-	if piece.Color == black {
-		frontIdx = (nRows / 2) * nColumns
-		midIdx = (nRows/2 + 1) * nColumns
-	}
-	for i := 0; i < nColumns; i++ {
-		m.swapBoardIndex(frontIdx, midIdx)
-		frontIdx++
-		midIdx++
-	}
-	return true
-}
-
-// return true if play is valid
-func (m *Match) playRemovePawn(pos Pos) bool {
-	piece := m.getPieceSafe(pos)
-	if piece == nil || piece.Name != pawn {
-		return false
-	}
-	public, _ := m.states(piece.Color)
-	m.removePieceAt(pos)
-	public.NumPawns--
-	return true
-}
-
-// return true if play is valid
-func (m *Match) playForceCombat(pos Pos, player string) bool {
-	piece := m.getPieceSafe(pos)
-	if piece == nil || piece.Name != king || piece.Color != player {
-		return false
-	}
-	m.PassPrior = true
-	m.EndTurn(true, player)
-	return true
-}
-
-// return true if play is valid
-func (m *Match) playDodge(pos Pos, player string) bool {
-	piece := m.getPieceSafe(pos)
-	if piece == nil || piece.Color != player {
-		return false
-	}
-	idx := pos.getBoardIdx()
-	for _, val := range m.dodgeablePieces(player) {
-		if val == idx {
-			free := m.freeAdjacentSpaces(idx)
-			newIdx := free[rand.Intn(len(free))]
-			m.swapBoardIndex(idx, newIdx)
-			return true
-		}
-	}
-	return false
-}
-
-// return true if play is valid
-func (m *Match) playDrainMana(pos Pos, otherPublic *PublicState) bool {
-	piece := m.getPieceSafe(pos)
-	if piece == nil || piece.Name != king || piece.Color != otherPublic.Color {
-		return false
-	}
-	otherPublic.ManaCurrent -= drainManaAmount
-	if otherPublic.ManaCurrent < 0 {
-		otherPublic.ManaCurrent = 0
-	}
-	return true
-}
-
-// return true if play is valid
-func (m *Match) playRestoreMana(pos Pos, public *PublicState) bool {
-	piece := m.getPieceSafe(pos)
-	if piece == nil || piece.Name != king || piece.Color != public.Color {
-		return false
-	}
-	public.ManaCurrent = public.ManaMax + restoreManaMana // add cost of card because it gets subtracted later
-	return true
-}
-
-// return true if play is valid
-func (m *Match) playSummonPawn(pos Pos, public *PublicState) bool {
-	piece := m.getPieceSafe(pos)
-	if piece == nil || piece.Name != king || piece.Color != public.Color {
-		return false
-	}
-	return m.SpawnSinglePawn(public.Color, public)
-}
-
-// return true if play is valid
-func (m *Match) playResurrectVassal(pos Pos, public *PublicState) bool {
-	piece := m.getPieceSafe(pos)
-	if piece == nil || piece.Name != king || piece.Color != public.Color {
-		return false
-	}
-	// should be the case that only one vassal is dead (because otherwise the game would be over already)
-	if public.BishopHP <= 0 {
-		public.BishopHP = resurrectVassalRestoreHP
-		public.BishopPlayed = false
-	} else if public.KnightHP <= 0 {
-		public.KnightHP = resurrectVassalRestoreHP
-		public.KnightPlayed = false
-	} else if public.RookHP <= 0 {
-		public.RookHP = resurrectVassalRestoreHP
-		public.RookPlayed = false
-	}
-	return true
-}
-
-// return true if play is valid
-// (assumes board has even number of rows)
-func (m *Match) playMirror(pos Pos) bool {
-	piece := m.getPieceSafe(pos)
-	if piece == nil || piece.Name != king {
-		return false
-	}
-	row := 0
-	if piece.Color == black {
-		row = (nRows / 2)
-	}
-	for i := 0; i < (nRows / 2); i++ {
-		idx := row * nColumns
-		other := idx + nColumns - 1
-		for j := 0; j < (nColumns / 2); j++ {
-			m.swapBoardIndex(idx, other)
-			idx++
-			other--
-		}
-		row++
-	}
-	return true
-}
-
-// return true if play is valid
-func (m *Match) playHeal(pos Pos, player string) bool {
-	piece := m.getPieceSafe(pos)
-	if piece == nil || piece.Name == king {
-		return false
-	}
-	piece.HP += healCardAmount
-	public, _ := m.states(player)
-	switch piece.Name {
-	case rook:
-		public.RookHP += healCardAmount
-	case knight:
-		public.KnightHP += healCardAmount
-	case bishop:
-		public.BishopHP += healCardAmount
-	}
-	return true
-}
-
-// return true if play is valid
-func (m *Match) playVulnerability(pos Pos, player string) bool {
-	piece := m.getPieceSafe(pos)
-	if piece == nil || piece.Color == player {
-		return false
-	}
-	neg := m.pieceNegativeStatus(piece)
-	neg.Vulnerability += vulnerabilityDuration
-	return true
-}
-
-// return true if play is valid
-func (m *Match) playAmplify(pos Pos, player string) bool {
-	piece := m.getPieceSafe(pos)
-	if piece == nil || piece.Color != player {
-		return false
-	}
-	positive := m.piecePositiveStatus(piece)
-	positive.Amplify += amplifyDuration
-	return true
-}
-
-// return true if play is valid
-func (m *Match) playDispell(pos Pos, player string) bool {
-	piece := m.getPieceSafe(pos)
-	if piece == nil || piece.Status == nil {
-		return false
-	}
-	piece.Status = nil
-	return true
-}
-
-// return true if play is valid
-func (m *Match) playTransparency(pos Pos, player string) bool {
-	piece := m.getPieceSafe(pos)
-	if piece == nil || piece.Color == player {
-		return false
-	}
-	neg := m.pieceNegativeStatus(piece)
-	neg.Transparent += transparencyDuration
-	return true
-}
-
-// return true if play is valid
-func (m *Match) playStunVassal(pos Pos, player string) bool {
-	piece := m.getPieceSafe(pos)
-	if piece == nil || piece.Color == player ||
-		(piece.Name != knight && piece.Name != bishop && piece.Name != rook) {
-		return false
-	}
-	positive := m.piecePositiveStatus(piece)
-	negative := m.pieceNegativeStatus(piece)
-	positive.DamageImmune += stunVassalDuration
-	negative.Distracted += stunVassalDuration
-	negative.Unreclaimable += stunVassalDuration
-	return true
-}
-
-// return true if play is valid
-func (m *Match) playEnrage(pos Pos, player string) bool {
-	piece := m.getPieceSafe(pos)
-	if piece == nil || piece.Color == player {
-		return false
-	}
-	neg := m.pieceNegativeStatus(piece)
-	neg.Enraged += enrageDuration
-	return true
-}
-
-// return true if play is valid
-func (m *Match) playArmor(pos Pos, player string) bool {
-	piece := m.getPieceSafe(pos)
-	if piece == nil || piece.Color != player || piece.Name == king {
-		return false
-	}
-	positive := m.piecePositiveStatus(piece)
-	positive.Armor += armorAmount
-	return true
-}
-
-// return true if play is valid
-func (m *Match) playPoison(pos Pos, player string) bool {
-	piece := m.getPieceSafe(pos)
-	if piece == nil || piece.Color == player || piece.Name == king {
-		return false
-	}
-	neg := m.pieceNegativeStatus(piece)
-	neg.Poison += poisonAmount
-	return true
-}
-
 func (m *Match) piecePositiveStatus(p *Piece) *PiecePositiveStatus {
 	status := p.Status
 	if status == nil {
@@ -1393,41 +1376,6 @@ func (m *Match) pieceNegativeStatus(p *Piece) *PieceNegativeStatus {
 		status.Negative = &PieceNegativeStatus{}
 	}
 	return status.Negative
-}
-
-// return true if play is valid
-func (m *Match) playNuke(pos Pos) bool {
-	piece := m.getPieceSafe(pos)
-	if piece == nil || piece.Name != king {
-		return false
-	}
-	// inflict lesser damage on all within 2 squares
-	minX, maxX := pos.X-2, pos.X+2
-	minY, maxY := pos.Y-2, pos.Y+2
-	for x := minX; x <= maxX; x++ {
-		for y := minY; y <= maxY; y++ {
-			target := Pos{x, y}
-			if target == pos {
-				continue
-			}
-			m.inflictDamage(target.getBoardIdx(), nukeDamageLesser)
-		}
-	}
-	// inflict (full - lesser) on all within 1 square (so these squares hit a second time)
-	minX++
-	maxX--
-	minY++
-	maxY--
-	for x := minX; x <= maxX; x++ {
-		for y := minY; y <= maxY; y++ {
-			target := Pos{x, y}
-			if target == pos {
-				continue
-			}
-			m.inflictDamage(target.getBoardIdx(), nukeDamageFull-nukeDamageLesser)
-		}
-	}
-	return true
 }
 
 func (m *Match) getPublic(color string) *PublicState {
@@ -1520,78 +1468,6 @@ func (m *Match) checkWinCondition() bool {
 		m.Winner = white
 		m.Phase = gameoverPhase
 		return true
-	}
-	return false
-}
-
-func (m *Match) playToggleablePawn(pos Pos) bool {
-	piece := m.getPieceSafe(pos)
-	if piece == nil || piece.Name != pawn {
-		return false
-	}
-	idx := pos.getBoardIdx()
-	for _, val := range m.toggleablePawns() {
-		if idx == val {
-			const whiteMid = nRows/2 - 2
-			const whiteFront = whiteMid + 1
-			const blackFront = whiteMid + 2
-			const blackMid = whiteMid + 3
-			newPos := pos
-			switch pos.Y {
-			case whiteMid:
-				newPos.Y = whiteFront
-			case whiteFront:
-				newPos.Y = whiteMid
-			case blackFront:
-				newPos.Y = blackMid
-			case blackMid:
-				newPos.Y = blackFront
-			}
-			m.swapBoardIndex(idx, newPos.getBoardIdx())
-			return true
-		}
-	}
-	return false
-}
-
-func (m *Match) playShove(pos Pos) bool {
-	piece := m.getPieceSafe(pos)
-	if piece == nil {
-		return false
-	}
-	idx := pos.getBoardIdx()
-	for _, val := range m.shoveablePieces() {
-		if idx == val {
-			var newIdx int
-			if piece.Color == black {
-				newIdx = idx + nColumns
-			} else {
-				newIdx = idx - nColumns
-			}
-			m.swapBoardIndex(idx, newIdx)
-			return true
-		}
-	}
-	return false
-}
-
-func (m *Match) playAdvance(pos Pos) bool {
-	piece := m.getPieceSafe(pos)
-	if piece == nil {
-		return false
-	}
-	idx := pos.getBoardIdx()
-	for _, val := range m.advanceablePieces() {
-		if idx == val {
-			var newIdx int
-			if piece.Color == white {
-				newIdx = idx + nColumns
-			} else {
-				newIdx = idx - nColumns
-			}
-			m.swapBoardIndex(idx, newIdx)
-			return true
-		}
 	}
 	return false
 }
@@ -1689,11 +1565,17 @@ func (m *Match) EndRound() {
 	m.SpawnPawns(false)
 	m.tickdownStatusEffects(true)
 	m.UpdateStatusAndDamage()
+	m.PlayableCards()
 
 	if m.WhitePublic.KingPlayed && m.BlackPublic.KingPlayed {
 		m.Phase = mainPhase
 		m.WhitePrivate.highlightsOff()
 		m.BlackPrivate.highlightsOff()
+		if m.BlackAI && m.Turn == black {
+			playTurnAI(black, m)
+		} else if m.WhiteAI && m.Turn == white {
+			playTurnAI(white, m)
+		}
 	} else {
 		m.Phase = kingPlacementPhase
 		if m.WhitePublic.KingPlayed {
@@ -1701,7 +1583,7 @@ func (m *Match) EndRound() {
 		} else {
 			if m.WhiteAI {
 				public, private := m.states(white)
-				pos := kingPlacement(white, m.Board[:])
+				pos := kingPlacementAI(white, m.Board[:])
 				private.KingPos = &pos
 				public.KingPlayed = true
 				m.Log = append(m.Log, "white played King")
@@ -1716,7 +1598,7 @@ func (m *Match) EndRound() {
 		} else {
 			if m.BlackAI {
 				public, private := m.states(black)
-				pos := kingPlacement(black, m.Board[:])
+				pos := kingPlacementAI(black, m.Board[:])
 				private.KingPos = &pos
 				public.KingPlayed = true
 				m.Log = append(m.Log, "black played King")
@@ -1727,7 +1609,6 @@ func (m *Match) EndRound() {
 			}
 		}
 	}
-	m.PlayableCards()
 }
 
 func (m *Match) tickdownStatusEffects(postReclaim bool) {
@@ -1960,6 +1841,7 @@ func (m *Match) CalculateSquareStatus() {
 	}
 }
 
+// returns true if both kings are now down
 func (m *Match) EndKingPlacement() bool {
 	if m.WhitePublic.KingPlayed && m.BlackPublic.KingPlayed {
 		m.LastMoveTime = time.Now().UnixNano()
@@ -1978,6 +1860,11 @@ func (m *Match) EndKingPlacement() bool {
 		m.UpdateStatusAndDamage()
 		m.Phase = mainPhase
 		m.PlayableCards()
+		if m.BlackAI && m.Turn == black {
+			playTurnAI(black, m)
+		} else if m.WhiteAI && m.Turn == white {
+			playTurnAI(white, m)
+		}
 		return true
 	}
 	return false
@@ -2011,11 +1898,11 @@ func (m *Match) EndTurn(pass bool, player string) {
 			m.WhitePrivate.dimUnreclaimable(m, board)
 
 			if m.BlackAI {
-				m.BlackPrivate.ReclaimSelections = pickReclaim(black, board)
+				m.BlackPrivate.ReclaimSelections = pickReclaimAI(black, board)
 				m.BlackPublic.ReclaimSelectionMade = true
 			}
 			if m.WhiteAI {
-				m.WhitePrivate.ReclaimSelections = pickReclaim(white, board)
+				m.WhitePrivate.ReclaimSelections = pickReclaimAI(white, board)
 				m.WhitePublic.ReclaimSelectionMade = true
 			}
 		}
@@ -2037,11 +1924,17 @@ func (m *Match) EndTurn(pass bool, player string) {
 		m.BlackPrivate.PlayerInstruction = defaultInstruction
 		m.BlackPrivate.SelectedCard = -1
 		m.BlackPrivate.highlightsOff()
+
+		if m.BlackAI && m.Turn == black {
+			playTurnAI(black, m)
+		} else if m.WhiteAI && m.Turn == white {
+			playTurnAI(white, m)
+		}
 	}
 }
 
 func drawCards(existing []Card, public *PublicState) []Card {
-	// remove vassal cards from existing
+	// remove vassal cards from existing hand
 	i := 0
 loop:
 	for ; i < len(existing); i++ {
@@ -2094,6 +1987,18 @@ func (m *Match) IsFinished() bool {
 // panics if out of bounds
 func (p *PrivateState) RemoveCard(idx int) {
 	p.Cards = append(p.Cards[:idx], p.Cards[idx+1:]...)
+}
+
+func (p *PrivateState) RemoveMatchingCard(card Card) {
+	matchFound := false
+	for i, c := range p.Cards {
+		if matchFound {
+			p.Cards[i-1] = p.Cards[i]
+		} else if card == c {
+			matchFound = true
+		}
+	}
+	p.Cards = p.Cards[:len(p.Cards)-1]
 }
 
 func (p *Piece) isDamageImmune() bool {

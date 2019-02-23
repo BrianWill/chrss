@@ -2,6 +2,9 @@
 in status info, show sources of damage
 
 
+AI should be able to pass
+
+
 in dev mode, automatically readies up both players
 
 

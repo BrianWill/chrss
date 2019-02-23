@@ -5,7 +5,7 @@ import (
 	"sort"
 )
 
-func kingPlacement(color string, board []*Piece) Pos {
+func kingPlacementAI(color string, board []*Piece) Pos {
 	free := freeSpaces(color, board)
 	if len(free) == 0 {
 		panic("Somehow no space for King! How did this happen?")
@@ -79,7 +79,7 @@ func freeSpaces(color string, board []*Piece) []int {
 }
 
 // return indexes of up to two pieces to reclaim
-func pickReclaim(color string, board []*Piece) []Pos {
+func pickReclaimAI(color string, board []*Piece) []Pos {
 	type PieceScore struct {
 		Idx   int
 		Score int
@@ -158,4 +158,43 @@ func exposureScore(color string, idx int, board []*Piece) int {
 // based on current targets and potential (open lines of sight)
 func offenseScore(color string, pieceType string, idx int, board []*Piece) int {
 	return 0
+}
+
+func playTurnAI(color string, m *Match) {
+	public, private := m.states(color)
+
+	scores := make([]int, len(private.Cards))
+	pos := make([]Pos, len(private.Cards)) // for the scored card, the chosen Pos to 'click'
+	for i, c := range private.Cards {
+		if private.PlayableCards[i] {
+			score := 0
+			switch c.Name {
+
+			}
+			scores[i] = score
+		}
+	}
+
+	// determine highest score, pick random from tie for first
+	highestIdxs := []int{}
+	highestScore := -1000
+	for i, score := range scores {
+		if score > highestScore {
+			highestScore = score
+			highestIdxs = []int{i}
+		} else if score == highestScore {
+			highestIdxs = append(highestIdxs, i)
+		}
+	}
+	if len(highestIdxs) == 0 {
+		m.EndTurn(true, color)
+		return
+	}
+	selectedIdx := highestIdxs[rand.Intn(len(highestIdxs))]
+	if scores[selectedIdx] < 0 {
+		m.EndTurn(true, color)
+		return
+	}
+	private.SelectedCard = selectedIdx
+	m.clickBoard(color, public, private, pos[selectedIdx])
 }
