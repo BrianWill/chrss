@@ -131,6 +131,10 @@ func (m *Match) getPiece(p Pos) *Piece {
 	return m.Board[nColumns*p.Y+p.X]
 }
 
+func (m *Match) getTempPiece(p Pos) *Piece {
+	return m.tempBoard[nColumns*p.Y+p.X]
+}
+
 // returns -1 if invalid
 func (p *Pos) getBoardIdx() int {
 	if p.X < 0 || p.X >= nColumns {
@@ -167,11 +171,24 @@ func (m *Match) setPiece(p Pos, piece Piece) {
 	m.Board[idx] = &m.pieces[idx]
 }
 
+func (m *Match) setTempPiece(p Pos, piece Piece) {
+	idx := nColumns*p.Y + p.X
+	m.tempPieces[idx] = piece
+	m.tempBoard[idx] = &m.tempPieces[idx]
+}
+
 // panics if out of bounds
 func (m *Match) removePieceAt(p Pos) {
 	idx := nColumns*p.Y + p.X
 	m.Board[idx] = nil
 	m.pieces[idx] = Piece{}
+}
+
+// panics if out of bounds
+func (m *Match) removeTempPieceAt(p Pos) {
+	idx := nColumns*p.Y + p.X
+	m.tempBoard[idx] = nil
+	m.tempPieces[idx] = Piece{}
 }
 
 func (m *Match) RemoveNonPawns() {
@@ -484,6 +501,27 @@ func (m *Match) SpawnSinglePawn(color string, public *PublicState, test bool) bo
 		m.setPiece(Pos{v, rand.Intn(2) + offset}, Piece{pawn, public.Color, pawnHP, pawnAttack, 0, nil})
 	}
 	public.NumPawns += n
+	return true
+}
+
+func (m *Match) SpawnSinglePawnTemp(color string, public *PublicState) bool {
+	if public.NumPawns == maxPawns {
+		return false
+	}
+	n := 1
+	offset := 1
+	if color == black {
+		offset = 3
+	}
+	columns := m.freePawnColumns(color)
+	columns = randSelect(n, columns)
+	n = len(columns)
+	if n < 1 {
+		return false
+	}
+	for _, v := range columns {
+		m.setPiece(Pos{v, rand.Intn(2) + offset}, Piece{pawn, public.Color, pawnHP, pawnAttack, 0, nil})
+	}
 	return true
 }
 
@@ -1431,6 +1469,25 @@ func (m *Match) inflictDamage(idx int, dmg int) {
 	}
 }
 
+// inflict damage on piece at index
+// checks for win condition if piece is killed
+// does nothing if no piece at index
+// does nothing if index is out of bounds
+func (m *Match) inflictTempDamage(idx int, dmg int) {
+	if idx < 0 || idx >= (nColumns*nRows) {
+		return
+	}
+	p := m.tempBoard[idx]
+	if p == nil {
+		return
+	}
+	p.HP -= dmg
+
+	if p.HP < 0 {
+		m.tempBoard[idx] = nil
+	}
+}
+
 // sets match state to gameover if winner or draw
 func (m *Match) checkWinCondition() bool {
 	b, w := m.BlackPublic, m.WhitePublic
@@ -1484,6 +1541,21 @@ func (m *Match) swapBoardIndex(i, j int) {
 	} else if m.Board[i] != nil && m.Board[j] == nil {
 		m.Board[i] = nil
 		m.Board[j] = &m.pieces[j]
+	}
+}
+
+// panics if i or j are out of bounds
+func (m *Match) swapTempBoardIndex(i, j int) {
+	if i == j {
+		return
+	}
+	m.tempPieces[i], m.tempPieces[j] = m.tempPieces[j], m.tempPieces[i]
+	if m.tempBoard[i] == nil && m.tempBoard[j] != nil {
+		m.tempBoard[i] = &m.tempPieces[i]
+		m.tempBoard[j] = nil
+	} else if m.Board[i] != nil && m.tempBoard[j] == nil {
+		m.tempBoard[i] = nil
+		m.tempBoard[j] = &m.tempPieces[j]
 	}
 }
 

@@ -160,6 +160,8 @@ type Match struct {
 	// white side is indexes 0 up to (nColumns*nRows)/2
 	pieces               [nColumns * nRows]Piece        // zero value for empty square
 	Board                [nColumns * nRows]*Piece       // nil for empty square
+	tempPieces           [nColumns * nRows]Piece        // used for AI scoring (reusing these arrays avoids wasteful allocations)
+	tempBoard            [nColumns * nRows]*Piece       // "
 	SquareStatusesDirect [nColumns * nRows]SquareStatus // the status effects applied directly to squares
 	// the status effects on squares from pieces combined with the effects applied directly to the squares
 	// (should be recomputed any time pieces are placed/moved/killed)
