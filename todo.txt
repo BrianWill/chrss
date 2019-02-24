@@ -2,6 +2,12 @@
 in status info, show sources of damage
 
 
+use validPositionsForCard to determine what cards to highlight when selecting a card
+    possibly remove most of the dimAll... methods
+
+catch panics in match so one bad match doesn't bring down server
+
+
 AI should be able to pass
 
 
@@ -126,6 +132,7 @@ card ideas:
 
 
 
+    terbuchet - damages every enemy and ally in its column (except itself)
 
     lock cards - lock 2 random, non-vassal cards in the enemy's hand for two rounds
 

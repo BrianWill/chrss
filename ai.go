@@ -167,11 +167,7 @@ func playTurnAI(color string, m *Match) {
 	pos := make([]Pos, len(private.Cards)) // for the scored card, the chosen Pos to 'click'
 	for i, c := range private.Cards {
 		if private.PlayableCards[i] {
-			score := 0
-			switch c.Name {
-
-			}
-			scores[i] = score
+			scores[i], pos[i] = scoreCardAI(c.Name, color, m)
 		}
 	}
 
@@ -197,4 +193,241 @@ func playTurnAI(color string, m *Match) {
 	}
 	private.SelectedCard = selectedIdx
 	m.clickBoard(color, public, private, pos[selectedIdx])
+}
+
+// assumes card/pos combo is a valid play
+func scoreCardAIPos(cardName string, pos Pos, color string, m *Match) int {
+	score := 0
+	switch cardName {
+	case castleCard:
+
+	case reclaimVassalCard:
+
+	case swapFrontLinesCard:
+
+	case removePawnCard:
+
+	case forceCombatCard:
+
+	case dispellCard:
+
+	case dodgeCard:
+
+	case mirrorCard:
+
+	case drainManaCard:
+
+	case healCard:
+
+	case poisonCard:
+
+	case togglePawnCard:
+
+	case nukeCard:
+
+	case vulnerabilityCard:
+
+	case amplifyCard:
+
+	case transparencyCard:
+
+	case stunVassalCard:
+
+	case enrageCard:
+
+	case armorCard:
+
+	case shoveCard:
+
+	case advanceCard:
+
+	case restoreManaCard:
+
+	case summonPawnCard:
+
+	case resurrectVassalCard:
+
+	case bishop, knight, rook, queen, jester:
+
+	}
+	return score
+}
+
+// assumes both kings are on the board
+func kingIdxs(color string, board []*Piece) []int {
+	idxs := []int{}
+	for i, p := range board {
+		if p != nil && p.Name == king && (p.Color == color || color == none) {
+			idxs = append(idxs, i)
+		}
+	}
+	return idxs
+}
+
+func pawnIdxs(color string, board []*Piece) []int {
+	idxs := []int{}
+	for i, p := range board {
+		if p != nil && p.Name == pawn {
+			if p.Color == color || color == none {
+				idxs = append(idxs, i)
+			}
+		}
+	}
+	return idxs
+}
+
+func pieceIdxs(color string, board []*Piece) []int {
+	idxs := []int{}
+	for i, p := range board {
+		if p != nil {
+			if p.Color == color || color == none {
+				idxs = append(idxs, i)
+			}
+		}
+	}
+	return idxs
+}
+
+func vassalIdxs(color string, board []*Piece) []int {
+	idxs := []int{}
+	for i, p := range board {
+		if p != nil && (p.Name == knight || p.Name == bishop || p.Name == rook) {
+			if p.Color == color || color == none {
+				idxs = append(idxs, i)
+			}
+		}
+	}
+	return idxs
+}
+
+func freeIdxs(color string, board []*Piece) []int {
+	start := 0
+	end := nColumns * nRows
+	switch color {
+	case white:
+		end = nColumns * nRows / 2
+	case black:
+		start = nColumns * nRows / 2
+	}
+	idxs := []int{}
+	for i := start; i < end; i++ {
+		if board[i] == nil {
+			idxs = append(idxs, i)
+		}
+	}
+	return idxs
+}
+
+func validPositionsForCard(cardName string, color string, m *Match) []Pos {
+	idxs := []int{}
+	board := m.Board[:]
+	switch cardName {
+	case castleCard:
+		if m.WhitePublic.RookPlayed && m.BlackPublic.RookPlayed {
+			idxs = kingIdxs(none, board)
+		} else if m.WhitePublic.RookPlayed {
+			idxs = kingIdxs(white, board)
+		} else if m.BlackPublic.RookPlayed {
+			idxs = kingIdxs(black, board)
+		}
+	case removePawnCard:
+		idxs = pawnIdxs(none, board)
+	case dodgeCard:
+		idxs = m.dodgeablePieces(color)
+	case forceCombatCard:
+		idxs = kingIdxs(color, board)
+	case dispellCard:
+		idxs = m.statusEffectedPieces(none)
+	case mirrorCard:
+		idxs = kingIdxs(none, board)
+	case drainManaCard:
+		idxs = kingIdxs(otherColor(color), board)
+	case togglePawnCard:
+		idxs = m.toggleablePawns()
+	case nukeCard:
+		idxs = kingIdxs(none, board)
+	case vulnerabilityCard:
+		idxs = pieceIdxs(otherColor(color), board)
+	case amplifyCard:
+		idxs = pieceIdxs(color, board)
+	case transparencyCard:
+		idxs = pieceIdxs(otherColor(color), board)
+	case stunVassalCard:
+		idxs = vassalIdxs(otherColor(color), board)
+	case armorCard:
+		idxs = pieceIdxs(color, board)
+		// remove king's idx
+		for i, idx := range idxs {
+			if m.Board[idx].Name == king {
+				idxs = append(idxs[:i], idxs[i+1:]...)
+				break
+			}
+		}
+	case enrageCard:
+		idxs = pieceIdxs(otherColor(color), board)
+	case shoveCard:
+		idxs = m.shoveablePieces()
+	case advanceCard:
+		idxs = m.advanceablePieces()
+	case restoreManaCard:
+		idxs = kingIdxs(color, board)
+	case summonPawnCard:
+		idxs = kingIdxs(color, board)
+	case resurrectVassalCard:
+		idxs = kingIdxs(color, board)
+	case healCard:
+		idxs = pieceIdxs(color, board)
+		// remove king's idx
+		for i, idx := range idxs {
+			if m.Board[idx].Name == king {
+				idxs = append(idxs[:i], idxs[i+1:]...)
+				break
+			}
+		}
+	case poisonCard:
+		idxs = pieceIdxs(otherColor(color), board)
+		// remove king's idx
+		for i, idx := range idxs {
+			if m.Board[idx].Name == king {
+				idxs = append(idxs[:i], idxs[i+1:]...)
+				break
+			}
+		}
+	case swapFrontLinesCard:
+		idxs = pieceIdxs(none, board)
+	case reclaimVassalCard:
+		idxs = vassalIdxs(color, board)
+	case rook, bishop, knight, queen, jester:
+		idxs = freeIdxs(color, board)
+	}
+	pos := make([]Pos, len(idxs))
+	for i, idx := range idxs {
+		pos[i] = positions[idx]
+	}
+	return pos
+}
+
+// return negative score and zero val Pos{} if no play has positive score
+func scoreCardAI(cardName string, color string, m *Match) (int, Pos) {
+	validPositions := validPositionsForCard(cardName, color, m)
+	scores := make([]int, len(validPositions))
+	for i, pos := range validPositions {
+		scores[i] = scoreCardAIPos(cardName, pos, color, m)
+	}
+	const minScore = -1000
+	winners := []int{}
+	winningScore := minScore
+	for i, score := range scores {
+		if score > winningScore {
+			winningScore = score
+			winners = []int{i}
+		} else if score == winningScore {
+			winners = append(winners, i)
+		}
+	}
+	if len(winners) == 0 {
+		return -1, Pos{}
+	}
+	winnerIdx := winners[rand.Intn(len(winners))]
+	return scores[winnerIdx], validPositions[winnerIdx]
 }
