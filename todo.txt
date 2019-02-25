@@ -1,14 +1,27 @@
 
 in status info, show sources of damage
 
+why is AI giving high scores to plays that put piece in place where it neither takes nor deals damage?
 
-use validPositionsForCard to determine what cards to highlight when selecting a card
-    possibly remove most of the dimAll... methods
+AI should not score duplicate cards (wasteful and biases selection in event of tie)
 
-catch panics in match so one bad match doesn't bring down server
+AI should prefer to use cards with duplicates, cards that are common, and cards with low mana cost
 
 
-AI should be able to pass
+
+code cleaning: make sure funcs/methods take in only what they really need to
+
+
+instead of scoreBoard, have scoreState which factors in card hand and offboard vassals
+    also should account better for status effects
+
+use scoreBoard to pick king placement and pickReclaimAI
+
+scoreBoard should account for exposed positions (vulnerability to lines of sight)
+
+
+recover panics in match so one bad match doesn't bring down server
+
 
 
 in dev mode, automatically readies up both players
@@ -16,6 +29,8 @@ in dev mode, automatically readies up both players
 
 AI vs human
     piece reclaim
+        analyze board state for all possible reclaim combinations
+
         prioritize pieces under threat and in unguarded positions
 
 AI vs AI

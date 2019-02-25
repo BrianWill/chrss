@@ -18,7 +18,7 @@ func initMatch(m *Match, dev bool) {
 	m.Round = 0 // will get incremented to 1 once both players ready up
 	m.Phase = readyUpPhase
 
-	m.BlackAI = false // todo
+	m.BlackAI = true // todo
 
 	public := &m.WhitePublic
 	public.Color = white
@@ -126,9 +126,16 @@ func initMatch(m *Match, dev bool) {
 	}
 }
 
-// returns nil for empty square
-func (m *Match) getPiece(p Pos) *Piece {
-	return m.Board[nColumns*p.Y+p.X]
+func getPiece(p Pos, board []*Piece) *Piece {
+	return board[nColumns*p.Y+p.X]
+}
+
+// does not panic
+func getPieceSafe(p Pos, board []*Piece) *Piece {
+	if p.X < 0 || p.X >= nColumns || p.Y < 0 || p.Y >= nRows {
+		return nil
+	}
+	return board[nColumns*p.Y+p.X]
 }
 
 func (m *Match) getTempPiece(p Pos) *Piece {
@@ -154,14 +161,6 @@ func getBoardIdx(x int, y int) int {
 		return -1
 	}
 	return x + nColumns*y
-}
-
-// does not panic
-func (m *Match) getPieceSafe(p Pos) *Piece {
-	if p.X < 0 || p.X >= nColumns || p.Y < 0 || p.Y >= nRows {
-		return nil
-	}
-	return m.Board[nColumns*p.Y+p.X]
 }
 
 // panics if out of bounds
@@ -234,12 +233,12 @@ func (m *Match) InflictDamage() {
 	}
 }
 
-func (m *Match) CalculateDamage() {
+func (m *Match) CalculateDamage(board []*Piece, pieces []Piece, squareStatuses []SquareStatus) {
 	rookAttack := func(p Pos, color string, attack int, enraged bool) {
 		x := p.X + 1
 		y := p.Y
 		for x < nColumns {
-			hit := m.getPiece(Pos{x, y})
+			hit := getPiece(Pos{x, y}, board)
 			if hit != nil {
 				if !hit.isDamageImmune() && (hit.Color != color || enraged) {
 					hit.Damage += hit.armorMitigation(attack)
@@ -254,7 +253,7 @@ func (m *Match) CalculateDamage() {
 		x = p.X - 1
 		y = p.Y
 		for x >= 0 {
-			hit := m.getPiece(Pos{x, y})
+			hit := getPiece(Pos{x, y}, board)
 			if hit != nil {
 				if !hit.isDamageImmune() && (hit.Color != color || enraged) {
 					hit.Damage += hit.armorMitigation(attack)
@@ -269,7 +268,7 @@ func (m *Match) CalculateDamage() {
 		x = p.X
 		y = p.Y + 1
 		for y < nRows {
-			hit := m.getPiece(Pos{x, y})
+			hit := getPiece(Pos{x, y}, board)
 			if hit != nil {
 				if !hit.isDamageImmune() && (hit.Color != color || enraged) {
 					hit.Damage += hit.armorMitigation(attack)
@@ -284,7 +283,7 @@ func (m *Match) CalculateDamage() {
 		x = p.X
 		y = p.Y - 1
 		for y >= 0 {
-			hit := m.getPiece(Pos{x, y})
+			hit := getPiece(Pos{x, y}, board)
 			if hit != nil {
 				if !hit.isDamageImmune() && (hit.Color != color || enraged) {
 					hit.Damage += hit.armorMitigation(attack)
@@ -301,7 +300,7 @@ func (m *Match) CalculateDamage() {
 		x := p.X + 1
 		y := p.Y + 1
 		for x < nColumns && y < nRows {
-			hit := m.getPiece(Pos{x, y})
+			hit := getPiece(Pos{x, y}, board)
 			if hit != nil {
 				if !hit.isDamageImmune() && (hit.Color != color || enraged) {
 					hit.Damage += hit.armorMitigation(attack)
@@ -317,7 +316,7 @@ func (m *Match) CalculateDamage() {
 		x = p.X - 1
 		y = p.Y + 1
 		for x >= 0 && y < nRows {
-			hit := m.getPiece(Pos{x, y})
+			hit := getPiece(Pos{x, y}, board)
 			if hit != nil {
 				if !hit.isDamageImmune() && (hit.Color != color || enraged) {
 					hit.Damage += hit.armorMitigation(attack)
@@ -333,7 +332,7 @@ func (m *Match) CalculateDamage() {
 		x = p.X + 1
 		y = p.Y - 1
 		for x < nColumns && y >= 0 {
-			hit := m.getPiece(Pos{x, y})
+			hit := getPiece(Pos{x, y}, board)
 			if hit != nil {
 				if !hit.isDamageImmune() && (hit.Color != color || enraged) {
 					hit.Damage += hit.armorMitigation(attack)
@@ -349,7 +348,7 @@ func (m *Match) CalculateDamage() {
 		x = p.X - 1
 		y = p.Y - 1
 		for x >= 0 && y >= 0 {
-			hit := m.getPiece(Pos{x, y})
+			hit := getPiece(Pos{x, y}, board)
 			if hit != nil {
 				if !hit.isDamageImmune() && (hit.Color != color || enraged) {
 					hit.Damage += hit.armorMitigation(attack)
@@ -380,7 +379,7 @@ func (m *Match) CalculateDamage() {
 			Pos{p.X - 1, p.Y - 1},
 		}
 		for _, other := range ps {
-			hit := m.getPieceSafe(other)
+			hit := getPieceSafe(other, m.Board[:])
 			if hit != nil && !hit.isDamageImmune() && (hit.Color != color || enraged) {
 				hit.Damage += hit.armorMitigation(attack)
 			}
@@ -399,7 +398,7 @@ func (m *Match) CalculateDamage() {
 			Pos{p.X - 2, p.Y - 1},
 		}
 		for _, other := range ps {
-			hit := m.getPieceSafe(other)
+			hit := getPieceSafe(other, m.Board[:])
 			if hit != nil && !hit.isDamageImmune() && (hit.Color != color || enraged) {
 				hit.Damage += hit.armorMitigation(attack)
 			}
@@ -420,7 +419,7 @@ func (m *Match) CalculateDamage() {
 			Pos{p.X - 1, p.Y + yOffset},
 		}
 		for _, other := range ps {
-			hit := m.getPieceSafe(other)
+			hit := getPieceSafe(other, m.Board[:])
 			if hit != nil && !hit.isDamageImmune() && (hit.Color != color || enraged) {
 				hit.Damage += hit.armorMitigation(attack)
 			}
@@ -428,8 +427,8 @@ func (m *Match) CalculateDamage() {
 	}
 
 	// reset all to 0
-	for i := range m.pieces {
-		m.pieces[i].Damage = 0
+	for i := range pieces {
+		pieces[i].Damage = 0
 	}
 
 	attackMap := map[string]func(Pos, string, int, bool){
@@ -443,8 +442,8 @@ func (m *Match) CalculateDamage() {
 	}
 
 	// visit each piece, adding the damage it inflicts on other pieces
-	for i, p := range m.Board {
-		squareStatus := m.SquareStatuses[i]
+	for i, p := range board {
+		squareStatus := squareStatuses[i]
 		if squareStatus.Negative != nil && squareStatus.Negative.Distracted {
 			continue
 		}
@@ -460,7 +459,7 @@ func (m *Match) CalculateDamage() {
 		}
 	}
 
-	for _, p := range m.Board {
+	for _, p := range board {
 		if p != nil && p.Status != nil {
 			neg := p.Status.Negative
 			if neg != nil {
@@ -520,7 +519,7 @@ func (m *Match) SpawnSinglePawnTemp(color string, public *PublicState) bool {
 		return false
 	}
 	for _, v := range columns {
-		m.setPiece(Pos{v, rand.Intn(2) + offset}, Piece{pawn, public.Color, pawnHP, pawnAttack, 0, nil})
+		m.setTempPiece(Pos{v, rand.Intn(2) + offset}, Piece{pawn, public.Color, pawnHP, pawnAttack, 0, nil})
 	}
 	return true
 }
@@ -535,7 +534,7 @@ func (m *Match) freePawnColumns(color string) []int {
 		mid = 4
 	}
 	for i := 0; i < nColumns; i++ {
-		if m.getPiece(Pos{i, front}) == nil && m.getPiece(Pos{i, mid}) == nil {
+		if getPiece(Pos{i, front}, m.Board[:]) == nil && getPiece(Pos{i, mid}, m.Board[:]) == nil {
 			columns = append(columns, i)
 		}
 	}
@@ -545,7 +544,6 @@ func (m *Match) freePawnColumns(color string) []int {
 // spawn n random pawns in free columns
 func (m *Match) SpawnPawns(init bool) {
 	public := &m.WhitePublic
-
 	for i := 0; i < 2; i++ {
 		n := 1
 		if init {
@@ -575,7 +573,6 @@ func (m *Match) SpawnPawns(init bool) {
 		default:
 			m.Log = append(m.Log, public.Color+" gained "+strconv.Itoa(n)+" pawns")
 		}
-
 		public = &m.BlackPublic
 	}
 }
@@ -863,71 +860,8 @@ func (m *Match) clickCard(player string, public *PublicState, private *PrivateSt
 				card := private.Cards[cardIdx]
 				private.SelectedCard = cardIdx
 				if public.ManaCurrent >= card.ManaCost {
-					board := m.Board[:]
-					switch card.Name {
-					case castleCard:
-						if m.WhitePublic.RookPlayed && m.BlackPublic.RookPlayed {
-							private.dimAllButType(king, none, board)
-						} else if m.WhitePublic.RookPlayed {
-							private.dimAllButType(king, white, board)
-						} else if m.BlackPublic.RookPlayed {
-							private.dimAllButType(king, black, board)
-						}
-					case removePawnCard:
-						if public.NumPawns > 0 || public.Other.NumPawns > 0 {
-							private.dimAllButType(pawn, none, board)
-						}
-					case dodgeCard:
-						private.dimAllBut(m.dodgeablePieces(player))
-					case forceCombatCard:
-						private.dimAllButType(king, player, board)
-					case dispellCard:
-						private.dimAllBut(m.statusEffectedPieces(none))
-					case mirrorCard:
-						private.dimAllButType(king, none, board)
-					case drainManaCard:
-						private.dimAllButType(king, otherColor(player), board)
-					case togglePawnCard:
-						private.dimAllBut(m.toggleablePawns())
-					case nukeCard:
-						private.dimAllButType(king, none, board)
-					case vulnerabilityCard:
-						private.dimAllButPieces(otherColor(player), board)
-					case amplifyCard:
-						private.dimAllButPieces(player, board)
-					case transparencyCard:
-						private.dimAllButPieces(otherColor(player), board)
-					case stunVassalCard:
-						private.dimAllButTypes([]string{bishop, knight, rook}, otherColor(player), board)
-					case armorCard:
-						private.dimAllButPieces(player, board)
-						private.dimType(king, player, board)
-					case enrageCard:
-						private.dimAllButPieces(otherColor(player), board)
-					case shoveCard:
-						private.dimAllBut(m.shoveablePieces())
-					case advanceCard:
-						private.dimAllBut(m.advanceablePieces())
-					case restoreManaCard:
-						private.dimAllButType(king, player, board)
-					case summonPawnCard:
-						private.dimAllButType(king, player, board)
-					case resurrectVassalCard:
-						private.dimAllButType(king, player, board)
-					case healCard:
-						private.dimAllButPieces(player, board)
-						private.dimType(king, player, board)
-					case poisonCard:
-						other := otherColor(player)
-						private.dimAllButPieces(other, board)
-						private.dimType(king, other, board)
-					case swapFrontLinesCard:
-						private.dimAllButType(king, none, board)
-					case reclaimVassalCard:
-						private.dimAllButTypes([]string{bishop, knight, rook}, player, board)
-					case rook, bishop, knight, queen, jester:
-						private.dimAllButFree(player, board)
-					}
+					idxs := validCardPositions(card.Name, player, m)
+					private.dimAllBut(idxs)
 				}
 			}
 		}
@@ -936,7 +870,7 @@ func (m *Match) clickCard(player string, public *PublicState, private *PrivateSt
 
 // assumes we have already checked that the move is playable
 func playCard(m *Match, card string, player string, public *PublicState, p Pos) {
-	piece := m.getPieceSafe(p)
+	piece := getPieceSafe(p, m.Board[:])
 	switch card {
 	case castleCard:
 		// find rook of same color as clicked king
@@ -1160,8 +1094,93 @@ func playCard(m *Match, card string, player string, public *PublicState, p Pos) 
 	}
 }
 
+func validCardPositions(cardName string, color string, m *Match) []int {
+	idxs := []int{}
+	board := m.Board[:]
+	switch cardName {
+	case castleCard:
+		if m.WhitePublic.RookPlayed && m.BlackPublic.RookPlayed {
+			idxs = kingIdxs(none, board)
+		} else if m.WhitePublic.RookPlayed {
+			idxs = kingIdxs(white, board)
+		} else if m.BlackPublic.RookPlayed {
+			idxs = kingIdxs(black, board)
+		}
+	case removePawnCard:
+		idxs = pawnIdxs(none, board)
+	case dodgeCard:
+		idxs = m.dodgeablePieces(color)
+	case forceCombatCard:
+		idxs = kingIdxs(color, board)
+	case dispellCard:
+		idxs = m.statusEffectedPieces(none)
+	case mirrorCard:
+		idxs = kingIdxs(none, board)
+	case drainManaCard:
+		idxs = kingIdxs(otherColor(color), board)
+	case togglePawnCard:
+		idxs = m.toggleablePawns()
+	case nukeCard:
+		idxs = kingIdxs(none, board)
+	case vulnerabilityCard:
+		idxs = pieceIdxs(otherColor(color), board)
+	case amplifyCard:
+		idxs = pieceIdxs(color, board)
+	case transparencyCard:
+		idxs = pieceIdxs(otherColor(color), board)
+	case stunVassalCard:
+		idxs = vassalIdxs(otherColor(color), board)
+	case armorCard:
+		idxs = pieceIdxs(color, board)
+		// remove king's idx
+		for i, idx := range idxs {
+			if m.Board[idx].Name == king {
+				idxs = append(idxs[:i], idxs[i+1:]...)
+				break
+			}
+		}
+	case enrageCard:
+		idxs = pieceIdxs(otherColor(color), board)
+	case shoveCard:
+		idxs = m.shoveablePieces()
+	case advanceCard:
+		idxs = m.advanceablePieces()
+	case restoreManaCard:
+		idxs = kingIdxs(color, board)
+	case summonPawnCard:
+		idxs = kingIdxs(color, board)
+	case resurrectVassalCard:
+		idxs = kingIdxs(color, board)
+	case healCard:
+		idxs = pieceIdxs(color, board)
+		// remove king's idx
+		for i, idx := range idxs {
+			if m.Board[idx].Name == king {
+				idxs = append(idxs[:i], idxs[i+1:]...)
+				break
+			}
+		}
+	case poisonCard:
+		idxs = pieceIdxs(otherColor(color), board)
+		// remove king's idx
+		for i, idx := range idxs {
+			if m.Board[idx].Name == king {
+				idxs = append(idxs[:i], idxs[i+1:]...)
+				break
+			}
+		}
+	case swapFrontLinesCard:
+		idxs = kingIdxs(none, board)
+	case reclaimVassalCard:
+		idxs = vassalIdxs(color, board)
+	case rook, bishop, knight, queen, jester:
+		idxs = freeIdxs(color, board)
+	}
+	return idxs
+}
+
 func canPlayCard(m *Match, card string, player string, public *PublicState, p Pos) bool {
-	piece := m.getPieceSafe(p)
+	piece := getPieceSafe(p, m.Board[:])
 	switch card {
 	case castleCard:
 		if piece == nil || piece.Name != king {
@@ -1311,7 +1330,7 @@ func canPlayCard(m *Match, card string, player string, public *PublicState, p Po
 		}
 	case bishop, knight, rook, queen, jester:
 		// ignore clicks on occupied spaces
-		if m.getPieceSafe(p) != nil {
+		if getPieceSafe(p, m.Board[:]) != nil {
 			return false
 		}
 		// square must be on player's side of board
@@ -1345,7 +1364,7 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 		newTurn = true
 		notifyOpponent = true
 	case reclaimPhase:
-		piece := m.getPieceSafe(p)
+		piece := getPieceSafe(p, m.Board[:])
 		if piece != nil && piece.Color == player && !piece.isUnreclaimable() {
 			found := false
 			selections := private.ReclaimSelections
@@ -1372,7 +1391,7 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 			break
 		}
 		// ignore clicks on occupied spaces
-		if m.getPieceSafe(p) != nil {
+		if getPieceSafe(p, m.Board[:]) != nil {
 			break
 		}
 		// square must be on player's side of board
@@ -1567,7 +1586,7 @@ func (m *Match) ReclaimPieces() {
 				if i >= 2 {
 					break // in case more than two selections were sent, we ignore all but first two
 				}
-				p := m.getPieceSafe(pos)
+				p := getPieceSafe(pos, m.Board[:])
 				if p != nil { // selection might be off the board or a square without a piece (todo: send error to client)
 					// if reclaiming a king or vassal, add card back to hand
 					// if reclaiming a rook, heal the rook
@@ -1775,22 +1794,9 @@ func (p *PrivateState) dimAllButPieces(color string, board []*Piece) {
 	}
 }
 
-func (p *PrivateState) highlightSelections(selections []Pos) {
-	for _, pos := range selections {
-		idx := pos.getBoardIdx()
-		p.Highlights[idx] = highlightOn
-	}
-}
-
 func (p *PrivateState) highlightsOff() {
 	for i := range p.Highlights {
 		p.Highlights[i] = highlightOff
-	}
-}
-
-func (p *PrivateState) dimAll() {
-	for i := range p.Highlights {
-		p.Highlights[i] = highlightDim
 	}
 }
 
@@ -1804,21 +1810,6 @@ func (p *PrivateState) highlightPosOff(pos Pos) {
 	p.Highlights[idx] = highlightOff
 }
 
-// dims all squares but for specified type and color (or both colors if 'none')
-// returns count of pieces matching type and color
-func (p *PrivateState) dimAllButType(pieceType string, color string, board []*Piece) int {
-	n := 0
-	for i, piece := range board {
-		if piece != nil && piece.Name == pieceType && (piece.Color == color || color == none) {
-			p.Highlights[i] = highlightOff
-			n++
-		} else {
-			p.Highlights[i] = highlightDim
-		}
-	}
-	return n
-}
-
 // dims all squares but for specified indexes
 // (doesn't assume indexes are in ascending order)
 func (p *PrivateState) dimAllBut(indexes []int) {
@@ -1830,19 +1821,6 @@ func (p *PrivateState) dimAllBut(indexes []int) {
 			}
 		}
 	}
-}
-
-// dims all pieces of specified type and color (or both colors if 'none')
-// returns count of pieces matching type and color
-func (p *PrivateState) dimType(pieceType string, color string, board []*Piece) int {
-	n := 0
-	for i, piece := range board {
-		if piece != nil && piece.Name == pieceType && (piece.Color == color || color == none) {
-			p.Highlights[i] = highlightDim
-			n++
-		}
-	}
-	return n
 }
 
 func stringInSlice(a string, list []string) bool {
@@ -1863,28 +1841,22 @@ func intInSlice(a int, list []int) bool {
 	return false
 }
 
-// highlights units of a specified type and color (or both colors if 'none')
-func (p *PrivateState) dimAllButTypes(pieceTypes []string, color string, board []*Piece) {
-	for i, piece := range board {
-		if piece != nil && (piece.Color == color || color == none) && stringInSlice(piece.Name, pieceTypes) {
-			p.Highlights[i] = highlightOff
-		} else {
-			p.Highlights[i] = highlightDim
-		}
-	}
-}
-
 // these things are always done together and in this order, hence this method
 func (m *Match) UpdateStatusAndDamage() {
-	m.CalculateSquareStatus()
-	m.CalculateDamage()
+	m.CalculateSquareStatus(m.Board[:], m.SquareStatuses[:])
+	m.CalculateDamage(m.Board[:], m.pieces[:], m.SquareStatuses[:])
+}
+
+func (m *Match) UpdateStatusAndDamageTemp() {
+	m.CalculateSquareStatus(m.tempBoard[:], m.tempSquareStatuses[:])
+	m.CalculateDamage(m.tempBoard[:], m.tempPieces[:], m.tempSquareStatuses[:])
 }
 
 // generate m.Combined from (m.Direct + square status effects from the pieces)
-func (m *Match) CalculateSquareStatus() {
-	m.SquareStatuses = m.SquareStatusesDirect
+func (m *Match) CalculateSquareStatus(board []*Piece, squareStatuses []SquareStatus) {
+	copy(squareStatuses, m.SquareStatusesDirect[:])
 	// get status effects from pieces
-	for i, piece := range m.Board {
+	for i, piece := range board {
 		if piece != nil {
 			switch piece.Name {
 			case jester:
@@ -1902,7 +1874,7 @@ func (m *Match) CalculateSquareStatus() {
 				}
 				for _, idx := range indexes {
 					if idx != -1 {
-						status := &m.SquareStatuses[idx]
+						status := &squareStatuses[idx]
 						if status.Negative == nil {
 							status.Negative = &SquareNegativeStatus{Distracted: true}
 						}
@@ -1942,7 +1914,7 @@ func (m *Match) EndKingPlacement() bool {
 	return false
 }
 
-func (p *PrivateState) dimUnreclaimable(m *Match, board []*Piece) {
+func (p *PrivateState) dimUnreclaimable(board []*Piece) {
 	for i, piece := range board {
 		if piece != nil {
 			if piece.isUnreclaimable() {
@@ -1966,8 +1938,8 @@ func (m *Match) EndTurn(pass bool, player string) {
 			board := m.Board[:]
 			m.BlackPrivate.dimAllButPieces(black, board)
 			m.WhitePrivate.dimAllButPieces(white, board)
-			m.BlackPrivate.dimUnreclaimable(m, board)
-			m.WhitePrivate.dimUnreclaimable(m, board)
+			m.BlackPrivate.dimUnreclaimable(board)
+			m.WhitePrivate.dimUnreclaimable(board)
 
 			if m.BlackAI {
 				m.BlackPrivate.ReclaimSelections = pickReclaimAI(black, board)

@@ -232,6 +232,11 @@ func createMatch(c *gin.Context, liveMatches *MatchMap, users *UserMap) (string,
 	return match.Name, nil
 }
 
+func timeTrack(start time.Time, name string) {
+	elapsed := time.Since(start)
+	log.Printf("%s took %s\n", name, elapsed)
+}
+
 func main() {
 	rand.Seed(time.Now().UnixNano())
 

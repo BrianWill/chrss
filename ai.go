@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"math/rand"
 	"sort"
+	"time"
 )
 
 func kingPlacementAI(color string, board []*Piece) Pos {
@@ -148,33 +150,28 @@ func pickReclaimAI(color string, board []*Piece) []Pos {
 	return selections
 }
 
-// return score of a board position's exposure to attack
-// based on current threats and potential (open lines of sight)
-func exposureScore(color string, idx int, board []*Piece) int {
-	return 0
-}
-
-// return score of a board position's suitability for attack
-// based on current targets and potential (open lines of sight)
-func offenseScore(color string, pieceType string, idx int, board []*Piece) int {
-	return 0
-}
-
 func playTurnAI(color string, m *Match) {
+	defer timeTrack(time.Now(), "playTurnAI")
+
 	public, private := m.states(color)
 	boardScore := scoreBoard(color, m.Board[:])
+	fmt.Printf("current board state score: %v\n", boardScore)
 
+	// positive score = better than passing
+	// negative score = worse than passing
 	scores := make([]int, len(private.Cards))
 	pos := make([]Pos, len(private.Cards)) // for the scored card, the chosen Pos to 'click'
+	fmt.Println("AI thinking...")
 	for i, c := range private.Cards {
 		if private.PlayableCards[i] {
 			scores[i], pos[i] = scoreCardAI(c.Name, color, boardScore, m)
+			fmt.Printf("card %s: score %v, pos %v\n", c.Name, scores[i], pos[i])
 		}
 	}
 
 	// determine highest score, pick random from tie for first
 	highestIdxs := []int{}
-	highestScore := -1000
+	highestScore := -10000 // arbitrarily low value
 	for i, score := range scores {
 		if score > highestScore {
 			highestScore = score
@@ -183,29 +180,106 @@ func playTurnAI(color string, m *Match) {
 			highestIdxs = append(highestIdxs, i)
 		}
 	}
-	if len(highestIdxs) == 0 {
-		m.EndTurn(true, color)
+	if len(highestIdxs) == 0 || highestScore <= 0 {
+		m.EndTurn(true, color) // pass
+		m.Log = append(m.Log, color+" passed")
 		return
 	}
 	selectedIdx := highestIdxs[rand.Intn(len(highestIdxs))]
-	if scores[selectedIdx] < 0 {
-		m.EndTurn(true, color)
-		return
-	}
 	private.SelectedCard = selectedIdx
 	m.clickBoard(color, public, private, pos[selectedIdx])
 }
 
 // return score for entire board state from perspective of 'color' player
+// a board score is only relative to other board scores
+// (no special significance for positive or negative scores; simply, higher is better)
 func scoreBoard(color string, board []*Piece) int {
-	// todo
-	return 0
+	const allyVassalKilledBonus = -60
+	const allySecondVassalKilledBonus = -1000
+	const allyKingKilledBonus = -1000
+	const allyDmgBonus = -3 // per point of dmg incurred
+	const allyVassalDmgBonus = -6
+	const allyKingDmgBonus = -12
+
+	const enemyVassalKilledBonus = 60
+	const enemySecondVassalKilledBonus = 500
+	const enemyKingKilledBonus = 500
+	const enemyDmgBonus = 3
+	const enemyVassalDmgBonus = 6
+	const enemyKingDmgBonus = 12
+
+	// give points for presence of pieces on board
+	const allyPawnBonus = 2
+	const allyRookBonus = 4
+	const allyKnightBonus = 4
+	const allyBishopBonus = 4
+	const allyOtherBonus = 3
+
+	const enemyPawnBonus = 2
+	const enemyRookBonus = 4
+	const enemyKnightBonus = 4
+	const enemyBishopBonus = 4
+	const enemyOtherBonus = 3
+
+	var score float64
+
+	for _, p := range board {
+		if p != nil {
+			if p.Color == color {
+				// ally
+				switch p.Name {
+				case pawn:
+					score += allyPawnBonus
+					score += float64(p.Damage) * allyDmgBonus
+				case king:
+					score += float64(p.Damage) * allyKingDmgBonus
+				case bishop:
+					score += allyBishopBonus
+					score += float64(p.Damage) * allyVassalDmgBonus
+				case knight:
+					score += allyKnightBonus
+					score += float64(p.Damage) * allyVassalDmgBonus
+				case rook:
+					score += allyRookBonus
+					score += float64(p.Damage) * allyVassalDmgBonus
+				default:
+					score += allyOtherBonus
+					score += float64(p.Damage) * allyDmgBonus
+				}
+			} else {
+				// enemy
+				switch p.Name {
+				case pawn:
+					score += enemyPawnBonus
+					score += float64(p.Damage) * enemyDmgBonus
+				case king:
+					score += float64(p.Damage) * enemyKingDmgBonus
+				case bishop:
+					score += enemyBishopBonus
+					score += float64(p.Damage) * enemyVassalDmgBonus
+				case knight:
+					score += enemyKnightBonus
+					score += float64(p.Damage) * enemyVassalDmgBonus
+				case rook:
+					score += enemyRookBonus
+					score += float64(p.Damage) * enemyVassalDmgBonus
+				default:
+					score += enemyOtherBonus
+					score += float64(p.Damage) * enemyDmgBonus
+				}
+			}
+		}
+	}
+	// todo: subtract points for exposed positions, esp. for exposed king / vassals
+	return int(score)
 }
 
 func (m *Match) saveBoardToTemp() {
 	m.tempPieces = m.pieces
 	for i, p := range m.Board {
-		if p != nil {
+		if p == nil {
+			m.tempBoard[i] = nil
+		} else {
 			piece := &m.tempPieces[i]
 			m.tempBoard[i] = piece
 
@@ -238,17 +312,22 @@ func scoreCardAIPos(cardName string, pos Pos, color string, boardScore int, m *M
 		m.saveBoardToTemp()
 		public, _ := m.states(color)
 		playCardTemp(m, cardName, color, public, pos)
+		m.UpdateStatusAndDamageTemp()
 		score = scoreBoard(color, m.tempBoard[:]) - boardScore
 	// cards that don't affect the board
 	case forceCombatCard:
 		// todo: high score if you have combat advantage (or no other good cards
 		// to play and opponent has high mana / num cards)
+		score = 1
 	case drainManaCard:
 		// todo: high score if enemy has low mana
+		score = 1
 	case restoreManaCard:
 		// todo: high score if player has low mana && player has high cost cards in hand
+		score = 1
 	case resurrectVassalCard:
 		// todo: high score in all scenarios
+		score = 100
 	}
 	return score
 }
@@ -507,88 +586,7 @@ func freeIdxs(color string, board []*Piece) []int {
 	return idxs
 }
 
-func validPositionsForCard(cardName string, color string, m *Match) []Pos {
-	idxs := []int{}
-	board := m.Board[:]
-	switch cardName {
-	case castleCard:
-		if m.WhitePublic.RookPlayed && m.BlackPublic.RookPlayed {
-			idxs = kingIdxs(none, board)
-		} else if m.WhitePublic.RookPlayed {
-			idxs = kingIdxs(white, board)
-		} else if m.BlackPublic.RookPlayed {
-			idxs = kingIdxs(black, board)
-		}
-	case removePawnCard:
-		idxs = pawnIdxs(none, board)
-	case dodgeCard:
-		idxs = m.dodgeablePieces(color)
-	case forceCombatCard:
-		idxs = kingIdxs(color, board)
-	case dispellCard:
-		idxs = m.statusEffectedPieces(none)
-	case mirrorCard:
-		idxs = kingIdxs(none, board)
-	case drainManaCard:
-		idxs = kingIdxs(otherColor(color), board)
-	case togglePawnCard:
-		idxs = m.toggleablePawns()
-	case nukeCard:
-		idxs = kingIdxs(none, board)
-	case vulnerabilityCard:
-		idxs = pieceIdxs(otherColor(color), board)
-	case amplifyCard:
-		idxs = pieceIdxs(color, board)
-	case transparencyCard:
-		idxs = pieceIdxs(otherColor(color), board)
-	case stunVassalCard:
-		idxs = vassalIdxs(otherColor(color), board)
-	case armorCard:
-		idxs = pieceIdxs(color, board)
-		// remove king's idx
-		for i, idx := range idxs {
-			if m.Board[idx].Name == king {
-				idxs = append(idxs[:i], idxs[i+1:]...)
-				break
-			}
-		}
-	case enrageCard:
-		idxs = pieceIdxs(otherColor(color), board)
-	case shoveCard:
-		idxs = m.shoveablePieces()
-	case advanceCard:
-		idxs = m.advanceablePieces()
-	case restoreManaCard:
-		idxs = kingIdxs(color, board)
-	case summonPawnCard:
-		idxs = kingIdxs(color, board)
-	case resurrectVassalCard:
-		idxs = kingIdxs(color, board)
-	case healCard:
-		idxs = pieceIdxs(color, board)
-		// remove king's idx
-		for i, idx := range idxs {
-			if m.Board[idx].Name == king {
-				idxs = append(idxs[:i], idxs[i+1:]...)
-				break
-			}
-		}
-	case poisonCard:
-		idxs = pieceIdxs(otherColor(color), board)
-		// remove king's idx
-		for i, idx := range idxs {
-			if m.Board[idx].Name == king {
-				idxs = append(idxs[:i], idxs[i+1:]...)
-				break
-			}
-		}
-	case swapFrontLinesCard:
-		idxs = pieceIdxs(none, board)
-	case reclaimVassalCard:
-		idxs = vassalIdxs(color, board)
-	case rook, bishop, knight, queen, jester:
-		idxs = freeIdxs(color, board)
-	}
+func idxsToPos(idxs []int) []Pos {
 	pos := make([]Pos, len(idxs))
 	for i, idx := range idxs {
 		pos[i] = positions[idx]
@@ -598,25 +596,25 @@ func validPositionsForCard(cardName string, color string, m *Match) []Pos {
 
 // return negative score and zero val Pos{} if no play has positive score
 func scoreCardAI(cardName string, color string, boardScore int, m *Match) (int, Pos) {
-	validPositions := validPositionsForCard(cardName, color, m)
+	validPositions := idxsToPos(validCardPositions(cardName, color, m))
 	scores := make([]int, len(validPositions))
 	for i, pos := range validPositions {
 		scores[i] = scoreCardAIPos(cardName, pos, color, boardScore, m)
+		//fmt.Printf("card %s: score %v, pos %v\n", cardName, scores[i], pos)
 	}
-	const minScore = -1000
-	winners := []int{}
-	winningScore := minScore
+	winnerIdxs := []int{}
+	winningScore := 0 // winning score must be greater than zero
 	for i, score := range scores {
 		if score > winningScore {
 			winningScore = score
-			winners = []int{i}
+			winnerIdxs = []int{i}
 		} else if score == winningScore {
-			winners = append(winners, i)
+			winnerIdxs = append(winnerIdxs, i)
 		}
 	}
-	if len(winners) == 0 {
+	if len(winnerIdxs) == 0 {
 		return -1, Pos{}
 	}
-	winnerIdx := winners[rand.Intn(len(winners))]
+	winnerIdx := winnerIdxs[rand.Intn(len(winnerIdxs))]
 	return scores[winnerIdx], validPositions[winnerIdx]
 }

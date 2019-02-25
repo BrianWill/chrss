@@ -165,23 +165,24 @@ type Match struct {
 	SquareStatusesDirect [nColumns * nRows]SquareStatus // the status effects applied directly to squares
 	// the status effects on squares from pieces combined with the effects applied directly to the squares
 	// (should be recomputed any time pieces are placed/moved/killed)
-	SquareStatuses [nColumns * nRows]SquareStatus
-	CommunalCards  []Card // card in pool shared by both players
-	BlackPrivate   PrivateState
-	WhitePrivate   PrivateState
-	BlackPublic    PublicState
-	WhitePublic    PublicState
-	BlackAI        bool
-	WhiteAI        bool
-	Turn           string // white, black
-	PassPrior      bool   // true if prior move was a pass
-	FirstTurnColor string // color of player who had first turn this round
-	Round          int    // starts at 1
-	Winner         string // white, black, none, draw
-	StartTime      int64  // unix time
-	LastMoveTime   int64  // should be initialized to match start time
-	Log            []string
-	Phase          Phase
+	SquareStatuses     [nColumns * nRows]SquareStatus
+	tempSquareStatuses [nColumns * nRows]SquareStatus // used for AI scoring
+	CommunalCards      []Card                         // card in pool shared by both players
+	BlackPrivate       PrivateState
+	WhitePrivate       PrivateState
+	BlackPublic        PublicState
+	WhitePublic        PublicState
+	BlackAI            bool
+	WhiteAI            bool
+	Turn               string // white, black
+	PassPrior          bool   // true if prior move was a pass
+	FirstTurnColor     string // color of player who had first turn this round
+	Round              int    // starts at 1
+	Winner             string // white, black, none, draw
+	StartTime          int64  // unix time
+	LastMoveTime       int64  // should be initialized to match start time
+	Log                []string
+	Phase              Phase
 }
 
 // info a player doesn't want opponent to see
