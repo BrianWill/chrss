@@ -27,17 +27,17 @@ const (
 const (
 	pawnHP       = 5
 	pawnAttack   = 4
-	kingHP       = 50
+	kingHP       = 35
 	kingAttack   = 12
 	bishopHP     = 25
 	bishopAttack = 4
-	bishopMana   = 0
+	bishopMana   = 1
 	knightHP     = 25
 	knightAttack = 5
-	knightMana   = 0
+	knightMana   = 1
 	rookHP       = 20
 	rookAttack   = 6
-	rookMana     = 0
+	rookMana     = 2
 	queenHP      = 15
 	queenAttack  = 6
 	queenMana    = 3
@@ -123,15 +123,50 @@ const kingInstruction = "Pick a square to place your king."
 const nColumns = 6
 const nRows = 6
 
-//const turnTimer = 50 * int64(time.Second)
-const turnTimer = 50 * int64(time.Minute) // temp for dev purposes
+const turnTimer = 50 * int64(time.Second)
+const turnTimerDev = 50 * int64(time.Minute)
 const maxConcurrentMatches = 100
+
+const (
+	nCardsFirstRound = 3
+	nCardsPerRound   = 2
+	nCardsCap        = 8
+)
 
 const (
 	highlightOff = iota
 	highlightOn
 	highlightDim
 )
+
+var allCards = []Card{
+	Card{queen, queenMana},
+	Card{jester, jesterMana},
+	Card{castleCard, castleMana},
+	Card{reclaimVassalCard, reclaimVassalMana},
+	Card{vulnerabilityCard, vulnerabilityMana},
+	Card{amplifyCard, amplifyMana},
+	Card{stunVassalCard, stunVassalMana},
+	Card{armorCard, armorMana},
+	Card{poisonCard, poisonMana},
+	Card{dispellCard, dispellMana},
+	Card{enrageCard, enrageMana},
+	Card{dodgeCard, dodgeMana},
+	Card{transparencyCard, transparencyMana},
+	Card{swapFrontLinesCard, swapFrontLinesMana},
+	Card{removePawnCard, removePawnMana},
+	Card{forceCombatCard, forceCombatMana},
+	Card{mirrorCard, mirrorMana},
+	Card{healCard, healMana},
+	Card{drainManaCard, drainManaMana},
+	Card{togglePawnCard, togglePawnMana},
+	Card{nukeCard, nukeMana},
+	Card{shoveCard, shoveMana},
+	Card{advanceCard, advanceMana},
+	Card{restoreManaCard, restoreManaMana},
+	Card{summonPawnCard, summonPawnMana},
+	Card{resurrectVassalCard, resurrectVassalMana},
+}
 
 type Phase string
 
@@ -154,6 +189,7 @@ type Match struct {
 	WhitePlayerID string
 	CreatorName   string
 	Mutex         sync.RWMutex
+	DevMode       bool
 	// rows stored in order top-to-bottom, e.g. nColumns is index of leftmost square in second row
 	// (*Pierce better for empty square when JSONifying; Board[i] points to pieces[i]
 	// the array is here simply for memory locality)
@@ -167,7 +203,8 @@ type Match struct {
 	// (should be recomputed any time pieces are placed/moved/killed)
 	SquareStatuses     [nColumns * nRows]SquareStatus
 	tempSquareStatuses [nColumns * nRows]SquareStatus // used for AI scoring
-	CommunalCards      []Card                         // card in pool shared by both players
+	TurnTimer          int64
+	CommunalCards      []Card // card in pool shared by both players
 	BlackPrivate       PrivateState
 	WhitePrivate       PrivateState
 	BlackPublic        PublicState
@@ -191,7 +228,6 @@ type PrivateState struct {
 	SelectedCard      int                   `json:"selectedCard"`  // index into cards slice
 	PlayableCards     []bool                `json:"playableCards"` // parallel to Cards
 	Highlights        [nColumns * nRows]int `json:"highlights"`
-	PlayerInstruction string                `json:"playerInstruction"`
 	ReclaimSelections []Pos                 `json:"reclaimSelections"`
 	KingPos           *Pos                  `json:"kingPos"` // used in king placement (placed king is not revealed to opponent until main phase)
 	Other             *PrivateState         `json:"-"`
@@ -199,12 +235,12 @@ type PrivateState struct {
 
 // individual player state that is visible to all
 type PublicState struct {
-	Ready                bool   `json:"ready"` // match does not start until both player's are ready
-	ReclaimSelectionMade bool   `json:"reclaimSelectionMade"`
-	King                 *Piece `json:"kingPiece"` // exposed to JSON so as to correctly display king stats in king placement
-	Rook                 *Piece
-	Knight               *Piece
-	Bishop               *Piece
+	Ready                bool         `json:"ready"` // match does not start until both player's are ready
+	ReclaimSelectionMade bool         `json:"reclaimSelectionMade"`
+	King                 *Piece       `json:"king"` // exposed to JSON so as to correctly display king stats in king placement
+	Rook                 *Piece       `json:"rook"`
+	Knight               *Piece       `json:"knight"`
+	Bishop               *Piece       `json:"bishop"`
 	KingPlayed           bool         `json:"kingPlayed"`
 	BishopPlayed         bool         `json:"bishopPlayed"`
 	KnightPlayed         bool         `json:"knightPlayed"`
@@ -212,14 +248,6 @@ type PublicState struct {
 	NumPawns             int          `json:"numPawns"`
 	ManaMax              int          `json:"manaMax"`
 	ManaCurrent          int          `json:"manaCurrent"`
-	KingHP               int          `json:"kingHP"`
-	KingAttack           int          `json:"kingAttack"`
-	BishopHP             int          `json:"bishopHP"`
-	BishopAttack         int          `json:"bishopAttack"`
-	KnightHP             int          `json:"knightHP"`
-	KnightAttack         int          `json:"knightAttack"`
-	RookHP               int          `json:"rookHP"`
-	RookAttack           int          `json:"rookAttack"`
 	Color                string       `json:"color"`
 	Other                *PublicState `json:"-"` // convenient way of getting opponent
 }

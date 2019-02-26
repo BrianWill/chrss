@@ -12,10 +12,12 @@
   <h2><a href="/guide">How to play</a><h2>
   <h2>Your user ID: {{.ID}}</h2>
   <h2>Your user name: {{.Name}}</h2>
-  <a href="/createMatch">Create match</a>
+  <a href="/createMatch">Create match</a><br/>
+  <a href="/createMatch?ai=true">Create AI match</a>
   <br/>
   <br/>
-  <a href="/dev">(dev mode)</a>
+  <a href="/dev?dev=true">(dev mode)</a><br/>
+  <a href="/dev?dev=true&ai=true">(dev mode - Black AI)</a><br/>
 
   {{if .PlayerMatches}}
   <h3>Your ongoing matches:</h3>

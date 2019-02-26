@@ -218,7 +218,7 @@ conn.onmessage = function(msg){
     let kingPos = matchState.private.kingPos;
     if (kingPos) {
         let idx = kingPos.x + kingPos.y * board.nColumns;
-        matchState.board[idx] = matchState.public.kingPiece;
+        matchState.board[idx] = matchState.public.king;
     }
     if (!matchState.log) {
         matchState.log = [];
@@ -430,13 +430,13 @@ function draw(matchState) {
         var hps;
         if (matchState.color === "black") {
             hps = [
-                white.rookHP, white.knightHP, white.bishopHP, white.kingHP, 
-                black.rookHP, black.knightHP, black.bishopHP, black.kingHP, 
+                white.rook.hp, white.knight.hp, white.bishop.hp, white.king.hp, 
+                black.rook.hp, black.knight.hp, black.bishop.hp, black.king.hp, 
             ];
         } else {
             hps = [
-                black.rookHP, black.knightHP, black.bishopHP, black.kingHP, 
-                white.rookHP, white.knightHP, white.bishopHP, white.kingHP, 
+                black.rook.hp, black.knight.hp, black.bishop.hp, black.king.hp, 
+                white.rook.hp, white.knight.hp, white.bishop.hp, white.king.hp, 
             ];
         }
 

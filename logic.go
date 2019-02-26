@@ -8,98 +8,55 @@ import (
 	"time"
 )
 
-func initMatch(m *Match, dev bool) {
+func initMatch(m *Match) {
 	// random adjective-animal
 	m.Name = adjectives[rand.Intn(len(adjectives))] + "-" + animals[rand.Intn(len(animals))]
 	m.LastMoveTime = time.Now().UnixNano()
 	m.StartTime = m.LastMoveTime
 	m.Turn = white
 	m.Winner = none
-	m.Round = 0 // will get incremented to 1 once both players ready up
-	m.Phase = readyUpPhase
-
-	m.BlackAI = true // todo
 
 	public := &m.WhitePublic
 	public.Color = white
 	public.Other = &m.BlackPublic
 	public.ManaCurrent = 3
 	public.ManaMax = 3
-	public.KingHP = kingHP
-	public.KingAttack = kingAttack
-	public.BishopHP = bishopHP
-	public.BishopAttack = bishopAttack
-	public.KnightHP = knightHP
-	public.KnightAttack = knightAttack
-	public.RookHP = rookHP
-	public.RookAttack = rookAttack
-	public.King = &Piece{king, white, public.KingHP, public.KingAttack, 0, nil}
-	public.Bishop = &Piece{bishop, white, public.BishopHP, public.BishopAttack, 0, nil}
-	public.Knight = &Piece{knight, white, public.KnightHP, public.KnightAttack, 0, nil}
-	public.Rook = &Piece{rook, white, public.RookHP, public.RookAttack, 0, nil}
+	public.King = &Piece{king, white, kingHP, kingAttack, 0, nil}
+	public.Bishop = &Piece{bishop, white, bishopHP, bishopAttack, 0, nil}
+	public.Knight = &Piece{knight, white, knightHP, knightAttack, 0, nil}
+	public.Rook = &Piece{rook, white, rookHP, rookAttack, 0, nil}
 
 	public = &m.BlackPublic
 	public.Color = black
 	public.Other = &m.WhitePublic
 	public.ManaCurrent = 3
 	public.ManaMax = 3
-	public.KingHP = kingHP
-	public.KingAttack = kingAttack
-	public.BishopHP = bishopHP
-	public.BishopAttack = bishopAttack
-	public.KnightHP = knightHP
-	public.KnightAttack = knightAttack
-	public.RookHP = rookHP
-	public.RookAttack = rookAttack
-	public.King = &Piece{king, black, public.KingHP, public.KingAttack, 0, nil}
-	public.Bishop = &Piece{bishop, black, public.BishopHP, public.BishopAttack, 0, nil}
-	public.Knight = &Piece{knight, black, public.KnightHP, public.KnightAttack, 0, nil}
-	public.Rook = &Piece{rook, black, public.RookHP, public.RookAttack, 0, nil}
+	public.King = &Piece{king, black, kingHP, kingAttack, 0, nil}
+	public.Bishop = &Piece{bishop, black, bishopHP, bishopAttack, 0, nil}
+	public.Knight = &Piece{knight, black, knightHP, knightAttack, 0, nil}
+	public.Rook = &Piece{rook, black, rookHP, rookAttack, 0, nil}
 
 	m.Log = []string{"Round 1"}
 
 	m.SpawnPawns(true)
 	m.UpdateStatusAndDamage()
 
-	startingHand := []Card{
-		Card{queen, queenMana},
-		Card{jester, jesterMana},
-		Card{castleCard, castleMana},
-		Card{reclaimVassalCard, reclaimVassalMana},
-		Card{vulnerabilityCard, vulnerabilityMana},
-		Card{amplifyCard, amplifyMana},
-		Card{stunVassalCard, stunVassalMana},
-		Card{armorCard, armorMana},
-		Card{poisonCard, poisonMana},
-		Card{dispellCard, dispellMana},
-		Card{enrageCard, enrageMana},
-		Card{dodgeCard, dodgeMana},
-		Card{transparencyCard, transparencyMana},
-		Card{swapFrontLinesCard, swapFrontLinesMana},
-		Card{removePawnCard, removePawnMana},
-		Card{forceCombatCard, forceCombatMana},
-		Card{mirrorCard, mirrorMana},
-		Card{healCard, healMana},
-		Card{drainManaCard, drainManaMana},
-		Card{togglePawnCard, togglePawnMana},
-		Card{nukeCard, nukeMana},
-		Card{shoveCard, shoveMana},
-		Card{advanceCard, advanceMana},
-		Card{restoreManaCard, restoreManaMana},
-		Card{summonPawnCard, summonPawnMana},
-		Card{resurrectVassalCard, resurrectVassalMana},
+	stock := []Card{
+		Card{bishop, bishopMana},
+		Card{knight, knightMana},
+		Card{rook, rookMana},
 	}
 
-	m.BlackPrivate = PrivateState{
-		Cards:             drawCards(startingHand, &m.BlackPublic),
-		SelectedCard:      -1,
-		PlayerInstruction: defaultInstruction,
-	}
+	m.BlackPrivate = PrivateState{SelectedCard: -1}
 	// white starts ready to play king
-	m.WhitePrivate = PrivateState{
-		Cards:             drawCards(startingHand, &m.WhitePublic),
-		SelectedCard:      -1,
-		PlayerInstruction: defaultInstruction,
+	m.WhitePrivate = PrivateState{SelectedCard: -1}
+
+	if m.DevMode {
+		m.BlackPrivate.Cards = append(append([]Card{}, stock...), allCards...)
+		m.WhitePrivate.Cards = append(append([]Card{}, stock...), allCards...)
+	} else {
+		m.BlackPrivate.Cards = append(append([]Card{}, stock...), randomCards(nCardsFirstRound)...)
+		m.WhitePrivate.Cards = append(append([]Card{}, stock...), randomCards(nCardsFirstRound)...)
 	}
 
 	m.BlackPrivate.Other = &m.WhitePrivate
@@ -207,13 +164,13 @@ func (m *Match) InflictDamage() {
 			public := m.getPublic(p.Color)
 			switch p.Name {
 			case king:
-				public.KingHP = p.HP
+				public.King.HP = p.HP
 			case bishop:
-				public.BishopHP = p.HP
+				public.Bishop.HP = p.HP
 			case knight:
-				public.KnightHP = p.HP
+				public.Knight.HP = p.HP
 			case rook:
-				public.RookHP = p.HP
+				public.Rook.HP = p.HP
 			}
 			if p.HP <= 0 {
 				switch p.Name {
@@ -672,7 +629,7 @@ func (m *Match) PlayableCards() {
 						private.PlayableCards[j] = true
 					}
 				case resurrectVassalCard:
-					if public.BishopHP <= 0 || public.RookHP <= 0 || public.KnightHP <= 0 {
+					if public.Bishop.HP <= 0 || public.Rook.HP <= 0 || public.Knight.HP <= 0 {
 						private.PlayableCards[j] = true
 					}
 				case togglePawnCard:
@@ -854,7 +811,6 @@ func (m *Match) clickCard(player string, public *PublicState, private *PrivateSt
 		if private.PlayableCards[cardIdx] {
 			if cardIdx == private.SelectedCard {
 				private.SelectedCard = -1
-				private.PlayerInstruction = defaultInstruction
 				private.highlightsOff()
 			} else {
 				card := private.Cards[cardIdx]
@@ -951,11 +907,11 @@ func playCard(m *Match, card string, player string, public *PublicState, p Pos) 
 		piece.HP += healCardAmount
 		switch piece.Name {
 		case rook:
-			public.RookHP += healCardAmount
+			public.Rook.HP += healCardAmount
 		case knight:
-			public.KnightHP += healCardAmount
+			public.Knight.HP += healCardAmount
 		case bishop:
-			public.BishopHP += healCardAmount
+			public.Bishop.HP += healCardAmount
 		}
 	case poisonCard:
 		neg := m.pieceNegativeStatus(piece)
@@ -1065,14 +1021,14 @@ func playCard(m *Match, card string, player string, public *PublicState, p Pos) 
 		m.SpawnSinglePawn(player, public, false)
 	case resurrectVassalCard:
 		// should be the case that only one vassal is dead (because otherwise the game would be over already)
-		if public.BishopHP <= 0 {
-			public.BishopHP = resurrectVassalRestoreHP
+		if public.Bishop.HP <= 0 {
+			public.Bishop.HP = resurrectVassalRestoreHP
 			public.BishopPlayed = false
-		} else if public.KnightHP <= 0 {
-			public.KnightHP = resurrectVassalRestoreHP
+		} else if public.Knight.HP <= 0 {
+			public.Knight.HP = resurrectVassalRestoreHP
 			public.KnightPlayed = false
-		} else if public.RookHP <= 0 {
-			public.RookHP = resurrectVassalRestoreHP
+		} else if public.Rook.HP <= 0 {
+			public.Rook.HP = resurrectVassalRestoreHP
 			public.RookPlayed = false
 		}
 	case bishop, knight, rook, queen, jester:
@@ -1459,13 +1415,13 @@ func (m *Match) inflictDamage(idx int, dmg int) {
 	public := m.getPublic(p.Color)
 	switch p.Name {
 	case king:
-		public.KingHP -= dmg
+		public.King.HP -= dmg
 	case rook:
-		public.RookHP -= dmg
+		public.Rook.HP -= dmg
 	case bishop:
-		public.BishopHP -= dmg
+		public.Bishop.HP -= dmg
 	case knight:
-		public.KnightHP -= dmg
+		public.Knight.HP -= dmg
 	}
 	if p.HP < 0 {
 		m.Board[idx] = nil
@@ -1511,27 +1467,27 @@ func (m *Match) inflictTempDamage(idx int, dmg int) {
 func (m *Match) checkWinCondition() bool {
 	b, w := m.BlackPublic, m.WhitePublic
 	whiteDeadVassals := 0
-	if w.KnightHP <= 0 {
+	if w.Knight.HP <= 0 {
 		whiteDeadVassals++
 	}
-	if w.BishopHP <= 0 {
+	if w.Bishop.HP <= 0 {
 		whiteDeadVassals++
 	}
-	if w.RookHP <= 0 {
+	if w.Rook.HP <= 0 {
 		whiteDeadVassals++
 	}
 	blackDeadVassals := 0
-	if b.KnightHP <= 0 {
+	if b.Knight.HP <= 0 {
 		blackDeadVassals++
 	}
-	if b.BishopHP <= 0 {
+	if b.Bishop.HP <= 0 {
 		blackDeadVassals++
 	}
-	if b.RookHP <= 0 {
+	if b.Rook.HP <= 0 {
 		blackDeadVassals++
 	}
-	whiteLose := w.KingHP <= 0 || whiteDeadVassals >= 2
-	blackLose := b.KingHP <= 0 || blackDeadVassals >= 2
+	whiteLose := w.King.HP <= 0 || whiteDeadVassals >= 2
+	blackLose := b.King.HP <= 0 || blackDeadVassals >= 2
 	if whiteLose && blackLose {
 		m.Winner = draw
 		m.Phase = gameoverPhase
@@ -1607,9 +1563,9 @@ func (m *Match) ReclaimPieces() {
 						*public.Rook = *m.Board[pos.getBoardIdx()]
 						m.removePieceAt(pos)
 						public.RookPlayed = false
-						public.RookHP += reclaimHealRook
-						if public.RookHP > rookHP {
-							public.RookHP = rookHP
+						public.Rook.HP += reclaimHealRook
+						if public.Rook.HP > rookHP {
+							public.Rook.HP = rookHP
 						}
 					case queen, jester:
 						m.removePieceAt(pos)
@@ -1648,8 +1604,8 @@ func (m *Match) EndRound() {
 
 	m.PassPrior = false
 
-	m.WhitePrivate.Cards = drawCards(m.WhitePrivate.Cards, &m.WhitePublic)
-	m.BlackPrivate.Cards = drawCards(m.BlackPrivate.Cards, &m.BlackPublic)
+	m.WhitePrivate.Cards = drawCards(m.WhitePrivate.Cards, &m.WhitePublic, m.DevMode)
+	m.BlackPrivate.Cards = drawCards(m.BlackPrivate.Cards, &m.BlackPublic, m.DevMode)
 	m.WhitePrivate.SelectedCard = -1
 	m.BlackPrivate.SelectedCard = -1
 
@@ -1961,11 +1917,9 @@ func (m *Match) EndTurn(pass bool, player string) {
 		}
 		m.PassPrior = pass
 
-		m.WhitePrivate.PlayerInstruction = defaultInstruction
 		m.WhitePrivate.SelectedCard = -1
 		m.WhitePrivate.highlightsOff()
 
-		m.BlackPrivate.PlayerInstruction = defaultInstruction
 		m.BlackPrivate.SelectedCard = -1
 		m.BlackPrivate.highlightsOff()
 
@@ -1977,7 +1931,7 @@ func (m *Match) EndTurn(pass bool, player string) {
 	}
 }
 
-func drawCards(existing []Card, public *PublicState) []Card {
+func drawCards(existing []Card, public *PublicState, devMode bool) []Card {
 	// remove vassal cards from existing hand
 	i := 0
 loop:
@@ -1991,17 +1945,35 @@ loop:
 	existing = existing[i:]
 
 	stock := []Card{}
-	if public.BishopHP > 0 && !public.BishopPlayed {
-		stock = append(stock, Card{bishop, 0})
+	if public.Bishop.HP > 0 && !public.BishopPlayed {
+		stock = append(stock, Card{bishop, bishopMana})
 	}
-	if public.KnightHP > 0 && !public.KnightPlayed {
-		stock = append(stock, Card{knight, 0})
+	if public.Knight.HP > 0 && !public.KnightPlayed {
+		stock = append(stock, Card{knight, knightMana})
 	}
-	if public.RookHP > 0 && !public.RookPlayed {
-		stock = append(stock, Card{rook, 0})
+	if public.Rook.HP > 0 && !public.RookPlayed {
+		stock = append(stock, Card{rook, rookMana})
 	}
 
-	return append(stock, existing...)
+	additional := []Card{}
+	if !devMode {
+		diff := nCardsCap - len(stock) - len(existing)
+		if diff >= nCardsPerRound {
+			additional = randomCards(nCardsPerRound)
+		} else if diff > 0 {
+			additional = randomCards(diff)
+		}
+	}
+
+	return append(append(stock, existing...), additional...)
+}
+
+func randomCards(n int) []Card {
+	cards := make([]Card, n)
+	for i := range cards {
+		cards[i] = allCards[rand.Intn(len(allCards))]
+	}
+	return cards
 }
 
 func drawCommunalCards() []Card {
@@ -2013,7 +1985,7 @@ func (m *Match) IsOpen() bool {
 }
 
 func (m *Match) IsBlackOpen() bool {
-	return m.BlackPlayerID == "" && m.Winner == none
+	return m.BlackPlayerID == "" && m.Winner == none && m.BlackAI == false
 }
 
 func (m *Match) IsWhiteOpen() bool {
@@ -2122,7 +2094,7 @@ func (m *Match) processEvent(event string, player string, msg []byte) (notifyOpp
 			switch m.Phase {
 			case reclaimPhase:
 				turnElapsed := time.Now().UnixNano() - m.LastMoveTime
-				remainingTurnTime := turnTimer - turnElapsed
+				remainingTurnTime := m.TurnTimer - turnElapsed
 				if remainingTurnTime > 0 {
 					break // ignore if time hasn't actually expired
 				}
@@ -2148,7 +2120,7 @@ func (m *Match) processEvent(event string, player string, msg []byte) (notifyOpp
 			switch m.Phase {
 			case mainPhase:
 				turnElapsed := time.Now().UnixNano() - m.LastMoveTime
-				remainingTurnTime := turnTimer - turnElapsed
+				remainingTurnTime := m.TurnTimer - turnElapsed
 				if remainingTurnTime > 0 {
 					break // ignore if time hasn't actually expired
 				}
@@ -2162,7 +2134,7 @@ func (m *Match) processEvent(event string, player string, msg []byte) (notifyOpp
 				notifyOpponent = true
 			case kingPlacementPhase:
 				turnElapsed := time.Now().UnixNano() - m.LastMoveTime
-				remainingTurnTime := turnTimer - turnElapsed
+				remainingTurnTime := m.TurnTimer - turnElapsed
 				if remainingTurnTime > 0 {
 					break // ignore if time hasn't actually expired
 				}

@@ -50,14 +50,14 @@ func processMessage(msg []byte, match *Match, player string) {
 	}
 	if event == "ping" {
 		// used for keep alive (heroku timesout connections with no activity for 55 seconds)
-		// needn't send response to keep connection alive
+		// Needn't send response to keep connection alive as long as one side of connection is active
 		return
 	}
 	match.Mutex.Lock()
 	notifyOpponent, newTurn := match.processEvent(event, player, msg)
 	processConnection := func(conn *websocket.Conn, color string, private *PrivateState, newTurn bool) {
 		turnElapsed := time.Now().UnixNano() - match.LastMoveTime
-		remainingTurnTime := (turnTimer - turnElapsed) / 1000000
+		remainingTurnTime := (match.TurnTimer - turnElapsed) / 1000000
 		if conn != nil {
 			response := gin.H{
 				"turnRemainingMilliseconds": remainingTurnTime,
@@ -210,7 +210,24 @@ func createMatch(c *gin.Context, liveMatches *MatchMap, users *UserMap) (string,
 		WhitePlayerID: userID,
 		BlackPlayerID: userID,
 		CreatorName:   userName,
+		TurnTimer:     turnTimer,
+		Phase:         readyUpPhase,
+		Round:         0, // when incrementing from 0, will sound new round fanfare
 	}
+	if c.Query("dev") == "true" {
+		match.TurnTimer = turnTimerDev
+		match.DevMode = true
+		match.Phase = kingPlacementPhase
+		match.Round = 1
+		match.LastMoveTime = time.Now().UnixNano()
+	}
+	if c.Query("ai") == "true" {
+		match.BlackAI = true
+		match.Phase = kingPlacementPhase
+		match.Round = 1
+		match.LastMoveTime = time.Now().UnixNano()
+	}
+
 	// clean up any dead or timedout matches
 	for name, match := range liveMatches.internal {
 		exceededTimeout := time.Now().UnixNano() > match.LastMoveTime+matchTimeout
@@ -227,7 +244,7 @@ func createMatch(c *gin.Context, liveMatches *MatchMap, users *UserMap) (string,
 		return "", errors.New("At max matches. Cannot create an additional match.")
 	}
 
-	initMatch(match, false)
+	initMatch(match)
 	liveMatches.Store(match)
 	return match.Name, nil
 }
@@ -290,7 +307,7 @@ func main() {
 		playerMatches := []match{}
 		for _, m := range liveMatches.internal {
 			elapsed := fmtDuration(now.Sub(time.Unix(0, m.StartTime)))
-			if m.IsBlackOpen() {
+			if m.IsBlackOpen() && m.DevMode == false {
 				matches = append(matches, match{m.Name, m.CreatorName, m.StartTime, elapsed, none})
 			}
 			if m.BlackPlayerID == userID {
