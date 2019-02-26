@@ -19,8 +19,8 @@ func initMatch(m *Match) {
 	public := &m.WhitePublic
 	public.Color = white
 	public.Other = &m.BlackPublic
-	public.ManaCurrent = 3
-	public.ManaMax = 3
+	public.ManaCurrent = startingMana
+	public.ManaMax = startingMana
 	public.King = &Piece{king, white, kingHP, kingAttack, 0, nil}
 	public.Bishop = &Piece{bishop, white, bishopHP, bishopAttack, 0, nil}
 	public.Knight = &Piece{knight, white, knightHP, knightAttack, 0, nil}
@@ -29,8 +29,8 @@ func initMatch(m *Match) {
 	public = &m.BlackPublic
 	public.Color = black
 	public.Other = &m.WhitePublic
-	public.ManaCurrent = 3
-	public.ManaMax = 3
+	public.ManaCurrent = startingMana
+	public.ManaMax = startingMana
 	public.King = &Piece{king, black, kingHP, kingAttack, 0, nil}
 	public.Bishop = &Piece{bishop, black, bishopHP, bishopAttack, 0, nil}
 	public.Knight = &Piece{knight, black, knightHP, knightAttack, 0, nil}
@@ -55,8 +55,10 @@ func initMatch(m *Match) {
 		m.BlackPrivate.Cards = append(append([]Card{}, stock...), allCards...)
 		m.WhitePrivate.Cards = append(append([]Card{}, stock...), allCards...)
 	} else {
-		m.BlackPrivate.Cards = append(append([]Card{}, stock...), randomCards(nCardsFirstRound)...)
-		m.WhitePrivate.Cards = append(append([]Card{}, stock...), randomCards(nCardsFirstRound)...)
+		m.BlackPrivate.Cards = append(append([]Card{}, stock...),
+			randomCards(nCardsFirstRound, m.BlackPublic.ManaMax)...)
+		m.WhitePrivate.Cards = append(append([]Card{}, stock...),
+			randomCards(nCardsFirstRound, m.WhitePublic.ManaMax)...)
 	}
 
 	m.BlackPrivate.Other = &m.WhitePrivate
@@ -1959,19 +1961,24 @@ loop:
 	if !devMode {
 		diff := nCardsCap - len(stock) - len(existing)
 		if diff >= nCardsPerRound {
-			additional = randomCards(nCardsPerRound)
+			additional = randomCards(nCardsPerRound, public.ManaMax)
 		} else if diff > 0 {
-			additional = randomCards(diff)
+			additional = randomCards(diff, public.ManaMax)
 		}
 	}
 
 	return append(append(stock, existing...), additional...)
 }
 
-func randomCards(n int) []Card {
+func randomCards(n int, manaMax int) []Card {
+	idx := manaMax
+	if idx >= len(cardManaCount) {
+		idx = len(cardManaCount) - 1
+	}
+	cardPoolSize := cardManaCount[idx]
 	cards := make([]Card, n)
 	for i := range cards {
-		cards[i] = allCards[rand.Intn(len(allCards))]
+		cards[i] = allCards[rand.Intn(cardPoolSize)]
 	}
 	return cards
 }

@@ -48,39 +48,39 @@ const (
 
 const (
 	castleCard               = "Castle"
-	castleMana               = 2
+	castleMana               = 4
 	reclaimVassalCard        = "Reclaim Vassal"
 	reclaimVassalMana        = 2
 	swapFrontLinesCard       = "Swap Front Lines"
-	swapFrontLinesMana       = 2
+	swapFrontLinesMana       = 5
 	removePawnCard           = "Remove Pawn"
-	removePawnMana           = 2
+	removePawnMana           = 4
 	forceCombatCard          = "Force Combat"
 	forceCombatMana          = 3
 	mirrorCard               = "Mirror"
-	mirrorMana               = 2
+	mirrorMana               = 5
 	healCard                 = "Heal"
-	healMana                 = 2
+	healMana                 = 3
 	healCardAmount           = 5
 	drainManaCard            = "Drain Mana"
 	drainManaMana            = 2
 	drainManaAmount          = 2
 	togglePawnCard           = "Toggle Pawn"
-	togglePawnMana           = 1
+	togglePawnMana           = 2
 	nukeCard                 = "Nuke"
-	nukeMana                 = 2
+	nukeMana                 = 4
 	nukeDamageFull           = 6
 	nukeDamageLesser         = 3
 	shoveCard                = "Shove"
-	shoveMana                = 2
+	shoveMana                = 3
 	advanceCard              = "Advance"
-	advanceMana              = 2
+	advanceMana              = 3
 	restoreManaCard          = "Restore Mana"
-	restoreManaMana          = 2
+	restoreManaMana          = 3
 	summonPawnCard           = "Summon Pawn"
-	summonPawnMana           = 2
+	summonPawnMana           = 3
 	vulnerabilityCard        = "Vulnerability"
-	vulnerabilityMana        = 2
+	vulnerabilityMana        = 3
 	vulnerabilityFactor      = 2
 	vulnerabilityDuration    = 1
 	amplifyCard              = "Amplify"
@@ -88,18 +88,18 @@ const (
 	amplifyFactor            = 2
 	amplifyDuration          = 1
 	enrageCard               = "Enrage"
-	enrageMana               = 2
+	enrageMana               = 3
 	enrageDuration           = 1
 	dodgeCard                = "Dodge"
-	dodgeMana                = 2
+	dodgeMana                = 3
 	resurrectVassalCard      = "Resurrect Vassal"
-	resurrectVassalMana      = 2
+	resurrectVassalMana      = 5
 	resurrectVassalRestoreHP = 5
 	stunVassalCard           = "Stun Vassal"
-	stunVassalMana           = 2
+	stunVassalMana           = 5
 	stunVassalDuration       = 1
 	transparencyCard         = "Transparency"
-	transparencyMana         = 2
+	transparencyMana         = 3
 	transparencyDuration     = 1
 	armorCard                = "Armor"
 	armorMana                = 2
@@ -107,7 +107,7 @@ const (
 	dispellCard              = "Dispell"
 	dispellMana              = 2
 	poisonCard               = "Poison"
-	poisonMana               = 2
+	poisonMana               = 6
 	poisonAmount             = 2
 )
 
@@ -139,6 +139,10 @@ const (
 	highlightDim
 )
 
+const (
+	startingMana = 3
+)
+
 var allCards = []Card{
 	Card{queen, queenMana},
 	Card{jester, jesterMana},
@@ -167,6 +171,8 @@ var allCards = []Card{
 	Card{summonPawnCard, summonPawnMana},
 	Card{resurrectVassalCard, resurrectVassalMana},
 }
+
+var cardManaCount []int // at index i, how many cards cost i mana or lower
 
 type Phase string
 

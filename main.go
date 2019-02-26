@@ -263,6 +263,28 @@ func main() {
 		log.Fatal("$PORT must be set")
 	}
 
+	sort.Slice(allCards, func(i, j int) bool {
+		return allCards[i].ManaCost < allCards[j].ManaCost
+	})
+
+	if len(allCards) == 0 {
+		panic("allCards should not be empty")
+	}
+
+	manaCost := 0
+	i := 0
+	for i < len(allCards) {
+		card := allCards[i]
+		if card.ManaCost > manaCost {
+			cardManaCount = append(cardManaCount, i)
+			manaCost++
+		} else {
+			i++
+		}
+	}
+	cardManaCount = append(cardManaCount, i)
+	fmt.Println("cardManaCount", cardManaCount)
+
 	liveMatches := NewMatchMap()
 	{
 		x := 0
