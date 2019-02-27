@@ -38,12 +38,12 @@ const (
 	rookHP       = 20
 	rookAttack   = 6
 	rookMana     = 2
-	queenHP      = 15
+	queenHP      = 12
 	queenAttack  = 6
-	queenMana    = 3
+	queenMana    = 4
 	jesterHP     = 12
 	jesterAttack = 0
-	jesterMana   = 3
+	jesterMana   = 4
 )
 
 const (

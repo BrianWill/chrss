@@ -827,7 +827,8 @@ func (m *Match) clickCard(player string, public *PublicState, private *PrivateSt
 }
 
 // assumes we have already checked that the move is playable
-func playCard(m *Match, card string, player string, public *PublicState, p Pos) {
+// return true if force combat
+func playCard(m *Match, card string, player string, public *PublicState, p Pos) bool {
 	piece := getPieceSafe(p, m.Board[:])
 	switch card {
 	case castleCard:
@@ -869,8 +870,7 @@ func playCard(m *Match, card string, player string, public *PublicState, p Pos) 
 		m.removePieceAt(p)
 		public.NumPawns--
 	case forceCombatCard:
-		m.PassPrior = true
-		m.EndTurn(true, player)
+		return true
 	case dispellCard:
 		piece.Status = nil
 	case dodgeCard:
@@ -1050,6 +1050,7 @@ func playCard(m *Match, card string, player string, public *PublicState, p Pos) 
 			m.setPiece(p, Piece{jester, player, jesterHP, jesterAttack, 0, nil})
 		}
 	}
+	return false
 }
 
 func validCardPositions(cardName string, color string, m *Match) []int {
@@ -1313,12 +1314,17 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 		if !canPlayCard(m, card.Name, player, public, p) {
 			return
 		}
-		playCard(m, card.Name, player, public, p)
+		forceCombat := playCard(m, card.Name, player, public, p)
 		public.ManaCurrent -= card.ManaCost
 		m.Log = append(m.Log, player+" played "+card.Name)
 		private.RemoveCard(private.SelectedCard)
 		m.PlayableCards()
-		m.EndTurn(false, player)
+		if forceCombat {
+			m.PassPrior = true
+			m.EndTurn(true, player)
+		} else {
+			m.EndTurn(false, player)
+		}
 		newTurn = true
 		notifyOpponent = true
 	case reclaimPhase:
@@ -1894,6 +1900,7 @@ func (m *Match) EndTurn(pass bool, player string) {
 			m.Phase = reclaimPhase
 			m.tickdownStatusEffects(false)
 			board := m.Board[:]
+			fmt.Println("DIMMING PIECES")
 			m.BlackPrivate.dimAllButPieces(black, board)
 			m.WhitePrivate.dimAllButPieces(white, board)
 			m.BlackPrivate.dimUnreclaimable(board)
