@@ -143,6 +143,7 @@ const (
 	startingMana = 3
 )
 
+// all cards excepting the vassals and King
 var allCards = []Card{
 	Card{queen, queenMana},
 	Card{jester, jesterMana},
@@ -188,22 +189,16 @@ const maxReclaim = 2 // max number of pieces to reclaim at end of round
 const matchTimeout = 20 * int64(time.Minute)
 
 type Match struct {
-	Name          string // used to identify the match in browser
-	BlackConn     *websocket.Conn
-	WhiteConn     *websocket.Conn
-	BlackPlayerID string
-	WhitePlayerID string
-	CreatorName   string
-	Mutex         sync.RWMutex
-	DevMode       bool
-	// rows stored in order top-to-bottom, e.g. nColumns is index of leftmost square in second row
-	// (*Pierce better for empty square when JSONifying; Board[i] points to pieces[i]
-	// the array is here simply for memory locality)
-	// white side is indexes 0 up to (nColumns*nRows)/2
-	pieces               [nColumns * nRows]Piece        // zero value for empty square
-	Board                [nColumns * nRows]*Piece       // nil for empty square
-	tempPieces           [nColumns * nRows]Piece        // used for AI scoring (reusing these arrays avoids wasteful allocations)
-	tempBoard            [nColumns * nRows]*Piece       // "
+	Name                 string // used to identify the match in browser
+	BlackConn            *websocket.Conn
+	WhiteConn            *websocket.Conn
+	BlackPlayerID        string
+	WhitePlayerID        string
+	CreatorName          string
+	Mutex                sync.RWMutex
+	DevMode              bool
+	Board                Board
+	BoardTemp            Board                          // used for AI scoring
 	SquareStatusesDirect [nColumns * nRows]SquareStatus // the status effects applied directly to squares
 	// the status effects on squares from pieces combined with the effects applied directly to the squares
 	// (should be recomputed any time pieces are placed/moved/killed)
@@ -226,6 +221,15 @@ type Match struct {
 	LastMoveTime       int64  // should be initialized to match start time
 	Log                []string
 	Phase              Phase
+}
+
+type Board struct {
+	// rows stored in order top-to-bottom, e.g. nColumns is index of leftmost square in second row
+	// (*Pierce better for empty square when JSONifying; Board[i] points to pieces[i]
+	// the array is here simply for memory locality)
+	// white side is indexes 0 up to (nColumns*nRows)/2
+	PiecesActual [nColumns * nRows]Piece  // zero value for empty square
+	Pieces       [nColumns * nRows]*Piece `json:"Pieces"` // nil for empty square
 }
 
 // info a player doesn't want opponent to see

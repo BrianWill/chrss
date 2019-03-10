@@ -1,5 +1,12 @@
 
+pieces that have limited life times (1 or 2 rounds); have no HP?
+
+
 in status info, show sources of damage
+
+
+can playCard and playCardTemp be consolidated (pass in board/pieces explicitly)?
+
 
 why is AI giving high scores to plays that put piece in place where it neither takes nor deals damage?
 
@@ -202,10 +209,4 @@ heroku: .play() is triggering exceptions? is it failing to play?
 protection against bad behaving clients (flooding with messages)
     rate limit, cut off client if it exceeds threshold
 
-pawns buff up between rounds? (increase HP by 5?)
-
 total time clock that forfeits if it expires?
-
-
-AI? random valid moves (can work in simple heuristics for some cards; wouldn't think 
-    ahead, but at least can make OK choices in the moment)

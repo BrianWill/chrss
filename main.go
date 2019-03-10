@@ -62,7 +62,7 @@ func processMessage(msg []byte, match *Match, player string) {
 			response := gin.H{
 				"turnRemainingMilliseconds": remainingTurnTime,
 				"color":                     color,
-				"board":                     match.Board,
+				"board":                     match.Board.Pieces,
 				"boardStatus":               match.SquareStatuses,
 				"private":                   private,
 				"turn":                      match.Turn,

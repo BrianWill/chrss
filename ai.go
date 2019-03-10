@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func kingPlacementAI(color string, board []*Piece) Pos {
+func kingPlacementAI(color string, board *Board) Pos {
 	free := freeSpaces(color, board)
 	if len(free) == 0 {
 		panic("Somehow no space for King! How did this happen?")
@@ -63,17 +63,17 @@ func kingPlacementAI(color string, board []*Piece) Pos {
 	return positions[randWinner]
 }
 
-func freeSpaces(color string, board []*Piece) []int {
+func freeSpaces(color string, board *Board) []int {
 	free := []int{}
 	const half = nColumns * nRows / 2
 	start := 0
 	end := half
 	if color == black {
 		start = half
-		end = len(board)
+		end = len(board.Pieces)
 	}
 	for i := start; i < end; i++ {
-		if board[i] == nil {
+		if board.Pieces[i] == nil {
 			free = append(free, i)
 		}
 	}
@@ -81,7 +81,7 @@ func freeSpaces(color string, board []*Piece) []int {
 }
 
 // return indexes of up to two pieces to reclaim
-func pickReclaimAI(color string, board []*Piece) []Pos {
+func pickReclaimAI(color string, board *Board) []Pos {
 	type PieceScore struct {
 		Idx   int
 		Score int
@@ -124,7 +124,7 @@ func pickReclaimAI(color string, board []*Piece) []Pos {
 	}
 	const kingRemovalBonus = 2
 	scores := []PieceScore{}
-	for i, p := range board {
+	for i, p := range board.Pieces {
 		if p != nil && p.Color == color && !p.isUnreclaimable() {
 			score := 0
 			switch p.Name {
@@ -154,7 +154,7 @@ func playTurnAI(color string, m *Match) {
 	defer timeTrack(time.Now(), "playTurnAI")
 
 	public, private := m.states(color)
-	boardScore := scoreBoard(color, m.Board[:])
+	boardScore := scoreBoard(color, &m.Board)
 	fmt.Printf("current board state score: %v\n", boardScore)
 
 	// positive score = better than passing
@@ -187,13 +187,13 @@ func playTurnAI(color string, m *Match) {
 	}
 	selectedIdx := highestIdxs[rand.Intn(len(highestIdxs))]
 	private.SelectedCard = selectedIdx
-	m.clickBoard(color, public, private, pos[selectedIdx])
+	m.clickBoard(color, public, private, pos[selectedIdx], &m.Board)
 }
 
-// return score for entire board state from perspective of 'color' player
+// return score for entire board state from perspective of player
 // a board score is only relative to other board scores
 // (no special significance for positive or negative scores; simply, higher is better)
-func scoreBoard(color string, board []*Piece) int {
+func scoreBoard(player string, board *Board) int {
 	const allyVassalKilledBonus = -60
 	const allySecondVassalKilledBonus = -1000
 	const allyKingKilledBonus = -1000
@@ -223,9 +223,9 @@ func scoreBoard(color string, board []*Piece) int {
 
 	var score float64
 
-	for _, p := range board {
+	for _, p := range board.Pieces {
 		if p != nil {
-			if p.Color == color {
+			if p.Color == player {
 				// ally
 				switch p.Name {
 				case pawn:
@@ -274,14 +274,14 @@ func scoreBoard(color string, board []*Piece) int {
 	return int(score)
 }
 
-func (m *Match) saveBoardToTemp() {
-	m.tempPieces = m.pieces
-	for i, p := range m.Board {
+func saveBoardToTemp(board *Board, tempBoard *Board) {
+	tempBoard.PiecesActual = board.PiecesActual
+	for i, p := range board.Pieces {
 		if p == nil {
-			m.tempBoard[i] = nil
+			tempBoard.Pieces[i] = nil
 		} else {
-			piece := &m.tempPieces[i]
-			m.tempBoard[i] = piece
+			piece := &tempBoard.PiecesActual[i]
+			tempBoard.Pieces[i] = piece
 
 			// deep copy of piece status
 			if piece.Status != nil {
@@ -309,11 +309,11 @@ func scoreCardAIPos(cardName string, pos Pos, color string, boardScore int, m *M
 		healCard, poisonCard, togglePawnCard, nukeCard, vulnerabilityCard, amplifyCard, transparencyCard,
 		stunVassalCard, enrageCard, armorCard, shoveCard, advanceCard, summonPawnCard,
 		bishop, knight, rook, queen, jester:
-		m.saveBoardToTemp()
+		saveBoardToTemp(&m.Board, &m.BoardTemp)
 		public, _ := m.states(color)
 		playCardTemp(m, cardName, color, public, pos)
 		m.UpdateStatusAndDamageTemp()
-		score = scoreBoard(color, m.tempBoard[:]) - boardScore
+		score = scoreBoard(color, &m.BoardTemp) - boardScore
 	// cards that don't affect the board
 	case forceCombatCard:
 		// todo: high score if you have combat advantage (or no other good cards
@@ -333,12 +333,12 @@ func scoreCardAIPos(cardName string, pos Pos, color string, boardScore int, m *M
 }
 
 func playCardTemp(m *Match, card string, player string, public *PublicState, p Pos) {
-	piece := m.getTempPiece(p)
+	piece := getPiece(p, &m.BoardTemp)
 	switch card {
 	case castleCard:
 		// find rook of same color as clicked king
 		var rookPiece *Piece
-		for _, p := range m.tempBoard {
+		for _, p := range m.BoardTemp.Pieces {
 			if p != nil && p.Name == rook && p.Color == piece.Color {
 				rookPiece = p
 				break
@@ -348,7 +348,7 @@ func playCardTemp(m *Match, card string, player string, public *PublicState, p P
 		*rookPiece = *piece
 		*piece = swap
 	case reclaimVassalCard:
-		m.removeTempPieceAt(p)
+		removePieceAt(p, &m.BoardTemp)
 	case swapFrontLinesCard:
 		frontIdx := (nRows/2 - 1) * nColumns
 		midIdx := (nRows/2 - 2) * nColumns
@@ -357,23 +357,23 @@ func playCardTemp(m *Match, card string, player string, public *PublicState, p P
 			midIdx = (nRows/2 + 1) * nColumns
 		}
 		for i := 0; i < nColumns; i++ {
-			m.swapTempBoardIndex(frontIdx, midIdx)
+			swapBoardIndex(frontIdx, midIdx, &m.BoardTemp)
 			frontIdx++
 			midIdx++
 		}
 	case removePawnCard:
-		m.removeTempPieceAt(p)
+		removePieceAt(p, &m.BoardTemp)
 	case forceCombatCard:
 		//
 	case dispellCard:
 		piece.Status = nil
 	case dodgeCard:
 		idx := p.getBoardIdx()
-		for _, val := range m.dodgeablePieces(player) {
+		for _, val := range dodgeablePieces(player, &m.BoardTemp) {
 			if val == idx {
-				free := m.freeAdjacentSpaces(idx)
+				free := freeAdjacentSpaces(idx, &m.BoardTemp)
 				newIdx := free[rand.Intn(len(free))]
-				m.swapTempBoardIndex(idx, newIdx)
+				swapBoardIndex(idx, newIdx, &m.BoardTemp)
 				break
 			}
 		}
@@ -387,7 +387,7 @@ func playCardTemp(m *Match, card string, player string, public *PublicState, p P
 			idx := row * nColumns
 			other := idx + nColumns - 1
 			for j := 0; j < (nColumns / 2); j++ {
-				m.swapTempBoardIndex(idx, other)
+				swapBoardIndex(idx, other, &m.BoardTemp)
 				idx++
 				other--
 			}
@@ -398,11 +398,11 @@ func playCardTemp(m *Match, card string, player string, public *PublicState, p P
 	case healCard:
 		piece.HP += healCardAmount
 	case poisonCard:
-		neg := m.pieceNegativeStatus(piece)
+		neg := pieceNegativeStatus(piece)
 		neg.Poison += poisonAmount
 	case togglePawnCard:
 		idx := p.getBoardIdx()
-		for _, val := range m.toggleablePawns() {
+		for _, val := range toggleablePawns(&m.BoardTemp) {
 			if idx == val {
 				const whiteMid = nRows/2 - 2
 				const whiteFront = whiteMid + 1
@@ -419,7 +419,7 @@ func playCardTemp(m *Match, card string, player string, public *PublicState, p P
 				case blackMid:
 					newPos.Y = blackFront
 				}
-				m.swapTempBoardIndex(idx, newPos.getBoardIdx())
+				swapBoardIndex(idx, newPos.getBoardIdx(), &m.BoardTemp)
 				break
 			}
 		}
@@ -433,7 +433,7 @@ func playCardTemp(m *Match, card string, player string, public *PublicState, p P
 				if target == p {
 					continue
 				}
-				m.inflictTempDamage(target.getBoardIdx(), nukeDamageLesser)
+				inflictTempDamage(target.getBoardIdx(), nukeDamageLesser, &m.BoardTemp)
 			}
 		}
 		// inflict (full - lesser) on all within 1 square (so these squares hit a second time)
@@ -447,33 +447,33 @@ func playCardTemp(m *Match, card string, player string, public *PublicState, p P
 				if target == p {
 					continue
 				}
-				m.inflictTempDamage(target.getBoardIdx(), nukeDamageFull-nukeDamageLesser)
+				inflictTempDamage(target.getBoardIdx(), nukeDamageFull-nukeDamageLesser, &m.BoardTemp)
 			}
 		}
 	case vulnerabilityCard:
-		neg := m.pieceNegativeStatus(piece)
+		neg := pieceNegativeStatus(piece)
 		neg.Vulnerability += vulnerabilityDuration
 	case amplifyCard:
-		positive := m.piecePositiveStatus(piece)
+		positive := piecePositiveStatus(piece)
 		positive.Amplify += amplifyDuration
 	case transparencyCard:
-		neg := m.pieceNegativeStatus(piece)
+		neg := pieceNegativeStatus(piece)
 		neg.Transparent += transparencyDuration
 	case stunVassalCard:
-		positive := m.piecePositiveStatus(piece)
-		negative := m.pieceNegativeStatus(piece)
+		positive := piecePositiveStatus(piece)
+		negative := pieceNegativeStatus(piece)
 		positive.DamageImmune += stunVassalDuration
 		negative.Distracted += stunVassalDuration
 		negative.Unreclaimable += stunVassalDuration
 	case enrageCard:
-		neg := m.pieceNegativeStatus(piece)
+		neg := pieceNegativeStatus(piece)
 		neg.Enraged += enrageDuration
 	case armorCard:
-		positive := m.piecePositiveStatus(piece)
+		positive := piecePositiveStatus(piece)
 		positive.Armor += armorAmount
 	case shoveCard:
 		idx := p.getBoardIdx()
-		for _, val := range m.shoveablePieces() {
+		for _, val := range shoveablePieces(&m.BoardTemp) {
 			if idx == val {
 				var newIdx int
 				if piece.Color == black {
@@ -481,13 +481,13 @@ func playCardTemp(m *Match, card string, player string, public *PublicState, p P
 				} else {
 					newIdx = idx - nColumns
 				}
-				m.swapTempBoardIndex(idx, newIdx)
+				swapBoardIndex(idx, newIdx, &m.BoardTemp)
 				break
 			}
 		}
 	case advanceCard:
 		idx := p.getBoardIdx()
-		for _, val := range m.advanceablePieces() {
+		for _, val := range advanceablePieces(&m.BoardTemp) {
 			if idx == val {
 				var newIdx int
 				if piece.Color == white {
@@ -495,36 +495,36 @@ func playCardTemp(m *Match, card string, player string, public *PublicState, p P
 				} else {
 					newIdx = idx - nColumns
 				}
-				m.swapTempBoardIndex(idx, newIdx)
+				swapBoardIndex(idx, newIdx, &m.BoardTemp)
 				break
 			}
 		}
 	case restoreManaCard:
 		//
 	case summonPawnCard:
-		m.SpawnSinglePawnTemp(player, public)
+		SpawnSinglePawnTemp(player, public, &m.BoardTemp)
 	case resurrectVassalCard:
 		//
 	case bishop, knight, rook, queen, jester:
 		switch card {
 		case bishop:
-			m.setTempPiece(p, *public.Bishop)
+			setPiece(p, *public.Bishop, &m.BoardTemp)
 		case knight:
-			m.setTempPiece(p, *public.Knight)
+			setPiece(p, *public.Knight, &m.BoardTemp)
 		case rook:
-			m.setTempPiece(p, *public.Rook)
+			setPiece(p, *public.Rook, &m.BoardTemp)
 		case queen:
-			m.setTempPiece(p, Piece{queen, player, queenHP, queenAttack, 0, nil})
+			setPiece(p, Piece{queen, player, queenHP, queenAttack, 0, nil}, &m.BoardTemp)
 		case jester:
-			m.setTempPiece(p, Piece{jester, player, jesterHP, jesterAttack, 0, nil})
+			setPiece(p, Piece{jester, player, jesterHP, jesterAttack, 0, nil}, &m.BoardTemp)
 		}
 	}
 }
 
 // assumes both kings are on the board
-func kingIdxs(color string, board []*Piece) []int {
+func kingIdxs(color string, board *Board) []int {
 	idxs := []int{}
-	for i, p := range board {
+	for i, p := range board.Pieces {
 		if p != nil && p.Name == king && (p.Color == color || color == none) {
 			idxs = append(idxs, i)
 		}
@@ -532,9 +532,9 @@ func kingIdxs(color string, board []*Piece) []int {
 	return idxs
 }
 
-func pawnIdxs(color string, board []*Piece) []int {
+func pawnIdxs(color string, board *Board) []int {
 	idxs := []int{}
-	for i, p := range board {
+	for i, p := range board.Pieces {
 		if p != nil && p.Name == pawn {
 			if p.Color == color || color == none {
 				idxs = append(idxs, i)
@@ -544,9 +544,9 @@ func pawnIdxs(color string, board []*Piece) []int {
 	return idxs
 }
 
-func pieceIdxs(color string, board []*Piece) []int {
+func pieceIdxs(color string, board *Board) []int {
 	idxs := []int{}
-	for i, p := range board {
+	for i, p := range board.Pieces {
 		if p != nil {
 			if p.Color == color || color == none {
 				idxs = append(idxs, i)
@@ -556,9 +556,9 @@ func pieceIdxs(color string, board []*Piece) []int {
 	return idxs
 }
 
-func vassalIdxs(color string, board []*Piece) []int {
+func vassalIdxs(color string, board *Board) []int {
 	idxs := []int{}
-	for i, p := range board {
+	for i, p := range board.Pieces {
 		if p != nil && (p.Name == knight || p.Name == bishop || p.Name == rook) {
 			if p.Color == color || color == none {
 				idxs = append(idxs, i)
@@ -568,7 +568,7 @@ func vassalIdxs(color string, board []*Piece) []int {
 	return idxs
 }
 
-func freeIdxs(color string, board []*Piece) []int {
+func freeIdxs(color string, board *Board) []int {
 	start := 0
 	end := nColumns * nRows
 	switch color {
@@ -579,7 +579,7 @@ func freeIdxs(color string, board []*Piece) []int {
 	}
 	idxs := []int{}
 	for i := start; i < end; i++ {
-		if board[i] == nil {
+		if board.Pieces[i] == nil {
 			idxs = append(idxs, i)
 		}
 	}
@@ -596,7 +596,7 @@ func idxsToPos(idxs []int) []Pos {
 
 // return negative score and zero val Pos{} if no play has positive score
 func scoreCardAI(cardName string, color string, boardScore int, m *Match) (int, Pos) {
-	validPositions := idxsToPos(validCardPositions(cardName, color, m))
+	validPositions := idxsToPos(validCardPositions(cardName, color, m, &m.Board))
 	scores := make([]int, len(validPositions))
 	for i, pos := range validPositions {
 		scores[i] = scoreCardAIPos(cardName, pos, color, boardScore, m)
