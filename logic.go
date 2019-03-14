@@ -15,12 +15,11 @@ func initMatch(m *Match) {
 	m.StartTime = m.LastMoveTime
 	m.Turn = white
 	m.Winner = none
+	m.MaxRank = 1
 
 	public := &m.WhitePublic
 	public.Color = white
 	public.Other = &m.BlackPublic
-	public.ManaCurrent = startingMana
-	public.ManaMax = startingMana
 	public.King = &Piece{king, white, kingHP, kingAttack, 0, nil}
 	public.Bishop = &Piece{bishop, white, bishopHP, bishopAttack, 0, nil}
 	public.Knight = &Piece{knight, white, knightHP, knightAttack, 0, nil}
@@ -29,8 +28,6 @@ func initMatch(m *Match) {
 	public = &m.BlackPublic
 	public.Color = black
 	public.Other = &m.WhitePublic
-	public.ManaCurrent = startingMana
-	public.ManaMax = startingMana
 	public.King = &Piece{king, black, kingHP, kingAttack, 0, nil}
 	public.Bishop = &Piece{bishop, black, bishopHP, bishopAttack, 0, nil}
 	public.Knight = &Piece{knight, black, knightHP, knightAttack, 0, nil}
@@ -56,9 +53,9 @@ func initMatch(m *Match) {
 		m.WhitePrivate.Cards = append(append([]Card{}, stock...), allCards...)
 	} else {
 		m.BlackPrivate.Cards = append(append([]Card{}, stock...),
-			randomCards(nCardsFirstRound, m.BlackPublic.ManaMax)...)
+			randomCards(nCardsFirstRound, m.MaxRank)...)
 		m.WhitePrivate.Cards = append(append([]Card{}, stock...),
-			randomCards(nCardsFirstRound, m.WhitePublic.ManaMax)...)
+			randomCards(nCardsFirstRound, m.MaxRank)...)
 	}
 
 	m.BlackPrivate.Other = &m.WhitePrivate
@@ -141,12 +138,15 @@ func RemoveNonPawns(board *Board) {
 	}
 }
 
-func (m *Match) InflictDamage(board *Board) {
+func InflictDamage(board *Board, whitePublic *PublicState, blackPublic *PublicState) {
 	for i, p := range board.Pieces {
 		if p != nil {
 			p.HP -= p.Damage
 			p.Damage = 0
-			public, _ := m.states(p.Color)
+			public := whitePublic
+			if p.Color == black {
+				public = blackPublic
+			}
 			switch p.Name {
 			case king:
 				public.King.HP = p.HP
@@ -565,76 +565,66 @@ func (m *Match) PlayableCards(board *Board) {
 		private.PlayableCards = make([]bool, len(private.Cards))
 		for j, c := range private.Cards {
 			private.PlayableCards[j] = false
-			if public.ManaCurrent >= c.ManaCost {
-				switch c.Name {
-				case bishop, knight, rook, queen, jester:
-					if hasFreeSpace(public.Color, board) {
-						private.PlayableCards[j] = true
-					}
-				case forceCombatCard, mirrorCard, nukeCard, vulnerabilityCard, transparencyCard, amplifyCard, enrageCard, swapFrontLinesCard:
+			switch c.Name {
+			case bishop, knight, rook, queen, jester:
+				if hasFreeSpace(public.Color, board) {
 					private.PlayableCards[j] = true
-				case dispellCard:
-					if len(statusEffectedPieces(none, board)) > 0 {
-						private.PlayableCards[j] = true
-					}
-				case stunVassalCard:
-					if public.Other.KnightPlayed || public.Other.RookPlayed || public.Other.BishopPlayed {
-						private.PlayableCards[j] = true
-					}
-				case dodgeCard:
-					if len(dodgeablePieces(public.Color, board)) > 0 {
-						private.PlayableCards[j] = true
-					}
-				case castleCard:
-					if public.RookPlayed || public.Other.RookPlayed {
-						private.PlayableCards[j] = true
-					}
-				case reclaimVassalCard:
-					if public.RookPlayed || public.KnightPlayed || public.BishopPlayed {
-						private.PlayableCards[j] = true
-					}
-				case drainManaCard:
-					if public.Other.ManaCurrent > 0 {
-						private.PlayableCards[j] = true
-					}
-				case shoveCard:
-					if len(shoveablePieces(board)) > 0 {
-						private.PlayableCards[j] = true
-					}
-				case advanceCard:
-					if len(advanceablePieces(board)) > 0 {
-						private.PlayableCards[j] = true
-					}
-				case restoreManaCard:
-					if public.ManaCurrent < public.ManaMax {
-						private.PlayableCards[j] = true
-					}
-				case summonPawnCard:
-					if public.NumPawns < maxPawns && len(freePawnColumns(public.Color, board)) > 0 {
-						private.PlayableCards[j] = true
-					}
-				case resurrectVassalCard:
-					if public.Bishop.HP <= 0 || public.Rook.HP <= 0 || public.Knight.HP <= 0 {
-						private.PlayableCards[j] = true
-					}
-				case togglePawnCard:
-					if len(toggleablePawns(board)) > 0 {
-						private.PlayableCards[j] = true
-					}
-				case poisonCard:
-					// only playable on enemy piece other than king
-					if pieceCount(public.Other.Color, board) > 1 {
-						private.PlayableCards[j] = true
-					}
-				case healCard, armorCard:
-					// only playable on piece other than king
-					if pieceCount(public.Color, board) > 1 {
-						private.PlayableCards[j] = true
-					}
-				case removePawnCard:
-					if public.NumPawns > 0 || public.Other.NumPawns > 0 {
-						private.PlayableCards[j] = true
-					}
+				}
+			case forceCombatCard, mirrorCard, nukeCard, vulnerabilityCard, transparencyCard, amplifyCard, enrageCard, swapFrontLinesCard:
+				private.PlayableCards[j] = true
+			case dispellCard:
+				if len(statusEffectedPieces(none, board)) > 0 {
+					private.PlayableCards[j] = true
+				}
+			case stunVassalCard:
+				if public.Other.KnightPlayed || public.Other.RookPlayed || public.Other.BishopPlayed {
+					private.PlayableCards[j] = true
+				}
+			case dodgeCard:
+				if len(dodgeablePieces(public.Color, board)) > 0 {
+					private.PlayableCards[j] = true
+				}
+			case castleCard:
+				if public.RookPlayed || public.Other.RookPlayed {
+					private.PlayableCards[j] = true
+				}
+			case reclaimVassalCard:
+				if public.RookPlayed || public.KnightPlayed || public.BishopPlayed {
+					private.PlayableCards[j] = true
+				}
+			case shoveCard:
+				if len(shoveablePieces(board)) > 0 {
+					private.PlayableCards[j] = true
+				}
+			case advanceCard:
+				if len(advanceablePieces(board)) > 0 {
+					private.PlayableCards[j] = true
+				}
+			case summonPawnCard:
+				if public.NumPawns < maxPawns && len(freePawnColumns(public.Color, board)) > 0 {
+					private.PlayableCards[j] = true
+				}
+			case resurrectVassalCard:
+				if public.Bishop.HP <= 0 || public.Rook.HP <= 0 || public.Knight.HP <= 0 {
+					private.PlayableCards[j] = true
+				}
+			case togglePawnCard:
+				if len(toggleablePawns(board)) > 0 {
+					private.PlayableCards[j] = true
+				}
+			case poisonCard:
+				// only playable on enemy piece other than king
+				if pieceCount(public.Other.Color, board) > 1 {
+					private.PlayableCards[j] = true
+				}
+			case healCard, armorCard:
+				// only playable on piece other than king
+				if pieceCount(public.Color, board) > 1 {
+					private.PlayableCards[j] = true
+				}
+			case removePawnCard:
+				if public.NumPawns > 0 || public.Other.NumPawns > 0 {
+					private.PlayableCards[j] = true
 				}
 			}
 		}
@@ -800,10 +790,8 @@ func (m *Match) clickCard(player string, public *PublicState, private *PrivateSt
 			} else {
 				card := private.Cards[cardIdx]
 				private.SelectedCard = cardIdx
-				if public.ManaCurrent >= card.ManaCost {
-					idxs := validCardPositions(card.Name, player, m, &m.Board)
-					dimAllBut(idxs, private.Highlights[:])
-				}
+				idxs := validCardPositions(card.Name, player, m, &m.Board)
+				dimAllBut(idxs, private.Highlights[:])
 			}
 		}
 	}
@@ -881,12 +869,6 @@ func playCard(m *Match, card string, player string, public *PublicState, p Pos, 
 				other--
 			}
 			row++
-		}
-	case drainManaCard:
-		otherPublic := public.Other
-		otherPublic.ManaCurrent -= drainManaAmount
-		if otherPublic.ManaCurrent < 0 {
-			otherPublic.ManaCurrent = 0
 		}
 	case healCard:
 		piece.HP += healCardAmount
@@ -1000,8 +982,6 @@ func playCard(m *Match, card string, player string, public *PublicState, p Pos, 
 				break
 			}
 		}
-	case restoreManaCard:
-		public.ManaCurrent = public.ManaMax + restoreManaMana // add cost of card because it gets subtracted later
 	case summonPawnCard:
 		SpawnSinglePawn(player, public, false, board)
 	case resurrectVassalCard:
@@ -1057,8 +1037,6 @@ func validCardPositions(cardName string, color string, m *Match, board *Board) [
 		idxs = statusEffectedPieces(none, board)
 	case mirrorCard:
 		idxs = kingIdxs(none, board)
-	case drainManaCard:
-		idxs = kingIdxs(otherColor(color), board)
 	case togglePawnCard:
 		idxs = toggleablePawns(board)
 	case nukeCard:
@@ -1086,8 +1064,6 @@ func validCardPositions(cardName string, color string, m *Match, board *Board) [
 		idxs = shoveablePieces(board)
 	case advanceCard:
 		idxs = advanceablePieces(board)
-	case restoreManaCard:
-		idxs = kingIdxs(color, board)
 	case summonPawnCard:
 		idxs = kingIdxs(color, board)
 	case resurrectVassalCard:
@@ -1181,11 +1157,6 @@ func canPlayCard(m *Match, card string, player string, public *PublicState, p Po
 		if piece == nil || piece.Name != king {
 			return false
 		}
-	case drainManaCard:
-		otherPublic := public.Other
-		if piece == nil || piece.Name != king || piece.Color != otherPublic.Color {
-			return false
-		}
 	case healCard:
 		if piece == nil || piece.Name == king || piece.Color != player {
 			return false
@@ -1256,10 +1227,6 @@ func canPlayCard(m *Match, card string, player string, public *PublicState, p Po
 			}
 		}
 		return false
-	case restoreManaCard:
-		if piece == nil || piece.Name != king || piece.Color != player {
-			return false
-		}
 	case summonPawnCard:
 		if piece == nil || piece.Name != king || piece.Color != player {
 			return false
@@ -1297,7 +1264,6 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 			return
 		}
 		forceCombat := playCard(m, card.Name, player, public, p, board)
-		public.ManaCurrent -= card.ManaCost
 		m.Log = append(m.Log, player+" played "+card.Name)
 		private.RemoveCard(private.SelectedCard)
 		m.PlayableCards(board)
@@ -1563,16 +1529,12 @@ func (m *Match) EndRound() {
 		m.FirstTurnColor = black
 	}
 
-	m.BlackPublic.ManaMax++
-	m.BlackPublic.ManaCurrent = m.BlackPublic.ManaMax
-
-	m.WhitePublic.ManaMax++
-	m.WhitePublic.ManaCurrent = m.WhitePublic.ManaMax
+	m.MaxRank++
 
 	m.PassPrior = false
 
-	m.WhitePrivate.Cards = drawCards(m.WhitePrivate.Cards, &m.WhitePublic, m.DevMode)
-	m.BlackPrivate.Cards = drawCards(m.BlackPrivate.Cards, &m.BlackPublic, m.DevMode)
+	m.WhitePrivate.Cards = drawCards(m.WhitePrivate.Cards, &m.WhitePublic, m.DevMode, m.MaxRank)
+	m.BlackPrivate.Cards = drawCards(m.BlackPrivate.Cards, &m.BlackPublic, m.DevMode, m.MaxRank)
 	m.WhitePrivate.SelectedCard = -1
 	m.BlackPrivate.SelectedCard = -1
 
@@ -1853,7 +1815,7 @@ func (m *Match) EndTurn(pass bool, player string) {
 
 	if pass && m.PassPrior { // if players both pass in succession, do combat
 		board := &m.Board
-		m.InflictDamage(board)
+		InflictDamage(board, &m.WhitePublic, &m.BlackPublic)
 
 		if !m.checkWinCondition() {
 			m.Phase = reclaimPhase
@@ -1896,7 +1858,7 @@ func (m *Match) EndTurn(pass bool, player string) {
 	}
 }
 
-func drawCards(existing []Card, public *PublicState, devMode bool) []Card {
+func drawCards(existing []Card, public *PublicState, devMode bool, maxRank int) []Card {
 	// remove vassal cards from existing hand
 	i := 0
 loop:
@@ -1924,17 +1886,17 @@ loop:
 	if !devMode {
 		diff := nCardsCap - len(stock) - len(existing)
 		if diff >= nCardsPerRound {
-			additional = randomCards(nCardsPerRound, public.ManaMax)
+			additional = randomCards(nCardsPerRound, maxRank)
 		} else if diff > 0 {
-			additional = randomCards(diff, public.ManaMax)
+			additional = randomCards(diff, maxRank)
 		}
 	}
 
 	return append(append(stock, existing...), additional...)
 }
 
-func randomCards(n int, manaMax int) []Card {
-	idx := manaMax
+func randomCards(n int, maxRank int) []Card {
+	idx := maxRank
 	if idx >= len(cardManaCount) {
 		idx = len(cardManaCount) - 1
 	}

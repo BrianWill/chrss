@@ -62,9 +62,6 @@ const (
 	healCard                 = "Heal"
 	healMana                 = 3
 	healCardAmount           = 5
-	drainManaCard            = "Drain Mana"
-	drainManaMana            = 2
-	drainManaAmount          = 2
 	togglePawnCard           = "Toggle Pawn"
 	togglePawnMana           = 2
 	nukeCard                 = "Nuke"
@@ -75,8 +72,6 @@ const (
 	shoveMana                = 3
 	advanceCard              = "Advance"
 	advanceMana              = 3
-	restoreManaCard          = "Restore Mana"
-	restoreManaMana          = 3
 	summonPawnCard           = "Summon Pawn"
 	summonPawnMana           = 3
 	vulnerabilityCard        = "Vulnerability"
@@ -163,12 +158,10 @@ var allCards = []Card{
 	Card{forceCombatCard, forceCombatMana},
 	Card{mirrorCard, mirrorMana},
 	Card{healCard, healMana},
-	Card{drainManaCard, drainManaMana},
 	Card{togglePawnCard, togglePawnMana},
 	Card{nukeCard, nukeMana},
 	Card{shoveCard, shoveMana},
 	Card{advanceCard, advanceMana},
-	Card{restoreManaCard, restoreManaMana},
 	Card{summonPawnCard, summonPawnMana},
 	Card{resurrectVassalCard, resurrectVassalMana},
 }
@@ -215,6 +208,7 @@ type Match struct {
 	Turn               string // white, black
 	PassPrior          bool   // true if prior move was a pass
 	FirstTurnColor     string // color of player who had first turn this round
+	MaxRank            int    // max rank card to draw
 	Round              int    // starts at 1
 	Winner             string // white, black, none, draw
 	StartTime          int64  // unix time
@@ -256,8 +250,6 @@ type PublicState struct {
 	KnightPlayed         bool         `json:"knightPlayed"`
 	RookPlayed           bool         `json:"rookPlayed"`
 	NumPawns             int          `json:"numPawns"`
-	ManaMax              int          `json:"manaMax"`
-	ManaCurrent          int          `json:"manaCurrent"`
 	Color                string       `json:"color"`
 	Other                *PublicState `json:"-"` // convenient way of getting opponent
 }
@@ -312,8 +304,8 @@ type Pos struct {
 }
 
 type Card struct {
-	Name     string `json:"name"`
-	ManaCost int    `json:"manaCost"`
+	Name string `json:"name"`
+	Rank int    `json:"rank"`
 }
 
 type MatchMap struct {

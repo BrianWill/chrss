@@ -264,7 +264,7 @@ func main() {
 	}
 
 	sort.Slice(allCards, func(i, j int) bool {
-		return allCards[i].ManaCost < allCards[j].ManaCost
+		return allCards[i].Rank < allCards[j].Rank
 	})
 
 	if len(allCards) == 0 {
@@ -275,7 +275,7 @@ func main() {
 	i := 0
 	for i < len(allCards) {
 		card := allCards[i]
-		if card.ManaCost > manaCost {
+		if card.Rank > manaCost {
 			cardManaCount = append(cardManaCount, i)
 			manaCost++
 		} else {

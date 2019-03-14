@@ -124,65 +124,65 @@ jesterWhite.onload = function (evt) {
 
 
 var cardDescriptions = {
-    'Rook': `<h3>Rook: 0 mana cost, 20 HP, 6 attack</h3>
+    'Rook': `<h3>Rook: 0 rank, 20 HP, 6 attack</h3>
 <div>Click free square on your side to place.</div><br/><div>Attacks up/down/left/right. You only get one Rook in the match. When reclaimed, its HP and status effects persist, and you get a Rook card back in your hand. When reclaimed, healed for 5 HP.</div>`,
-    'Bishop': `<h3>Bishop: 0 mana cost, 25 HP, 4 attack</h3>
+    'Bishop': `<h3>Bishop: 0 rank, 25 HP, 4 attack</h3>
 <div>Click free square on your side to place.</div><br/><div>Attacks diagonally. You only get one Bishop in the match. When reclaimed, its HP and status effects persist, and you get a Bishop card back in your hand.</div>`,
-    'Knight': `<h3>Knight: 0 mana cost, 25 HP, 5 attack</h3>
+    'Knight': `<h3>Knight: 0 rank, 25 HP, 5 attack</h3>
 <div>Click free square on your side to place.</div><br/><div>Attacks are not blocked by other units. Attacks in 'L' shape: two spaces in cardinal direction and one space over. You only get one Knight in the match. When reclaimed, its HP and status effects persist, and you get a Knight card back in your hand.</div>`,
-    'Pawn': `<h3>Pawn: 0 mana cost, 5 HP, 2 attack</h3>
+    'Pawn': `<h3>Pawn: 0 rank, 5 HP, 2 attack</h3>
 <div>Click free square on your side to place.</div><br/><div>Attacks one space diagonally towards opponent side.</div>`,
-    'Queen': `<h3>Queen: 5 mana cost, 15 HP, 6 attack</h3>
+    'Queen': `<h3>Queen: 5 rank, 15 HP, 6 attack</h3>
 <div>Click free square on your side to place.</div><br/><div>Attacks diagonally and up/down/left/right.</div>`,
-    'Castle': `<h3>Castle: 2 mana cost</h3>
+    'Castle': `<h3>Castle: 2 rank</h3>
 <div>Click either King.<br/><br/>Swaps the clicked King's position with the Rook of the same color. (Can only use Castle on a King whose Rook is on the board.)</div>`,
-    'Reclaim Vassal': `<h3>Reclaim Vassal: 2 mana cost</h3>
+    'Reclaim Vassal': `<h3>Reclaim Vassal: 2 rank</h3>
 <div>Click a Knight, Bishop, or Rook.<br/><br/>The clicked vassal is reclaimed immediately.</div>`,
-    'Swap Front Lines': `<h3>Swap Front Lines: 2 mana cost</h3>
+    'Swap Front Lines': `<h3>Swap Front Lines: 2 rank</h3>
 <div>Click a King.<br/><br/>Swaps all pieces between the front and middle rows on the clicked King's side.</div>`,
-    'Remove Pawn': `<h3>Remove Pawn: 2 mana cost</h3>
+    'Remove Pawn': `<h3>Remove Pawn: 2 rank</h3>
 <div>Click a Pawn of either color to remove.</div>`,
-    'Force Combat': `<h3>Force Combat: 3 mana cost</h3>
+    'Force Combat': `<h3>Force Combat: 3 rank</h3>
 <div>Click your King to confirm.<br/><br/>Immediately advances match to combat and the end of round.</div>`,
-    'Mirror': `<h3>Mirror: 2 mana cost</h3>
+    'Mirror': `<h3>Mirror: 2 rank</h3>
 <div>Click either King.<br/><br/>Moves all pieces of clicked color to their horizontally-mirrored positions, <em>e.g.</em> all pieces in the leftmost column move to the rightmost column and <em>vice versa</em>.</div>`,
-    'Heal': `<h3>Heal: 2 mana cost</h3>
+    'Heal': `<h3>Heal: 2 rank</h3>
 <div>Click any of your pieces (except your King).<br/><br/>Adds 5 HP to a non-King piece (not capped by the piece's starting health).</div>`,
-    'Toggle Pawn': `<h3>Toggle Pawn: 2 mana cost</h3>
+    'Toggle Pawn': `<h3>Toggle Pawn: 2 rank</h3>
 <div>Click a Pawn.<br/><br/>Moves a Pawn in the front row to the middle row or moves a Pawn in the middle row to the front row. The destination square must be unoccupied.</div>`,
-    'Drain Mana': `<h3>Drain Mana: 2 mana cost</h3>
+    'Drain Mana': `<h3>Drain Mana: 2 rank</h3>
 <div>Click enemy King.<br/><br/>Subtract two mana from the enemy's current mana.</div>`,
-    'Nuke': `<h3>Nuke: 2 mana cost</h3>
+    'Nuke': `<h3>Nuke: 2 rank</h3>
 <div>Click a King.<br/><br/>Immediately inflict 6 damage on all pieces within 1 square of the clicked King and 3 damage on all pieces withing 2 squares of the clicked King.</div>`,
-    'Shove': `<h3>Shove: 2 mana cost</h3>
+    'Shove': `<h3>Shove: 2 rank</h3>
 <div>Click a piece.<br/><br/>Moves a white piece one square towards white's back row; moves a black piece one square towards black's back row.</div>`,
-    'Advance': `<h3>Advance: 2 mana cost</h3>
+    'Advance': `<h3>Advance: 2 rank</h3>
 <div>Click a piece.<br/><br/>Moves a white piece one square towards black's back row; moves a black piece one square towards white's back row.</div>`,
-    'Restore Mana': `<h3>Restore Mana: 2 mana cost</h3>
+    'Restore Mana': `<h3>Restore Mana: 2 rank</h3>
 <div>Click your King.<br/><br/>Restores your mana to max.</div>`,
-    'Summon Pawn': `<h3>Summon Pawn: 2 mana cost</h3>
+    'Summon Pawn': `<h3>Summon Pawn: 2 rank</h3>
 <div>Click your King.<br/><br/>Summons an additional pawn (subject to usual max of 5 pawns and restrictions on pawn placement).</div>`,
-    'Jester': `<h3>Jester: 3 mana cost, 12 HP, 0 attack</h3>
+    'Jester': `<h3>Jester: 3 rank, 12 HP, 0 attack</h3>
 <div>Click free square on your side to place.<br/><br/>Does not attack. Puts 'distract' effect on all adjacent squares except those behind the jester. A piece in a square with distract does not attack.</div>`,
-    'Vulnerability': `<h3>Vulnerability: 2 mana cost, 1 round duration</h3>
+    'Vulnerability': `<h3>Vulnerability: 2 rank, 1 round duration</h3>
 <div>Click enemy piece.<br/><br/>Doubles damage the targeted piece takes.</div>`,
-    'Amplify': `<h3>Amplify: 2 mana cost, 1 round duration</h3>
+    'Amplify': `<h3>Amplify: 2 rank, 1 round duration</h3>
 <div>Click allied piece.<br/><br/>Doubles damage the targeted piece inflicts.</div>`,
-    'Enrage': `<h3>Enrage: 2 mana cost, 1 round duration</h3>
+    'Enrage': `<h3>Enrage: 2 rank, 1 round duration</h3>
 <div>Click enemy piece.<br/><br/>Enraged piece hits allies as well as enemeies.</div>`,
-    'Dodge': `<h3>Dodge: 2 mana cost</h3>
+    'Dodge': `<h3>Dodge: 2 rank</h3>
 <div>Click ally piece that is under threat (going to be hit in combat) and has at least one free adjacent square.<br/><br/>Moves piece to random adjacent free square. (May move piece into enemy territory.)</div>`,
-    'Resurrect Vassal': `<h3>Resurrect Vassal: 2 mana cost</h3>
+    'Resurrect Vassal': `<h3>Resurrect Vassal: 2 rank</h3>
 <div>Click ally king.<br/><br/>Resurrects your dead vassal (knight, king, or bishop) with 5 hp and no status effects.</div>`,
-    'Stun Vassal': `<h3>Stun Vassal: 2 mana cost</h3>
+    'Stun Vassal': `<h3>Stun Vassal: 2 rank</h3>
 <div>Click enemy vassal.<br/><br/>For 1 round, vassal is DamageImmune, Distracted (does not attack), and Unrelcaimable.</div>`,
-    'Transparency': `<h3>Transparency: 2 mana cost</h3>
+    'Transparency': `<h3>Transparency: 2 rank</h3>
 <div>Click enemy piece.<br/><br/>For 1 round, piece is Transparent (affected by attacks but does not block them).</div>`,
-    'Armor': `<h3>Armor: 2 mana cost</h3>
+    'Armor': `<h3>Armor: 2 rank</h3>
 <div>Click ally piece other than king.<br/><br/>Adds two points of armor to the piece. Each point of armor negates a point of incoming damage from each attacking piece. Can be stacked and can be removed by Dispell.</div>`,
-    'Dispell': `<h3>Dispell: 2 mana cost</h3>
+    'Dispell': `<h3>Dispell: 2 rank</h3>
 <div>Click piece.<br/><br/>Removes all status effects (positive and negative) from the piece.</div>`,
-    'Poison': `<h3>Poison: 2 mana cost</h3>
+    'Poison': `<h3>Poison: 2 rank</h3>
 <div>Click enemy piece other than King.<br/><br/>Damages piece every combat phase for 2 HP (unless piece is Damage Immune). Can be stacked and can be removed by Dispell. Vulnerability affects the poison damage. Reclaimed vassals are not damaged by poison while off the board.</div>`,
 };
 
@@ -380,26 +380,6 @@ function draw(matchState) {
 
     function drawScoreboard(ctx, matchState) {
         ctx.clearRect(0, 0, scoreboard.width, scoreboard.height);
-
-        // draw mana
-        ctx.fillStyle = "#5277a9";
-        ctx.font = "16px Arial";
-        ctx.textAlign = 'start';
-        if (matchState.color === "white") {
-            var textX = 10;
-            var textY = 35;
-            ctx.fillText('black mana  ' + matchState.blackPublic.manaCurrent + ' / ' + matchState.blackPublic.manaMax, textX, textY);
-            textX = 10;
-            textY = 70;
-            ctx.fillText('white mana  ' + matchState.whitePublic.manaCurrent + ' / ' + matchState.whitePublic.manaMax, textX, textY);
-        } else {
-            var textX = 10;
-            var textY = 35;
-            ctx.fillText('white mana  ' + matchState.whitePublic.manaCurrent + ' / ' + matchState.whitePublic.manaMax, textX, textY);
-            textX = 10;
-            textY = 70;
-            ctx.fillText('black mana  ' + matchState.blackPublic.manaCurrent + ' / ' + matchState.blackPublic.manaMax, textX, textY);
-        }
 
         //
         var x = 170;
@@ -670,7 +650,7 @@ function draw(matchState) {
             } else if (!match.private.playableCards[i]) {
                 s += 'class="unplayable_card"';
             }
-            s += '">' + c.manaCost + ' - ' + c.name + '</div>';
+            s += '">' + c.rank + ' - ' + c.name + '</div>';
         }
         cardList.innerHTML = s;
     }

@@ -319,12 +319,6 @@ func scoreCardAIPos(cardName string, pos Pos, color string, boardScore int, m *M
 		// todo: high score if you have combat advantage (or no other good cards
 		// to play and opponent has high mana / num cards)
 		score = 1
-	case drainManaCard:
-		// todo: high score if enemy has low mana
-		score = 1
-	case restoreManaCard:
-		// todo: high score if player has low mana && player has high cost cards in hand
-		score = 1
 	case resurrectVassalCard:
 		// todo: high score in all scenarios
 		score = 100
@@ -393,8 +387,6 @@ func playCardTemp(m *Match, card string, player string, public *PublicState, p P
 			}
 			row++
 		}
-	case drainManaCard:
-		//
 	case healCard:
 		piece.HP += healCardAmount
 	case poisonCard:
@@ -499,8 +491,6 @@ func playCardTemp(m *Match, card string, player string, public *PublicState, p P
 				break
 			}
 		}
-	case restoreManaCard:
-		//
 	case summonPawnCard:
 		SpawnSinglePawnTemp(player, public, &m.BoardTemp)
 	case resurrectVassalCard:
