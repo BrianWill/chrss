@@ -42,7 +42,6 @@ const highlightDim = 2;
 
 
 const mainPhase = 'main';
-const reclaimPhase = 'reclaim';
 const kingPlacementPhase = 'kingPlacement';
 
 var piecesImg = new Image();
@@ -122,6 +121,11 @@ jesterWhite.onload = function (evt) {
     }
 };
 
+var cardTypes = {
+    "vassal": "V",
+    "soldier": "S",
+    "command": "C",
+};
 
 var cardDescriptions = {
     'Rook': `<h3>Rook: 0 rank, 20 HP, 6 attack</h3>
@@ -150,16 +154,12 @@ var cardDescriptions = {
 <div>Click any of your pieces (except your King).<br/><br/>Adds 5 HP to a non-King piece (not capped by the piece's starting health).</div>`,
     'Toggle Pawn': `<h3>Toggle Pawn: 2 rank</h3>
 <div>Click a Pawn.<br/><br/>Moves a Pawn in the front row to the middle row or moves a Pawn in the middle row to the front row. The destination square must be unoccupied.</div>`,
-    'Drain Mana': `<h3>Drain Mana: 2 rank</h3>
-<div>Click enemy King.<br/><br/>Subtract two mana from the enemy's current mana.</div>`,
     'Nuke': `<h3>Nuke: 2 rank</h3>
 <div>Click a King.<br/><br/>Immediately inflict 6 damage on all pieces within 1 square of the clicked King and 3 damage on all pieces withing 2 squares of the clicked King.</div>`,
     'Shove': `<h3>Shove: 2 rank</h3>
 <div>Click a piece.<br/><br/>Moves a white piece one square towards white's back row; moves a black piece one square towards black's back row.</div>`,
     'Advance': `<h3>Advance: 2 rank</h3>
 <div>Click a piece.<br/><br/>Moves a white piece one square towards black's back row; moves a black piece one square towards white's back row.</div>`,
-    'Restore Mana': `<h3>Restore Mana: 2 rank</h3>
-<div>Click your King.<br/><br/>Restores your mana to max.</div>`,
     'Summon Pawn': `<h3>Summon Pawn: 2 rank</h3>
 <div>Click your King.<br/><br/>Summons an additional pawn (subject to usual max of 5 pawns and restrictions on pawn placement).</div>`,
     'Jester': `<h3>Jester: 3 rank, 12 HP, 0 attack</h3>
@@ -234,7 +234,7 @@ conn.onmessage = function(msg){
             fanfare.play();
         } else if (matchState.newTurn) {
             switch (matchState.phase) {
-                case 'reclaim':
+                case 'kingPlacement':
                     sword.play();
                     break;
                 case 'main':
@@ -320,10 +320,7 @@ function draw(matchState) {
             case 'main':
                 if (matchState.color === matchState.turn) {
                     waitOpponent.style.visibility = 'hidden';
-                    passButton.innerHTML = 'Pass';
-                    if (matchState.passPrior) {
-                        passButton.innerHTML = 'Combat!';
-                    }
+                    passButton.innerHTML = 'Play a card';
                     passButton.style.visibility = 'visible';
                 } else {
                     waitOpponent.innerHTML = "Opponent's turn";
@@ -340,23 +337,11 @@ function draw(matchState) {
                     waitOpponent.innerHTML = "Place your King";
                 }
                 break;
-            case 'reclaim':
-                waitOpponent.style.visibility = 'visible';
-                if (matchState.public.reclaimSelectionMade) {
-                    waitOpponent.innerHTML = "Waiting for opponent";
-                    passButton.style.visibility = 'hidden';
-                } else {
-                    waitOpponent.innerHTML = "Select 0 to 2 pieces";
-                    passButton.innerHTML = 'Reclaim selected piece(s)';
-                    passButton.style.visibility = 'visible';
-                }
-                break;
         }
     }
 
     function drawWait(ctx, matchState) {
         if ((matchState.phase === 'main' && matchState.turn !== matchState.color) || 
-            (matchState.phase === 'reclaim' && matchState.public.reclaimSelectionMade) ||
             (matchState.phase === 'kingPlacement' && matchState.public.kingPlayed)) {
             ctx.fillStyle = 'rgba(20, 30, 100, 0.30)';
             ctx.fillRect(0, 0, board.width, board.height);    
@@ -381,7 +366,21 @@ function draw(matchState) {
     function drawScoreboard(ctx, matchState) {
         ctx.clearRect(0, 0, scoreboard.width, scoreboard.height);
 
-        //
+        ctx.fillStyle = "#bb3636";
+        ctx.font = "11px Arial";
+        ctx.textAlign = 'left';
+
+        var white = matchState.whitePublic;
+        
+        var black = matchState.blackPublic;
+        ctx.fillText("black turns left: ", 0, 25);
+        ctx.fillText("vassal " + black.vassalTurns + ", soldier " + black.soldierTurns +  ", command " + 
+            black.commandTurns, 0, 40);
+        ctx.fillText("white turns left: ", 0, 60);
+        ctx.fillText("vassal " + white.vassalTurns + ", soldier " + white.soldierTurns +  ", command " + 
+            white.commandTurns, 0, 75);
+
+
         var x = 170;
         var y = 10;
         const textOffsetX = 230;
@@ -420,8 +419,7 @@ function draw(matchState) {
             ];
         }
 
-        ctx.fillStyle = "#bb3636";
-        ctx.font = "18px Arial";
+        ctx.font = "14px Arial";
         ctx.textAlign = 'right';
         for (var i = 0; i < pieceNames.length; i++) {
             if (i === 4) {
@@ -582,7 +580,6 @@ function draw(matchState) {
         switch (match.phase) {
             case 'kingPlacement':
             case 'main':
-            case 'reclaim':
                 var flipped = match.color === 'white';
                 var highlights = match.private.highlights;
                 var len = highlights.length;
@@ -639,7 +636,7 @@ function draw(matchState) {
             staggered = !staggered;
         }
     }
-    
+
     function drawCards(match) {
         var s = '';
         for (var i = 0; i < match.private.cards.length; i++) {
@@ -650,7 +647,12 @@ function draw(matchState) {
             } else if (!match.private.playableCards[i]) {
                 s += 'class="unplayable_card"';
             }
-            s += '">' + c.rank + ' - ' + c.name + '</div>';
+            if (c.type === "vassal") {
+                s += '">' + cardTypes[c.type] + ' - ' + c.name + '</div>';
+            } else {
+                s += '">' + cardTypes[c.type] + ' - ' + c.name + ' - ' + c.rank + '</div>';
+            }
+            
         }
         cardList.innerHTML = s;
     }
@@ -740,7 +742,6 @@ function drawStatusInfo(square, piece) {
 function drawTimer(match) {
     switch (matchState.phase) {
         case 'main':
-        case 'reclaim':
         case 'kingPlacement':
             var seconds = Math.floor(match.turnRemainingMilliseconds / 1000);
             timer.innerHTML = ((seconds < 0) ? 0 : seconds) + ' seconds';
@@ -762,7 +763,6 @@ function setTimers(match) {
     timeSincePing = 0;
     
     switch (match.phase) {
-        case 'reclaim':
         case 'kingPlacement':
         case 'main':    
             timerHandle = window.setInterval(
@@ -773,7 +773,7 @@ function setTimers(match) {
                     // extra half second as cushion (don't want to 
                     // send too early or else server ignores event)
                     if (match.turnRemainingMilliseconds + 500 < 0) {
-                        conn.send(match.phase === 'reclaim' ? "reclaim_time_expired " : "time_expired ");
+                        conn.send("time_expired ");
                         waitingResponse = true;
                     }
 
@@ -818,7 +818,6 @@ cardList.addEventListener('mouseleave', function (evt) {
     switch (matchState.phase) {
         case 'main':
         case 'kingPlacement':
-        case 'reclaim':
             for (var c of cardList.children) {
                 c.classList.remove('highlight_card');
             }
@@ -833,7 +832,6 @@ cardList.addEventListener('mouseover', function (evt) {
     switch (matchState.phase) {
         case 'main':
         case 'kingPlacement':
-        case 'reclaim':
             var idx = evt.target.getAttribute('cardIdx');
             if (idx === '' || idx === null) {
                 cardDescription.style.display = 'none';
@@ -860,7 +858,6 @@ cardList.addEventListener('mouseover', function (evt) {
 function updateSquareInfoBox(clientX, clientY) {
     switch (matchState.phase) {
         case 'main':
-        case 'reclaim':
         case 'kingPlacement':
             if (clientX === null) {
                 return;
@@ -937,7 +934,6 @@ canvas.addEventListener('mousedown', function (evt) {
             if (matchState.color !== matchState.turn) {
                 return; // not your turn!
             }
-        case 'reclaim':
         case 'kingPlacement':
             var rect = canvas.getBoundingClientRect();
             var mouseX = evt.clientX - rect.left;
@@ -966,16 +962,5 @@ canvas.addEventListener('mousedown', function (evt) {
             conn.send("click_board " + JSON.stringify({x: squareX, y: squareY}));    
             waitingResponse = true;
             break;
-    }
-}, false);
-
-passButton.addEventListener('click', function (evt) {
-    switch (matchState.phase) {
-        case 'main':
-            conn.send("pass ");
-            waitingResponse = true;
-            break;
-        case 'reclaim':
-            conn.send("reclaim_done ")
     }
 }, false);

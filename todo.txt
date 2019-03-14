@@ -1,11 +1,27 @@
 
-pieces that have limited life times (1 or 2 rounds); have no HP?
+
+for turn timeout, randomly play card rather than 'passing'
+what to do when player has no card they can use?
+
+
+max number of pieces? playing card would require replacing existing non-king/vassal piece
+
+
+
+
+consolidate playablecards and canplaycard
+
+
+account for rank in card draws
+
+
+
 
 
 in status info, show sources of damage
 
 
-can playCard and playCardTemp be consolidated (pass in board/pieces explicitly)?
+can playCard and playCardTemp be consolidated (pass in board/pieces explicitly and flag)?
 
 
 why is AI giving high scores to plays that put piece in place where it neither takes nor deals damage?
@@ -187,6 +203,9 @@ card ideas:
     time bomb - convert an allied pawn into a bomb: the bomb has 20hp and no attack, after 3 rounds, it   
         detonates, hitting everything adjacent for big damage (the bomb counts as a pawn for spawning purposes)
 
+
+
+pieces that have limited life times (1 or 2 rounds); have no HP?
 
 cards that can only be cast on enemies in line of attack
     - in some cases, require line of attack from specific vassal, e.g. can only cast on enemy threatened by bishop

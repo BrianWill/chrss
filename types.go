@@ -31,78 +31,78 @@ const (
 	kingAttack   = 12
 	bishopHP     = 25
 	bishopAttack = 4
-	bishopMana   = 1
+	bishopRank   = 1
 	knightHP     = 25
 	knightAttack = 5
-	knightMana   = 1
+	knightRank   = 1
 	rookHP       = 20
 	rookAttack   = 6
-	rookMana     = 2
+	rookRank     = 2
 	queenHP      = 12
 	queenAttack  = 6
-	queenMana    = 4
+	queenRank    = 4
 	jesterHP     = 12
 	jesterAttack = 0
-	jesterMana   = 4
+	jesterRank   = 4
 )
 
 const (
 	castleCard               = "Castle"
-	castleMana               = 2
+	castleRank               = 2
 	reclaimVassalCard        = "Reclaim Vassal"
-	reclaimVassalMana        = 2
+	reclaimVassalRank        = 2
 	swapFrontLinesCard       = "Swap Front Lines"
-	swapFrontLinesMana       = 2
+	swapFrontLinesRank       = 2
 	removePawnCard           = "Remove Pawn"
-	removePawnMana           = 1
+	removePawnRank           = 1
 	forceCombatCard          = "Force Combat"
-	forceCombatMana          = 2
+	forceCombatRank          = 2
 	mirrorCard               = "Mirror"
-	mirrorMana               = 3
+	mirrorRank               = 3
 	healCard                 = "Heal"
-	healMana                 = 1
+	healRank                 = 1
 	healCardAmount           = 5
 	togglePawnCard           = "Toggle Pawn"
-	togglePawnMana           = 1
+	togglePawnRank           = 1
 	nukeCard                 = "Nuke"
-	nukeMana                 = 2
+	nukeRank                 = 2
 	nukeDamageFull           = 6
 	nukeDamageLesser         = 3
 	shoveCard                = "Shove"
-	shoveMana                = 1
+	shoveRank                = 1
 	advanceCard              = "Advance"
-	advanceMana              = 1
+	advanceRank              = 1
 	summonPawnCard           = "Summon Pawn"
-	summonPawnMana           = 2
+	summonPawnRank           = 2
 	vulnerabilityCard        = "Vulnerability"
-	vulnerabilityMana        = 1
+	vulnerabilityRank        = 1
 	vulnerabilityFactor      = 2
 	vulnerabilityDuration    = 1
 	amplifyCard              = "Amplify"
-	amplifyMana              = 1
+	amplifyRank              = 1
 	amplifyFactor            = 2
 	amplifyDuration          = 1
 	enrageCard               = "Enrage"
-	enrageMana               = 1
+	enrageRank               = 1
 	enrageDuration           = 1
 	dodgeCard                = "Dodge"
-	dodgeMana                = 1
+	dodgeRank                = 1
 	resurrectVassalCard      = "Resurrect Vassal"
-	resurrectVassalMana      = 3
+	resurrectVassalRank      = 3
 	resurrectVassalRestoreHP = 5
 	stunVassalCard           = "Stun Vassal"
-	stunVassalMana           = 2
+	stunVassalRank           = 2
 	stunVassalDuration       = 1
 	transparencyCard         = "Transparency"
-	transparencyMana         = 2
+	transparencyRank         = 2
 	transparencyDuration     = 1
 	armorCard                = "Armor"
-	armorMana                = 1
+	armorRank                = 1
 	armorAmount              = 2
 	dispellCard              = "Dispell"
-	dispellMana              = 1
+	dispellRank              = 1
 	poisonCard               = "Poison"
-	poisonMana               = 3
+	poisonRank               = 3
 	poisonAmount             = 2
 )
 
@@ -123,9 +123,8 @@ const turnTimerDev = 50 * int64(time.Minute)
 const maxConcurrentMatches = 100
 
 const (
-	nCardsFirstRound = 3
-	nCardsPerRound   = 2
-	nCardsCap        = 8
+	nCommandCards = 3
+	nSoldierCards = 3
 )
 
 const (
@@ -135,35 +134,75 @@ const (
 )
 
 const (
-	startingMana = 3
+	numTurns        = 4
+	numVassalTurns  = 2
+	numCommandTurns = 1
+	numSoldierTurns = 1
+)
+
+const (
+	vassalCard  = "vassal"
+	soldierCard = "soldier"
+	commandCard = "command"
 )
 
 // all cards excepting the vassals and King
 var allCards = []Card{
-	Card{queen, queenMana},
-	Card{jester, jesterMana},
-	Card{castleCard, castleMana},
-	Card{reclaimVassalCard, reclaimVassalMana},
-	Card{vulnerabilityCard, vulnerabilityMana},
-	Card{amplifyCard, amplifyMana},
-	Card{stunVassalCard, stunVassalMana},
-	Card{armorCard, armorMana},
-	Card{poisonCard, poisonMana},
-	Card{dispellCard, dispellMana},
-	Card{enrageCard, enrageMana},
-	Card{dodgeCard, dodgeMana},
-	Card{transparencyCard, transparencyMana},
-	Card{swapFrontLinesCard, swapFrontLinesMana},
-	Card{removePawnCard, removePawnMana},
-	Card{forceCombatCard, forceCombatMana},
-	Card{mirrorCard, mirrorMana},
-	Card{healCard, healMana},
-	Card{togglePawnCard, togglePawnMana},
-	Card{nukeCard, nukeMana},
-	Card{shoveCard, shoveMana},
-	Card{advanceCard, advanceMana},
-	Card{summonPawnCard, summonPawnMana},
-	Card{resurrectVassalCard, resurrectVassalMana},
+	Card{queen, queenRank, soldierCard},
+	Card{jester, jesterRank, soldierCard},
+	Card{castleCard, castleRank, commandCard},
+	Card{reclaimVassalCard, reclaimVassalRank, commandCard},
+	Card{vulnerabilityCard, vulnerabilityRank, commandCard},
+	Card{amplifyCard, amplifyRank, commandCard},
+	Card{stunVassalCard, stunVassalRank, commandCard},
+	Card{armorCard, armorRank, commandCard},
+	Card{poisonCard, poisonRank, commandCard},
+	Card{dispellCard, dispellRank, commandCard},
+	Card{enrageCard, enrageRank, commandCard},
+	Card{dodgeCard, dodgeRank, commandCard},
+	Card{transparencyCard, transparencyRank, commandCard},
+	Card{swapFrontLinesCard, swapFrontLinesRank, commandCard},
+	Card{removePawnCard, removePawnRank, commandCard},
+	Card{forceCombatCard, forceCombatRank, commandCard},
+	Card{mirrorCard, mirrorRank, commandCard},
+	Card{healCard, healRank, commandCard},
+	Card{togglePawnCard, togglePawnRank, commandCard},
+	Card{nukeCard, nukeRank, commandCard},
+	Card{shoveCard, shoveRank, commandCard},
+	Card{advanceCard, advanceRank, commandCard},
+	Card{summonPawnCard, summonPawnRank, commandCard},
+	Card{resurrectVassalCard, resurrectVassalRank, commandCard},
+}
+
+var soldierCards = []Card{
+	Card{queen, queenRank, soldierCard},
+	Card{jester, jesterRank, soldierCard},
+}
+
+// all cards excepting the vassals and King
+var commandCards = []Card{
+	Card{castleCard, castleRank, commandCard},
+	Card{reclaimVassalCard, reclaimVassalRank, commandCard},
+	Card{vulnerabilityCard, vulnerabilityRank, commandCard},
+	Card{amplifyCard, amplifyRank, commandCard},
+	Card{stunVassalCard, stunVassalRank, commandCard},
+	Card{armorCard, armorRank, commandCard},
+	Card{poisonCard, poisonRank, commandCard},
+	Card{dispellCard, dispellRank, commandCard},
+	Card{enrageCard, enrageRank, commandCard},
+	Card{dodgeCard, dodgeRank, commandCard},
+	Card{transparencyCard, transparencyRank, commandCard},
+	Card{swapFrontLinesCard, swapFrontLinesRank, commandCard},
+	Card{removePawnCard, removePawnRank, commandCard},
+	Card{forceCombatCard, forceCombatRank, commandCard},
+	Card{mirrorCard, mirrorRank, commandCard},
+	Card{healCard, healRank, commandCard},
+	Card{togglePawnCard, togglePawnRank, commandCard},
+	Card{nukeCard, nukeRank, commandCard},
+	Card{shoveCard, shoveRank, commandCard},
+	Card{advanceCard, advanceRank, commandCard},
+	Card{summonPawnCard, summonPawnRank, commandCard},
+	Card{resurrectVassalCard, resurrectVassalRank, commandCard},
 }
 
 var cardRankCount []int // at index i, how many cards have rank i or lower
@@ -204,7 +243,6 @@ type Match struct {
 	BlackAI            bool
 	WhiteAI            bool
 	Turn               string // white, black
-	PassPrior          bool   // true if prior move was a pass
 	FirstTurnColor     string // color of player who had first turn this round
 	MaxRank            int    // max rank card to draw
 	Round              int    // starts at 1
@@ -236,18 +274,22 @@ type PrivateState struct {
 
 // individual player state that is visible to all
 type PublicState struct {
-	Ready        bool         `json:"ready"` // match does not start until both player's are ready
-	King         *Piece       `json:"king"`  // exposed to JSON so as to correctly display king stats in king placement
-	Rook         *Piece       `json:"rook"`
-	Knight       *Piece       `json:"knight"`
-	Bishop       *Piece       `json:"bishop"`
-	KingPlayed   bool         `json:"kingPlayed"`
-	BishopPlayed bool         `json:"bishopPlayed"`
-	KnightPlayed bool         `json:"knightPlayed"`
-	RookPlayed   bool         `json:"rookPlayed"`
-	NumPawns     int          `json:"numPawns"`
-	Color        string       `json:"color"`
-	Other        *PublicState `json:"-"` // convenient way of getting opponent
+	Ready           bool         `json:"ready"` // match does not start until both player's are ready
+	King            *Piece       `json:"king"`  // exposed to JSON so as to correctly display king stats in king placement
+	Rook            *Piece       `json:"rook"`
+	NumTurnsLeft    int          `json:"turns"`
+	NumVassalTurns  int          `json:"vassalTurns"`
+	NumCommandTurns int          `json:"commandTurns"`
+	NumSoldierTurns int          `json:"soldierTurns"`
+	Knight          *Piece       `json:"knight"`
+	Bishop          *Piece       `json:"bishop"`
+	KingPlayed      bool         `json:"kingPlayed"`
+	BishopPlayed    bool         `json:"bishopPlayed"`
+	KnightPlayed    bool         `json:"knightPlayed"`
+	RookPlayed      bool         `json:"rookPlayed"`
+	NumPawns        int          `json:"numPawns"`
+	Color           string       `json:"color"`
+	Other           *PublicState `json:"-"` // convenient way of getting opponent
 }
 
 type Piece struct {
@@ -302,6 +344,7 @@ type Pos struct {
 type Card struct {
 	Name string `json:"name"`
 	Rank int    `json:"rank"`
+	Type string `json:"type"`
 }
 
 type MatchMap struct {

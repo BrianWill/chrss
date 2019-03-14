@@ -73,7 +73,6 @@ func processMessage(msg []byte, match *Match, player string) {
 				"lastMoveTime":              match.LastMoveTime,
 				"blackPublic":               match.BlackPublic,
 				"whitePublic":               match.WhitePublic,
-				"passPrior":                 match.PassPrior,
 				"phase":                     match.Phase,
 				"firstTurnColor":            match.FirstTurnColor,
 				"log":                       match.Log,

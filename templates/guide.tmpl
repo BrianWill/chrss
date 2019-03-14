@@ -12,31 +12,45 @@
             <h2>Goal</h2>
             <p>Win by killing the enemy King or by killing two of the three enemy vassals (Bishop, Knight, and Rook). </p>
             <h2>Rules</h2>
-            <p>In each round, the players first place their kings, then take turns playing cards, and lastly have the option to reclaim pieces. Some additional steps occur automatically, as shown in the following full sequence of steps:</p>
+            <p>In each round, the players first place their kings, then take turns playing four cards. 
+            At the end of the round, combat is resolved, and the kings and vassals are reclaimed off the board back 
+            into the players' hands. The full sequence is as follows:</p>
             <ol>
-                <li><h3>Replenish mana <span class="automatic">(automatic)</h3></span>
-                    <p>Each round, the player has a number of mana points to spend playing cards (different cards have different costs). Each player's mana is replenished at the start of each round. Each player has 3 mana points in the first round and one additional point in each subsequent round.</p>
-                </li>
                 <li><h3>Spawn pawns <span class="automatic">(automatic)</span></h3>
                     <p>In the first round, each player is given four pawns, which are automatically and randomly placed on the board. In subsequent rounds, the player is given one additional pawn (or two if they have zero on the board) up to a max of five on the board. Pawns will not be placed in the back row nor placed in a column where any piece occupies either the front or middle row. (A new pawn is discarded if it has no valid space for placement.)</p>
                 </li>
                 <li><h3>Draw cards <span class="automatic">(automatic)</span></h3>
-                    <p>At the start of the match, the player's hand starts with a Bishop, a Knight, a Rook, and three other cards drawn at random. In subsequent rounds, the player draws two additional cards up to a max of eight in hand. (Card draws are not entirely random: the draw is biased towards cards with a mana cost that's less than or equal to a player's max mana.)</p>
+                    <p>A new hand is dealt every round. A hand consists of three vassal cards 
+                    (Bishop, Knight, and Rook), three soldier cards, 
+                    and three command cards. In later rounds, the players 
+                    draw higher rank soldier and command cards.</p>
                 </li>
                 <li><h3>Place Kings</h3>
-                    <p>Before playing cards, both players must place their Kings if the Kings are not already on the board. Excepting for some special card effects, a player can only place their pieces on their own side of the board. (If the timer expires before a player plays their King, their King is randomly placed in a free square on the player's side of the board.)</p>
+                    <p>Before playing cards, both players must place their Kings on the board. Like all pieces, 
+                    the King can only be placed on the player's side of the board.</p>
                 </li>
                 <li><h3>Play cards</h3>
-                    <p>Once both Kings are on the board, the players take turns playing cards. A player can pass instead of playing a card. Card playing ends when a player passes directly after the other player has passed. In odd-numbered rounds, White has first turn. In even-numbered rounds, Black has first turn.</p>
+                    <p>Once both Kings are on the board, the players take turns playing cards. Each player must play 
+                    two vassal cards, one soldier card, and one command card (in no particular order). 
+                    In odd-numbered rounds, White has first turn. 
+                    In even-numbered rounds, Black has first turn.</p>
                 </li>
                 <li><h3>Combat <span class="automatic">(automatic)</span></h3>
-                    <p>Once card playing ends, the pieces on the board damage each other according to their attack power and lines of attack (<em>e.g.</em> diagonal for bishops, cardinal directions for rooks, <em>etc.</em>). A single piece can damage multiple other targets, <em>e.g.</em> a bishop damages enemy pieces in all diagonal directions. Excepting special card effects, attacks do not pass through allied or enemy pieces.</p>
+                    <p>Once card playing ends, the pieces on the board damage each other according to their 
+                    attack power and lines of attack (<em>e.g.</em> diagonal for bishops, cardinal directions 
+                    for rooks, <em>etc.</em>). A single piece can damage multiple other targets, 
+                    <em>e.g.</em> a bishop damages enemy pieces in all diagonal directions. Excepting certain 
+                    status effects, attacks do not pass through allied or enemy pieces.</p>
                 </li>
-                <li><h3>Reclaim pieces</h3>
-                    <p>After combat resolution, each player can reclaim up to two pieces from the board. Reclaiming a vassal (Bishop, Knight, or Rook) puts the vassal card back in the player's hand, <em>e.g.</em> reclaiming a Bishop puts the Bishop card back in the player's hand. A reclaimed Rook is healed for 5 HP. A reclaimed King must be placed back on the board first thing next round. Reclaiming any other piece simply discards the piece (sometimes useful for getting pieces out of the way).</p>
+                <li><h3>Reclaim pieces <span class="automatic">(automatic)</span></h3>
+                    <p>After combat resolution, the Kings and vassals of both players are reclaimed off the 
+                    board into the players' hands. A reclaimed Rook is healed for 5 HP.</p>
                 </li>
             </ol>
             <p></p>
+
+            <h3>Timeouts</h3>
+            When the player fails to make a move before their timer expires, a random move is made for them.
             
             <div id="cards">
                 <h2>Cards</h2>
@@ -73,8 +87,6 @@
                 <h3>Toggle Pawn <span class="card_stats">2 mana cost</span></h3>
                 <div>Click a Pawn.</div><div>Moves a Pawn in the front row to the middle row or moves a Pawn in the middle
                  row to the front row. The destination square must be unoccupied.</div>
-                <h3>Drain Mana <span class="card_stats">2 mana cost</span></h3>
-                <div>Click enemy King.</div><div>Subtract two mana from the enemy's current mana.</div>
                 <h3>Nuke <span class="card_stats">2 mana cost</span></h3>
                 <div>Click either King.</div><div>Immediately inflict 6 damage on all pieces within 1 square of the clicked King
                  and 3 damage on all pieces withing 2 squares of the clicked King.</div>
@@ -84,8 +96,6 @@
                 <h3>Advance <span class="card_stats">2 mana cost</span></h3>
                 <div>Click an ally or enemy piece.</div><div>Moves a white piece one square towards black's back row; moves a black piece
                  one square towards white's back row.</div>
-                <h3>Restore Mana <span class="card_stats">2 mana cost</span></h3>
-                <div>Click your King.</div><div>Restores your mana to max.</div>
                 <h3>Summon Pawn <span class="card_stats">2 mana cost</span></h3>
                 <div>Click your King.</div><div>Summons an additional pawn (subject to usual max of 5 pawns and restrictions on pawn placement).</div>
                 <h3>Jester <span class="card_stats">3 mana cost, 12 HP, 0 attack</span></h3>

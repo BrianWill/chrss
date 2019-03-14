@@ -24,6 +24,10 @@ func initMatch(m *Match) {
 	public.Bishop = &Piece{bishop, white, bishopHP, bishopAttack, 0, nil}
 	public.Knight = &Piece{knight, white, knightHP, knightAttack, 0, nil}
 	public.Rook = &Piece{rook, white, rookHP, rookAttack, 0, nil}
+	public.NumTurnsLeft = numTurns
+	public.NumVassalTurns = numVassalTurns
+	public.NumCommandTurns = numCommandTurns
+	public.NumSoldierTurns = numSoldierTurns
 
 	public = &m.BlackPublic
 	public.Color = black
@@ -32,6 +36,10 @@ func initMatch(m *Match) {
 	public.Bishop = &Piece{bishop, black, bishopHP, bishopAttack, 0, nil}
 	public.Knight = &Piece{knight, black, knightHP, knightAttack, 0, nil}
 	public.Rook = &Piece{rook, black, rookHP, rookAttack, 0, nil}
+	public.NumTurnsLeft = numTurns
+	public.NumVassalTurns = numVassalTurns
+	public.NumCommandTurns = numCommandTurns
+	public.NumSoldierTurns = numSoldierTurns
 
 	m.Log = []string{"Round 1"}
 
@@ -39,9 +47,9 @@ func initMatch(m *Match) {
 	m.UpdateStatusAndDamage()
 
 	stock := []Card{
-		Card{bishop, bishopMana},
-		Card{knight, knightMana},
-		Card{rook, rookMana},
+		Card{bishop, bishopRank, vassalCard},
+		Card{knight, knightRank, vassalCard},
+		Card{rook, rookRank, vassalCard},
 	}
 
 	m.BlackPrivate = PrivateState{SelectedCard: -1}
@@ -52,10 +60,8 @@ func initMatch(m *Match) {
 		m.BlackPrivate.Cards = append(append([]Card{}, stock...), allCards...)
 		m.WhitePrivate.Cards = append(append([]Card{}, stock...), allCards...)
 	} else {
-		m.BlackPrivate.Cards = append(append([]Card{}, stock...),
-			randomCards(nCardsFirstRound, m.MaxRank)...)
-		m.WhitePrivate.Cards = append(append([]Card{}, stock...),
-			randomCards(nCardsFirstRound, m.MaxRank)...)
+		m.BlackPrivate.Cards = drawCards(&m.BlackPublic, m.DevMode, m.MaxRank)
+		m.WhitePrivate.Cards = drawCards(&m.WhitePublic, m.DevMode, m.MaxRank)
 	}
 
 	m.BlackPrivate.Other = &m.WhitePrivate
@@ -565,66 +571,85 @@ func (m *Match) PlayableCards(board *Board) {
 		private.PlayableCards = make([]bool, len(private.Cards))
 		for j, c := range private.Cards {
 			private.PlayableCards[j] = false
-			switch c.Name {
-			case bishop, knight, rook, queen, jester:
-				if hasFreeSpace(public.Color, board) {
-					private.PlayableCards[j] = true
+			switch c.Type {
+			case vassalCard:
+				if public.NumVassalTurns > 0 {
+					switch c.Name {
+					case bishop, knight, rook:
+						if hasFreeSpace(public.Color, board) {
+							private.PlayableCards[j] = true
+						}
+					}
 				}
-			case forceCombatCard, mirrorCard, nukeCard, vulnerabilityCard, transparencyCard, amplifyCard, enrageCard, swapFrontLinesCard:
-				private.PlayableCards[j] = true
-			case dispellCard:
-				if len(statusEffectedPieces(none, board)) > 0 {
-					private.PlayableCards[j] = true
+			case soldierCard:
+				if public.NumSoldierTurns > 0 {
+					switch c.Name {
+					case queen, jester:
+						if hasFreeSpace(public.Color, board) {
+							private.PlayableCards[j] = true
+						}
+					}
 				}
-			case stunVassalCard:
-				if public.Other.KnightPlayed || public.Other.RookPlayed || public.Other.BishopPlayed {
-					private.PlayableCards[j] = true
-				}
-			case dodgeCard:
-				if len(dodgeablePieces(public.Color, board)) > 0 {
-					private.PlayableCards[j] = true
-				}
-			case castleCard:
-				if public.RookPlayed || public.Other.RookPlayed {
-					private.PlayableCards[j] = true
-				}
-			case reclaimVassalCard:
-				if public.RookPlayed || public.KnightPlayed || public.BishopPlayed {
-					private.PlayableCards[j] = true
-				}
-			case shoveCard:
-				if len(shoveablePieces(board)) > 0 {
-					private.PlayableCards[j] = true
-				}
-			case advanceCard:
-				if len(advanceablePieces(board)) > 0 {
-					private.PlayableCards[j] = true
-				}
-			case summonPawnCard:
-				if public.NumPawns < maxPawns && len(freePawnColumns(public.Color, board)) > 0 {
-					private.PlayableCards[j] = true
-				}
-			case resurrectVassalCard:
-				if public.Bishop.HP <= 0 || public.Rook.HP <= 0 || public.Knight.HP <= 0 {
-					private.PlayableCards[j] = true
-				}
-			case togglePawnCard:
-				if len(toggleablePawns(board)) > 0 {
-					private.PlayableCards[j] = true
-				}
-			case poisonCard:
-				// only playable on enemy piece other than king
-				if pieceCount(public.Other.Color, board) > 1 {
-					private.PlayableCards[j] = true
-				}
-			case healCard, armorCard:
-				// only playable on piece other than king
-				if pieceCount(public.Color, board) > 1 {
-					private.PlayableCards[j] = true
-				}
-			case removePawnCard:
-				if public.NumPawns > 0 || public.Other.NumPawns > 0 {
-					private.PlayableCards[j] = true
+			case commandCard:
+				if public.NumCommandTurns > 0 {
+					switch c.Name {
+					case forceCombatCard, mirrorCard, nukeCard, vulnerabilityCard, transparencyCard, amplifyCard, enrageCard, swapFrontLinesCard:
+						private.PlayableCards[j] = true
+					case dispellCard:
+						if len(statusEffectedPieces(none, board)) > 0 {
+							private.PlayableCards[j] = true
+						}
+					case stunVassalCard:
+						if public.Other.KnightPlayed || public.Other.RookPlayed || public.Other.BishopPlayed {
+							private.PlayableCards[j] = true
+						}
+					case dodgeCard:
+						if len(dodgeablePieces(public.Color, board)) > 0 {
+							private.PlayableCards[j] = true
+						}
+					case castleCard:
+						if public.RookPlayed || public.Other.RookPlayed {
+							private.PlayableCards[j] = true
+						}
+					case reclaimVassalCard:
+						if public.RookPlayed || public.KnightPlayed || public.BishopPlayed {
+							private.PlayableCards[j] = true
+						}
+					case shoveCard:
+						if len(shoveablePieces(board)) > 0 {
+							private.PlayableCards[j] = true
+						}
+					case advanceCard:
+						if len(advanceablePieces(board)) > 0 {
+							private.PlayableCards[j] = true
+						}
+					case summonPawnCard:
+						if public.NumPawns < maxPawns && len(freePawnColumns(public.Color, board)) > 0 {
+							private.PlayableCards[j] = true
+						}
+					case resurrectVassalCard:
+						if public.Bishop.HP <= 0 || public.Rook.HP <= 0 || public.Knight.HP <= 0 {
+							private.PlayableCards[j] = true
+						}
+					case togglePawnCard:
+						if len(toggleablePawns(board)) > 0 {
+							private.PlayableCards[j] = true
+						}
+					case poisonCard:
+						// only playable on enemy piece other than king
+						if pieceCount(public.Other.Color, board) > 1 {
+							private.PlayableCards[j] = true
+						}
+					case healCard, armorCard:
+						// only playable on piece other than king
+						if pieceCount(public.Color, board) > 1 {
+							private.PlayableCards[j] = true
+						}
+					case removePawnCard:
+						if public.NumPawns > 0 || public.Other.NumPawns > 0 {
+							private.PlayableCards[j] = true
+						}
+					}
 				}
 			}
 		}
@@ -1096,7 +1121,22 @@ func validCardPositions(cardName string, color string, m *Match, board *Board) [
 	return idxs
 }
 
-func canPlayCard(m *Match, card string, player string, public *PublicState, p Pos, board *Board) bool {
+func canPlayCard(m *Match, card string, cardType string, player string, public *PublicState, p Pos, board *Board) bool {
+	switch cardType {
+	case vassalCard:
+		if public.NumVassalTurns == 0 {
+			return false
+		}
+	case soldierCard:
+		if public.NumSoldierTurns == 0 {
+			return false
+		}
+	case commandCard:
+		if public.NumCommandTurns == 0 {
+			return false
+		}
+	}
+
 	piece := getPieceSafe(p, board)
 	switch card {
 	case castleCard:
@@ -1260,15 +1300,22 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 			return
 		}
 		card := private.Cards[private.SelectedCard]
-		if !canPlayCard(m, card.Name, player, public, p, board) {
+		if !canPlayCard(m, card.Name, card.Type, player, public, p, board) {
 			return
 		}
 		forceCombat := playCard(m, card.Name, player, public, p, board)
+		switch card.Type {
+		case vassalCard:
+			public.NumVassalTurns--
+		case soldierCard:
+			public.NumSoldierTurns--
+		case commandCard:
+			public.NumCommandTurns--
+		}
 		m.Log = append(m.Log, player+" played "+card.Name)
 		private.RemoveCard(private.SelectedCard)
 		m.PlayableCards(board)
 		if forceCombat {
-			m.PassPrior = true
 			m.EndTurn(true, player)
 		} else {
 			m.EndTurn(false, player)
@@ -1481,8 +1528,6 @@ func (m *Match) EndRound() {
 	m.Round++
 	m.Log = append(m.Log, "Round "+strconv.Itoa(m.Round))
 
-	ReclaimPieces(&m.Board, &m.WhitePublic, &m.BlackPublic)
-
 	if m.FirstTurnColor == black {
 		m.Turn = white
 		m.FirstTurnColor = white
@@ -1491,18 +1536,26 @@ func (m *Match) EndRound() {
 		m.FirstTurnColor = black
 	}
 
+	m.WhitePublic.NumTurnsLeft = numTurns
+	m.WhitePublic.NumVassalTurns = numVassalTurns
+	m.WhitePublic.NumCommandTurns = numCommandTurns
+	m.WhitePublic.NumSoldierTurns = numSoldierTurns
+
+	m.BlackPublic.NumTurnsLeft = numTurns
+	m.BlackPublic.NumVassalTurns = numVassalTurns
+	m.BlackPublic.NumCommandTurns = numCommandTurns
+	m.BlackPublic.NumSoldierTurns = numSoldierTurns
+
+	tickdownStatusEffects(true, &m.Board)
+	ReclaimPieces(&m.Board, &m.WhitePublic, &m.BlackPublic) // must be after tickdown status effects, but before updating damage and spawning pawns
+	SpawnPawns(false, &m.Board, &m.WhitePublic, &m.BlackPublic, &m.Log)
+	m.UpdateStatusAndDamage()
+
 	m.MaxRank++
-
-	m.PassPrior = false
-
-	m.WhitePrivate.Cards = drawCards(m.WhitePrivate.Cards, &m.WhitePublic, m.DevMode, m.MaxRank)
-	m.BlackPrivate.Cards = drawCards(m.BlackPrivate.Cards, &m.BlackPublic, m.DevMode, m.MaxRank)
+	m.WhitePrivate.Cards = drawCards(&m.WhitePublic, m.DevMode, m.MaxRank)
+	m.BlackPrivate.Cards = drawCards(&m.BlackPublic, m.DevMode, m.MaxRank)
 	m.WhitePrivate.SelectedCard = -1
 	m.BlackPrivate.SelectedCard = -1
-
-	SpawnPawns(false, &m.Board, &m.WhitePublic, &m.BlackPublic, &m.Log)
-	tickdownStatusEffects(true, &m.Board)
-	m.UpdateStatusAndDamage()
 	m.PlayableCards(&m.Board)
 
 	m.Phase = kingPlacementPhase
@@ -1750,11 +1803,17 @@ func (p *PrivateState) dimUnreclaimable(board *Board) {
 }
 
 // pass = if turn is ending by passing; player = color whose turn is ending
-func (m *Match) EndTurn(pass bool, player string) {
+func (m *Match) EndTurn(end bool, player string) {
 	m.LastMoveTime = time.Now().UnixNano()
 	m.UpdateStatusAndDamage()
 
-	if pass && m.PassPrior { // if players both pass in succession, do combat
+	if player == black {
+		m.BlackPublic.NumTurnsLeft--
+	} else {
+		m.WhitePublic.NumTurnsLeft--
+	}
+
+	if end || m.BlackPublic.NumTurnsLeft == 0 && m.WhitePublic.NumTurnsLeft == 0 {
 		board := &m.Board
 		InflictDamage(board, &m.WhitePublic, &m.BlackPublic)
 
@@ -1768,7 +1827,6 @@ func (m *Match) EndTurn(pass bool, player string) {
 		} else {
 			m.Turn = black
 		}
-		m.PassPrior = pass
 
 		m.WhitePrivate.SelectedCard = -1
 		m.BlackPrivate.SelectedCard = -1
@@ -1783,41 +1841,33 @@ func (m *Match) EndTurn(pass bool, player string) {
 	}
 }
 
-func drawCards(existing []Card, public *PublicState, devMode bool, maxRank int) []Card {
-	// remove vassal cards from existing hand
-	i := 0
-loop:
-	for ; i < len(existing); i++ {
-		switch existing[i].Name {
-		case king, bishop, knight, rook:
-		default:
-			break loop
-		}
-	}
-	existing = existing[i:]
-
+func drawCards(public *PublicState, devMode bool, maxRank int) []Card {
 	stock := []Card{}
 	if public.Bishop.HP > 0 && !public.BishopPlayed {
-		stock = append(stock, Card{bishop, bishopMana})
+		stock = append(stock, Card{bishop, bishopRank, vassalCard})
 	}
 	if public.Knight.HP > 0 && !public.KnightPlayed {
-		stock = append(stock, Card{knight, knightMana})
+		stock = append(stock, Card{knight, knightRank, vassalCard})
 	}
 	if public.Rook.HP > 0 && !public.RookPlayed {
-		stock = append(stock, Card{rook, rookMana})
+		stock = append(stock, Card{rook, rookRank, vassalCard})
 	}
 
 	additional := []Card{}
-	if !devMode {
-		diff := nCardsCap - len(stock) - len(existing)
-		if diff >= nCardsPerRound {
-			additional = randomCards(nCardsPerRound, maxRank)
-		} else if diff > 0 {
-			additional = randomCards(diff, maxRank)
+	if devMode {
+		additional = allCards
+	} else {
+		for i := 0; i < nSoldierCards; i++ {
+			card := soldierCards[rand.Intn(len(soldierCards))]
+			additional = append(additional, card)
+		}
+		for i := 0; i < nSoldierCards; i++ {
+			card := commandCards[rand.Intn(len(commandCards))]
+			additional = append(additional, card)
 		}
 	}
 
-	return append(append(stock, existing...), additional...)
+	return append(stock, additional...)
 }
 
 func randomCards(n int, maxRank int) []Card {
@@ -1831,10 +1881,6 @@ func randomCards(n int, maxRank int) []Card {
 		cards[i] = allCards[rand.Intn(cardPoolSize)]
 	}
 	return cards
-}
-
-func drawCommunalCards() []Card {
-	return []Card{}
 }
 
 func (m *Match) IsOpen() bool {
@@ -1962,7 +2008,7 @@ func (m *Match) processEvent(event string, player string, msg []byte) (notifyOpp
 			// Cheater could supress sending time_expired event from their client, but
 			// opponent also sends the event (and has interest to do so).
 			m.Log = append(m.Log, m.Turn+" passed")
-			m.EndTurn(true, m.Turn)
+			m.EndTurn(false, m.Turn)
 			newTurn = true
 			notifyOpponent = true
 		case kingPlacementPhase:
@@ -2013,7 +2059,7 @@ func (m *Match) processEvent(event string, player string, msg []byte) (notifyOpp
 				break // cannot pass when king has not been played
 			}
 			m.Log = append(m.Log, player+" passed")
-			m.EndTurn(true, player)
+			m.EndTurn(false, player)
 			newTurn = true
 			notifyOpponent = true
 		}
