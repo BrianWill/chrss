@@ -48,61 +48,61 @@ const (
 
 const (
 	castleCard               = "Castle"
-	castleMana               = 4
+	castleMana               = 2
 	reclaimVassalCard        = "Reclaim Vassal"
 	reclaimVassalMana        = 2
 	swapFrontLinesCard       = "Swap Front Lines"
-	swapFrontLinesMana       = 5
+	swapFrontLinesMana       = 2
 	removePawnCard           = "Remove Pawn"
-	removePawnMana           = 4
+	removePawnMana           = 1
 	forceCombatCard          = "Force Combat"
-	forceCombatMana          = 3
+	forceCombatMana          = 2
 	mirrorCard               = "Mirror"
-	mirrorMana               = 5
+	mirrorMana               = 3
 	healCard                 = "Heal"
-	healMana                 = 3
+	healMana                 = 1
 	healCardAmount           = 5
 	togglePawnCard           = "Toggle Pawn"
-	togglePawnMana           = 2
+	togglePawnMana           = 1
 	nukeCard                 = "Nuke"
-	nukeMana                 = 4
+	nukeMana                 = 2
 	nukeDamageFull           = 6
 	nukeDamageLesser         = 3
 	shoveCard                = "Shove"
-	shoveMana                = 3
+	shoveMana                = 1
 	advanceCard              = "Advance"
-	advanceMana              = 3
+	advanceMana              = 1
 	summonPawnCard           = "Summon Pawn"
-	summonPawnMana           = 3
+	summonPawnMana           = 2
 	vulnerabilityCard        = "Vulnerability"
-	vulnerabilityMana        = 3
+	vulnerabilityMana        = 1
 	vulnerabilityFactor      = 2
 	vulnerabilityDuration    = 1
 	amplifyCard              = "Amplify"
-	amplifyMana              = 2
+	amplifyMana              = 1
 	amplifyFactor            = 2
 	amplifyDuration          = 1
 	enrageCard               = "Enrage"
-	enrageMana               = 3
+	enrageMana               = 1
 	enrageDuration           = 1
 	dodgeCard                = "Dodge"
-	dodgeMana                = 3
+	dodgeMana                = 1
 	resurrectVassalCard      = "Resurrect Vassal"
-	resurrectVassalMana      = 5
+	resurrectVassalMana      = 3
 	resurrectVassalRestoreHP = 5
 	stunVassalCard           = "Stun Vassal"
-	stunVassalMana           = 5
+	stunVassalMana           = 2
 	stunVassalDuration       = 1
 	transparencyCard         = "Transparency"
-	transparencyMana         = 3
+	transparencyMana         = 2
 	transparencyDuration     = 1
 	armorCard                = "Armor"
-	armorMana                = 2
+	armorMana                = 1
 	armorAmount              = 2
 	dispellCard              = "Dispell"
-	dispellMana              = 2
+	dispellMana              = 1
 	poisonCard               = "Poison"
-	poisonMana               = 6
+	poisonMana               = 3
 	poisonAmount             = 2
 )
 
@@ -166,7 +166,7 @@ var allCards = []Card{
 	Card{resurrectVassalCard, resurrectVassalMana},
 }
 
-var cardManaCount []int // at index i, how many cards cost i mana or lower
+var cardRankCount []int // at index i, how many cards have rank i or lower
 
 type Phase string
 
@@ -174,11 +174,9 @@ const (
 	readyUpPhase       Phase = "readyUp"
 	mainPhase          Phase = "main"
 	kingPlacementPhase Phase = "kingPlacement"
-	reclaimPhase       Phase = "reclaim"
 	gameoverPhase      Phase = "gameover"
 )
 
-const maxReclaim = 2 // max number of pieces to reclaim at end of round
 const matchTimeout = 20 * int64(time.Minute)
 
 type Match struct {
@@ -228,30 +226,28 @@ type Board struct {
 
 // info a player doesn't want opponent to see
 type PrivateState struct {
-	Cards             []Card                `json:"cards"`
-	SelectedCard      int                   `json:"selectedCard"`  // index into cards slice
-	PlayableCards     []bool                `json:"playableCards"` // parallel to Cards
-	Highlights        [nColumns * nRows]int `json:"highlights"`
-	ReclaimSelections []Pos                 `json:"reclaimSelections"`
-	KingPos           *Pos                  `json:"kingPos"` // used in king placement (placed king is not revealed to opponent until main phase)
-	Other             *PrivateState         `json:"-"`
+	Cards         []Card                `json:"cards"`
+	SelectedCard  int                   `json:"selectedCard"`  // index into cards slice
+	PlayableCards []bool                `json:"playableCards"` // parallel to Cards
+	Highlights    [nColumns * nRows]int `json:"highlights"`
+	KingPos       *Pos                  `json:"kingPos"` // used in king placement (placed king is not revealed to opponent until main phase)
+	Other         *PrivateState         `json:"-"`
 }
 
 // individual player state that is visible to all
 type PublicState struct {
-	Ready                bool         `json:"ready"` // match does not start until both player's are ready
-	ReclaimSelectionMade bool         `json:"reclaimSelectionMade"`
-	King                 *Piece       `json:"king"` // exposed to JSON so as to correctly display king stats in king placement
-	Rook                 *Piece       `json:"rook"`
-	Knight               *Piece       `json:"knight"`
-	Bishop               *Piece       `json:"bishop"`
-	KingPlayed           bool         `json:"kingPlayed"`
-	BishopPlayed         bool         `json:"bishopPlayed"`
-	KnightPlayed         bool         `json:"knightPlayed"`
-	RookPlayed           bool         `json:"rookPlayed"`
-	NumPawns             int          `json:"numPawns"`
-	Color                string       `json:"color"`
-	Other                *PublicState `json:"-"` // convenient way of getting opponent
+	Ready        bool         `json:"ready"` // match does not start until both player's are ready
+	King         *Piece       `json:"king"`  // exposed to JSON so as to correctly display king stats in king placement
+	Rook         *Piece       `json:"rook"`
+	Knight       *Piece       `json:"knight"`
+	Bishop       *Piece       `json:"bishop"`
+	KingPlayed   bool         `json:"kingPlayed"`
+	BishopPlayed bool         `json:"bishopPlayed"`
+	KnightPlayed bool         `json:"knightPlayed"`
+	RookPlayed   bool         `json:"rookPlayed"`
+	NumPawns     int          `json:"numPawns"`
+	Color        string       `json:"color"`
+	Other        *PublicState `json:"-"` // convenient way of getting opponent
 }
 
 type Piece struct {

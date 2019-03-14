@@ -1275,29 +1275,6 @@ func (m *Match) clickBoard(player string, public *PublicState, private *PrivateS
 		}
 		newTurn = true
 		notifyOpponent = true
-	case reclaimPhase:
-		piece := getPieceSafe(p, board)
-		if piece != nil && piece.Color == player && !piece.isUnreclaimable() {
-			found := false
-			selections := private.ReclaimSelections
-
-			// unselect if already selected
-			for i, selection := range selections {
-				if selection == p {
-					selections = append(selections[:i], selections[i+1:]...)
-					highlightPosOn(p, private.Highlights[:])
-					found = true
-				}
-			}
-
-			// select if not already selected
-			if !found && len(selections) < maxReclaim {
-				highlightPosOn(p, private.Highlights[:])
-				selections = append(selections, p)
-			}
-
-			private.ReclaimSelections = selections
-		}
 	case kingPlacementPhase:
 		if public.KingPlayed {
 			break
@@ -1466,53 +1443,36 @@ func swapBoardIndex(i, j int, b *Board) {
 	}
 }
 
-func (m *Match) ReclaimPieces() {
-	board := &m.Board
-	for _, color := range []string{white, black} {
-		public, private := m.states(color)
-		if public.ReclaimSelectionMade {
-			for i, pos := range private.ReclaimSelections {
-				if i >= 2 {
-					break // in case more than two selections were sent, we ignore all but first two
-				}
-				p := getPieceSafe(pos, board)
-				if p != nil { // selection might be off the board or a square without a piece (todo: send error to client)
-					// if reclaiming a king or vassal, add card back to hand
-					// if reclaiming a rook, heal the rook
-					switch p.Name {
-					case king:
-						*public.King = board.PiecesActual[pos.getBoardIdx()]
-						removePieceAt(pos, board)
-						public.KingPlayed = false
-					case bishop:
-						*public.Bishop = board.PiecesActual[pos.getBoardIdx()]
-						removePieceAt(pos, board)
-						public.BishopPlayed = false
-					case knight:
-						*public.Knight = board.PiecesActual[pos.getBoardIdx()]
-						removePieceAt(pos, board)
-						public.KnightPlayed = false
-					case rook:
-						*public.Rook = board.PiecesActual[pos.getBoardIdx()]
-						removePieceAt(pos, board)
-						public.RookPlayed = false
-						public.Rook.HP += reclaimHealRook
-						if public.Rook.HP > rookHP {
-							public.Rook.HP = rookHP
-						}
-					case queen, jester:
-						removePieceAt(pos, board)
-					case pawn:
-						removePieceAt(pos, board)
-						public.NumPawns--
-					default:
-
-					}
+func ReclaimPieces(board *Board, whitePublic *PublicState, blackPublic *PublicState) {
+	for i, piece := range board.Pieces {
+		if piece != nil {
+			public := whitePublic
+			if piece.Color == black {
+				public = blackPublic
+			}
+			switch piece.Name {
+			case king:
+				*public.King = board.PiecesActual[i]
+				removePieceAt(positions[i], board)
+				public.KingPlayed = false
+			case bishop:
+				*public.Bishop = board.PiecesActual[i]
+				removePieceAt(positions[i], board)
+				public.BishopPlayed = false
+			case knight:
+				*public.Knight = board.PiecesActual[i]
+				removePieceAt(positions[i], board)
+				public.KnightPlayed = false
+			case rook:
+				*public.Rook = board.PiecesActual[i]
+				removePieceAt(positions[i], board)
+				public.RookPlayed = false
+				public.Rook.HP += reclaimHealRook
+				if public.Rook.HP > rookHP {
+					public.Rook.HP = rookHP
 				}
 			}
 		}
-		private.ReclaimSelections = nil
-		public.ReclaimSelectionMade = false
 	}
 }
 
@@ -1520,6 +1480,8 @@ func (m *Match) EndRound() {
 	m.LastMoveTime = time.Now().UnixNano()
 	m.Round++
 	m.Log = append(m.Log, "Round "+strconv.Itoa(m.Round))
+
+	ReclaimPieces(&m.Board, &m.WhitePublic, &m.BlackPublic)
 
 	if m.FirstTurnColor == black {
 		m.Turn = white
@@ -1543,47 +1505,26 @@ func (m *Match) EndRound() {
 	m.UpdateStatusAndDamage()
 	m.PlayableCards(&m.Board)
 
-	if m.WhitePublic.KingPlayed && m.BlackPublic.KingPlayed {
-		m.Phase = mainPhase
+	m.Phase = kingPlacementPhase
+	if m.WhiteAI {
+		public, private := m.states(white)
+		pos := kingPlacementAI(white, &m.Board)
+		private.KingPos = &pos
+		public.KingPlayed = true
+		m.Log = append(m.Log, "white played King")
 		highlightsOff(m.WhitePrivate.Highlights[:])
-		highlightsOff(m.BlackPrivate.Highlights[:])
-		if m.BlackAI && m.Turn == black {
-			playTurnAI(black, m)
-		} else if m.WhiteAI && m.Turn == white {
-			playTurnAI(white, m)
-		}
 	} else {
-		m.Phase = kingPlacementPhase
-		if m.WhitePublic.KingPlayed {
-			highlightsOff(m.WhitePrivate.Highlights[:])
-		} else {
-			if m.WhiteAI {
-				public, private := m.states(white)
-				pos := kingPlacementAI(white, &m.Board)
-				private.KingPos = &pos
-				public.KingPlayed = true
-				m.Log = append(m.Log, "white played King")
-				highlightsOff(m.WhitePrivate.Highlights[:])
-				m.EndKingPlacement()
-			} else {
-				dimAllButFree(white, &m.Board, m.WhitePrivate.Highlights[:])
-			}
-		}
-		if m.BlackPublic.KingPlayed {
-			highlightsOff(m.BlackPrivate.Highlights[:])
-		} else {
-			if m.BlackAI {
-				public, private := m.states(black)
-				pos := kingPlacementAI(black, &m.Board)
-				private.KingPos = &pos
-				public.KingPlayed = true
-				m.Log = append(m.Log, "black played King")
-				highlightsOff(m.BlackPrivate.Highlights[:])
-				m.EndKingPlacement()
-			} else {
-				dimAllButFree(black, &m.Board, m.BlackPrivate.Highlights[:])
-			}
-		}
+		dimAllButFree(white, &m.Board, m.WhitePrivate.Highlights[:])
+	}
+	if m.BlackAI {
+		public, private := m.states(black)
+		pos := kingPlacementAI(black, &m.Board)
+		private.KingPos = &pos
+		public.KingPlayed = true
+		m.Log = append(m.Log, "black played King")
+		highlightsOff(m.BlackPrivate.Highlights[:])
+	} else {
+		dimAllButFree(black, &m.Board, m.BlackPrivate.Highlights[:])
 	}
 }
 
@@ -1818,25 +1759,9 @@ func (m *Match) EndTurn(pass bool, player string) {
 		InflictDamage(board, &m.WhitePublic, &m.BlackPublic)
 
 		if !m.checkWinCondition() {
-			m.Phase = reclaimPhase
 			tickdownStatusEffects(false, board)
-			m.BlackPrivate.dimAllButPieces(black, board)
-			m.WhitePrivate.dimAllButPieces(white, board)
-			m.BlackPrivate.dimUnreclaimable(board)
-			m.WhitePrivate.dimUnreclaimable(board)
-
-			if m.BlackAI {
-				m.BlackPrivate.ReclaimSelections = pickReclaimAI(black, board)
-				m.BlackPublic.ReclaimSelectionMade = true
-			}
-			if m.WhiteAI {
-				m.WhitePrivate.ReclaimSelections = pickReclaimAI(white, board)
-				m.WhitePublic.ReclaimSelectionMade = true
-			}
+			m.EndRound()
 		}
-
-		// with some blocking pieces possibly removed, status and lines of attack may change
-		m.UpdateStatusAndDamage()
 	} else {
 		if m.Turn == black {
 			m.Turn = white
@@ -1897,10 +1822,10 @@ loop:
 
 func randomCards(n int, maxRank int) []Card {
 	idx := maxRank
-	if idx >= len(cardManaCount) {
-		idx = len(cardManaCount) - 1
+	if idx >= len(cardRankCount) {
+		idx = len(cardRankCount) - 1
 	}
-	cardPoolSize := cardManaCount[idx]
+	cardPoolSize := cardRankCount[idx]
 	cards := make([]Card, n)
 	for i := range cards {
 		cards[i] = allCards[rand.Intn(cardPoolSize)]
@@ -2023,32 +1948,6 @@ func (m *Match) processEvent(event string, player string, msg []byte) (notifyOpp
 				m.LastMoveTime = time.Now().UnixNano()
 			}
 			notifyOpponent = true
-		}
-	case "reclaim_time_expired":
-		switch m.Phase {
-		case reclaimPhase:
-			turnElapsed := time.Now().UnixNano() - m.LastMoveTime
-			remainingTurnTime := m.TurnTimer - turnElapsed
-			if remainingTurnTime > 0 {
-				break // ignore if time hasn't actually expired
-			}
-			m.ReclaimPieces()
-			m.EndRound()
-			notifyOpponent = true
-		}
-	case "reclaim_done":
-		switch m.Phase {
-		case reclaimPhase:
-			public.ReclaimSelectionMade = true
-			// if other player already has a reclaim selection, then we move on to next round
-			if (player == black && m.WhitePublic.ReclaimSelectionMade) ||
-				(player == white && m.BlackPublic.ReclaimSelectionMade) {
-				m.ReclaimPieces()
-				m.EndRound()
-				notifyOpponent = true
-			} else {
-				notifyOpponent = true
-			}
 		}
 	case "time_expired":
 		switch m.Phase {

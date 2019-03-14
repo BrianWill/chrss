@@ -271,19 +271,19 @@ func main() {
 		panic("allCards should not be empty")
 	}
 
-	manaCost := 0
+	rank := 0
 	i := 0
 	for i < len(allCards) {
 		card := allCards[i]
-		if card.Rank > manaCost {
-			cardManaCount = append(cardManaCount, i)
-			manaCost++
+		if card.Rank > rank {
+			cardRankCount = append(cardRankCount, i)
+			rank++
 		} else {
 			i++
 		}
 	}
-	cardManaCount = append(cardManaCount, i)
-	fmt.Println("cardManaCount", cardManaCount)
+	cardRankCount = append(cardRankCount, i)
+	fmt.Println("cardRankCount", cardRankCount)
 
 	liveMatches := NewMatchMap()
 	{
