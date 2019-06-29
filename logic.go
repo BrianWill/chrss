@@ -1802,7 +1802,7 @@ func (p *PrivateState) dimUnreclaimable(board *Board) {
 	}
 }
 
-// pass = if turn is ending by passing; player = color whose turn is ending
+// end = force end round; player = color whose turn is ending
 func (m *Match) EndTurn(end bool, player string) {
 	m.LastMoveTime = time.Now().UnixNano()
 	m.UpdateStatusAndDamage()

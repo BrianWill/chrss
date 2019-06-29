@@ -110,7 +110,7 @@ func fmtDuration(d time.Duration) string {
 	m := d / time.Minute
 	s := ""
 	if h > 0 {
-		s += strconv.Itoa(int(h)) + " hrs "
+		s = strconv.Itoa(int(h)) + " hrs "
 	}
 	s += strconv.Itoa(int(m)) + " min"
 	return s
@@ -255,21 +255,16 @@ func timeTrack(start time.Time, name string) {
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
-
 	port := os.Getenv("PORT")
-
 	if port == "" {
 		log.Fatal("$PORT must be set")
 	}
-
 	sort.Slice(allCards, func(i, j int) bool {
 		return allCards[i].Rank < allCards[j].Rank
 	})
-
 	if len(allCards) == 0 {
 		panic("allCards should not be empty")
 	}
-
 	rank := 0
 	i := 0
 	for i < len(allCards) {
@@ -283,7 +278,6 @@ func main() {
 	}
 	cardRankCount = append(cardRankCount, i)
 	fmt.Println("cardRankCount", cardRankCount)
-
 	liveMatches := NewMatchMap()
 	{
 		x := 0
@@ -298,7 +292,6 @@ func main() {
 		}
 	}
 	users := NewUserMap()
-
 	router := gin.New()
 	router.Use(gin.Logger())
 	router.LoadHTMLGlob("templates/*.tmpl")

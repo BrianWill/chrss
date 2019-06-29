@@ -112,9 +112,6 @@ const (
 )
 const reclaimHealRook = 5
 
-const defaultInstruction = "Pick a card to play or pass."
-const kingInstruction = "Pick a square to place your king."
-
 const nColumns = 6
 const nRows = 6
 

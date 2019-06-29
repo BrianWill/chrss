@@ -1,10 +1,15 @@
-
+remove 'unreclaimable' status (because what would happen if you can't play four cards in next round?)
 
 for turn timeout, randomly play card rather than 'passing'
-what to do when player has no card they can use?
+
+if player still must place vassals and/or soldier but board is full, then they can place the piece 
+    in place of one of their soldier pieces on the board
+
+at start of player's turn, if player hasn't yet used a command this round but no spell 
+    card can be played, one command is discarded at random and a useable command card drawn
 
 
-max number of pieces? playing card would require replacing existing non-king/vassal piece
+max number of soldier pieces on board? playing card would require replacing existing soldier piece on board
 
 
 
@@ -15,10 +20,9 @@ consolidate playablecards and canplaycard
 account for rank in card draws
 
 
-
-
-
 in status info, show sources of damage
+
+when hovering over piece, highlight its attack pattern
 
 
 can playCard and playCardTemp be consolidated (pass in board/pieces explicitly and flag)?
@@ -114,6 +118,96 @@ card ideas:
 
 
 
+    piece - heals directly behind, directly behind left, and directly behind right
+    pope - like bishop, but heals (allies and enemies) in diagonal directions
+    cardinal - heals (allies and enemies) in cardinal directions
+    piece - hits all enemies/allies in back rows (of both sides)
+    piece - stuns all pieces in one square distance
+    piece - hits every enemy/ally on board for low dmg; even hits self and 
+        has low health, so will kill self after a few turns
+    
+    creeper - does no dmg; medium hit points; roams to random free adjacent space after combat
+
+    trebuchet - damages every enemy and ally in its column (except itself)
+
+
+    moat - takes up a square, blocking attacks; high hp; disappears after 3 combats
+
+    pikeman - hits two squares in front of itself; both squares hit regardless of blocking; low dmg; medium hp
+
+    burning oil - hits whole enemy front row; does no dmg in round when played; disappears after second combat; low hp
+
+    siege tower - placed only on your front line; when on board, can play other pieces on enemy's front line;
+        disappears after two rounds of combat
+
+    pestilence - placed on enemy side; hits all units in two square radius for low damage
+
+    supply line - placed in mid row; boosts attack power of all units in front row by 2; low hp
+
+    shield guard - does low dmg to unit directly in front; gives a point of armour to allies on left, right, and behind
+
+    arquebusier - attacks straight ahead but in column immediately to its right (from player's perspective)
+
+    archer - hits first piece that is 2+ squares in front of it; cannot hit enemy back row from own back row; 
+        attack goes over any obstacles
+
+    elephant - advances one square after combat; pushing aside any piece in its path; a pushed 
+        piece that cannot move to random adjacent square is killed; no attack, but high hp
+
+    body double - plant a king with 50% chance to swap places with real king 
+        (opponent can't see which is real); false king lasts only for the round; false king does no damage
+
+    under bishop - a smaller, weaker bishop that has range of 3 and low attack/hp
+
+    under knight - a smaller, weaker knight that has normal knight attack pattern but low attack/hp
+
+    under rook - a smaller, weaker rook that has range of 3 and low attack/hp
+
+    calvary - attacks one square directly forward and one square directly to sides; 
+        advances one square forward (if not blocked) at end of every round (after combat)
+        (once reaches enemy backline, will vanish off board when it advances once more)
+
+    brawler - hits in all directions; after combat, takes spot of adjacent enemy that just dies 
+        (if more than one, the spot is picked at random from those that died)
+
+    pope - diagonal attack like a Bishop, but instead of attack, heals allies 
+        (and enemies?) in combat resolution (before damage is inflicted)?
+
+    time bomb - can be placed on enemy side; has medium/low hp; if not killed, after 3 rounds, it   
+        detonates after combat, hitting everything adjacent for big damage
+
+    APOTHECARY -
+
+    SPY - placed on enemy side; attacks one square in cardinal directions; disarmed for one round; 
+        damaged by ally attacks
+
+    MESSENGER -  
+
+    MINSTREL - 
+
+    SQUIRE - buffs attack and armour of adjacent ally vassals
+
+    WATCHMAN - 
+
+    Viscount
+
+    Baron - 
+
+    Prince - 
+
+    Marquess - 
+
+    Duke - 
+
+    Falconer - attacks all enemies two squares away in diagonal directions (attack is not blocked)
+
+
+
+
+
+
+    lock cards - lock 2 random, non-vassal cards in the enemy's hand for two rounds
+
     wrapped targeting - a piece modified such that attacks wrap around board like pacman 
         (but also becomes vulnerable to wrapped attacks?)
 
@@ -170,17 +264,6 @@ card ideas:
 
 
 
-    terbuchet - damages every enemy and ally in its column (except itself)
-
-    lock cards - lock 2 random, non-vassal cards in the enemy's hand for two rounds
-
-    body double - plant a king with 50% change to swap places with real king (opponent can't see which is real); false king lasts only for the round; false king does no damage
-
-    shitty bishop - a smaller, weaker bishop that has range of 3 and half attack/hp
-
-    long knight - a smaller, weaker knight that has range of 3 instead of 2 and half attack/hp
-
-    shitty rook - a smaller, weaker rook that has range of 3 and half attack/hp
 
     
 
@@ -200,8 +283,7 @@ card ideas:
     hp aura - heals after combat, all adjacent pieces (including enemies?)
     attack aura - buff attack " " " " "
 
-    time bomb - convert an allied pawn into a bomb: the bomb has 20hp and no attack, after 3 rounds, it   
-        detonates, hitting everything adjacent for big damage (the bomb counts as a pawn for spawning purposes)
+    
 
 
 
